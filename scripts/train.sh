@@ -25,6 +25,7 @@ else
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 MODEL_NAME="$1"
 EXP_NAME="$2"
 DATA_DIR="$3"
@@ -33,21 +34,21 @@ if [ -f "$CONFIG" ]; then
   echo "[INFO] Using config file: $CONFIG"
   source "$CONFIG"
   shift 4
-elif [ -f "$SCRIPT_DIR/config/$CONFIG.sh" ]; then
-  echo "[INFO] Using config file from script directory: $SCRIPT_DIR/config/$CONFIG.sh"
-  source "$SCRIPT_DIR/config/$CONFIG.sh"
+elif [ -f "$CONFIG_DIR/$CONFIG.sh" ]; then
+  echo "[INFO] Using config file from script directory: $CONFIG_DIR/$CONFIG.sh"
+  source "$CONFIG_DIR/$CONFIG.sh"
   shift 4
 else
-  if [ -f "$SCRIPT_DIR/config/$MODEL_NAME.sh" ]; then
+  if [ -f "$CONFIG_DIR/$MODEL_NAME.sh" ]; then
       echo "[INFO] Using config file $MODEL_NAME.sh"
-      source "$SCRIPT_DIR/config/$MODEL_NAME.sh"
+      source "$CONFIG_DIR/$MODEL_NAME.sh"
   else
       echo "[INFO] No config file found"
       CONFIG=()
   fi
   shift 3
 fi
-source "$SCRIPT_DIR/config/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
+source "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
 
 ARGS=()
 DATA_ARGS=()
