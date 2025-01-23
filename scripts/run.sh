@@ -3,46 +3,50 @@ set -e
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function show_help {
-    echo "Usage: $0 <input_path> [options] [contexts] [args...]"
-    echo
-    echo "This script automates a multi-step 3D reconstruction workflow:"
-    echo "1. Optional video extraction using ffmpeg (video context)"
-    echo "2. Structure-from-Motion (SfM) using sfm.sh (sfm context)"
-    echo "3. Data processing using ns-process-data (global context)"
-    echo "4. Training using train.sh (train context)"
-    echo "5. Mesh export using ns-extract-mesh (export context)"
-    echo
-    echo "Options:"
-    echo "  --show      Show COLMAP GUI after SfM completes"
-    echo "  --verbose   Enable verbose output"
-    echo "  --help      Show this help message and exit"
-    echo
-    echo "Contexts:"
-    echo "  video [...args]    Additional arguments for ffmpeg.sh. Call ffmpeg.sh for more information."
-    echo "  sfm [...args]      Additional arguments for sfm.sh. Call sfm.sh for more information."
-    echo "  train [...args]    Additional arguments for train.sh:"
-    echo "                       --model <model>     Model name (default: neus)"
-    echo "                       --config <config>   Configuration file or name (default: neus-grid-dev)"
-    echo "  export [...args]   Additional arguments for the mesh export:"
-    echo "                       --resolution <value>             Resolution of the exported mesh (default: 1024)"
-    echo "                       --bounding-box-min/max <x y z>   Bounding box for the exported mesh (default: +-1)"
-    echo
-    echo "Examples:"
-    echo "  $0 /path/to/images --show sfm --camera_model OPENCV"
-    echo "  $0 /path/to/video.mp4 video --fps 1 sfm --use_glomap train --config neus-grid-fast"
-    exit 0
+  echo "Usage: $0 <input_path> [options] [contexts] [args...]"
+  echo
+  echo "This script automates a multi-step 3D reconstruction workflow:"
+  echo "1. Optional video extraction using ffmpeg (video context)"
+  echo "2. Structure-from-Motion (SfM) using sfm.sh (sfm context)"
+  echo "3. Data processing using ns-process-data (global context)"
+  echo "4. Training using train.sh (train context)"
+  echo "5. Mesh export using ns-extract-mesh (export context)"
+  echo
+  echo "Options:"
+  echo "  --show      Show COLMAP GUI after SfM completes"
+  echo "  --verbose   Enable verbose output"
+  echo "  --help      Show this help message and exit"
+  echo
+  echo "Contexts:"
+  echo "  video [...args]    Additional arguments for ffmpeg.sh. Call ffmpeg.sh for more information."
+  echo "  sfm [...args]      Additional arguments for sfm.sh. Call sfm.sh for more information."
+  echo "  train [...args]    Additional arguments for train.sh:"
+  echo "                       --model <model>     Model name (default: neus)"
+  echo "                       --config <config>   Configuration file or name (default: neus-grid-dev)"
+  echo "  export [...args]   Additional arguments for the mesh export:"
+  echo "                       --resolution <value>                Resolution of the exported mesh (default: 1024)"
+  echo "                       --bounding-box-min/max <x y z>      Bounding box for the exported mesh (default: +-1)"
+  echo "                       --marching-cube-threshold <value>   Isosurface value (default: 0.0)"
+  echo "                       --px-per-uv-triangle <value>        Pixels per UV triangle (default: 4)"
+  echo "                       --num-pixels-per-side <value>       Pixels per side (default: 2048)"
+  echo "                       --target-num-faces <value>          Target number of faces (default: 50_000)"
+  echo
+  echo "Examples:"
+  echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL"
+  echo "  $0 /path/to/video.mp4 video --fps 1 sfm --use_glomap train --config neus-facto-fast --vis wandb"
+  exit 0
 }
 
 # Check if no arguments are provided
 if [ $# -eq 0 ]; then
-    show_help
+  show_help
 fi
 
 # Check if user wants help early
 for arg in "$@"; do
-    if [ "$arg" == "--help" ]; then
-        show_help
-    fi
+  if [ "$arg" == "--help" ]; then
+    show_help
+  fi
 done
 
 input_path="$1"
@@ -132,7 +136,7 @@ while [ $# -gt 0 ]; do
       case "$current_context" in
         global) global_args+=("$1");;
         video) video_args+=("$1");;
-        sfm)   sfm_args+=("$1");;
+        sfm) sfm_args+=("$1");;
         train) train_args+=("$1");;
         export) export_args+=("$1");;
       esac
@@ -199,15 +203,52 @@ echo "============================="
 echo "          4. TRAIN           "
 echo "============================="
 
-echo "Train args: ${train_args[*]}"
 name=$(basename "$input_dir")
 timestamp=$(date +"%Y-%m-%d_%H%M%S")
-"$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp "$timestamp"
+if ! [ -d "$input_dir/train/$name/$model" ] || [ "$overwrite" = true ]; then
+  echo "Train args: ${train_args[*]}"
+  "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp "$timestamp"
+fi
 
 echo "============================="
 echo "         5. EXPORT           "
 echo "============================="
 
 echo "Export args: ${export_args[*]}"
-config_path="$input_dir/train/$name/neus/$timestamp/config.yml"
-ns-extract-mesh --load-config "$config_path" "${export_args[@]}"
+extract_args=()
+texture_args=()
+for arg in "${export_args[@]}"; do
+  case "$arg" in
+    --resolution|--bounding-box-min|--bounding-box-max|--marching-cube-threshold)
+      extract_args+=("$arg")
+      ;;
+    --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces)
+      texture_args+=("$arg")
+      ;;
+  esac
+done
+
+config_path="$input_dir/train/$name/$model/$timestamp/config.yml"
+if [ -f "$config_path" ]; then
+  if  ! [ -f "$input_dir/mesh.ply" ] || [ "$overwrite" = true ]; then
+    echo "Extracting mesh with: ${extract_args[*]}"
+    ns-extract-mesh \
+      --load-config "$config_path" \
+      --output-path "$input_dir/mesh.ply" \
+      "${extract_args[@]}"
+  fi
+  if [ -f "$input_dir/mesh.ply" ]; then
+    echo "Texturing mesh with: ${texture_args[*]}"
+    ns-texture-mesh \
+      --load-config "$config_path" \
+      --output-dir "$input_dir" \
+      --input-mesh-filename "$input_dir/mesh.ply" \
+      "${texture_args[@]}"
+  else
+    echo "[ERROR] Mesh file $input_dir/mesh.ply not found"
+    exit 1
+  fi
+else
+  echo "[ERROR] Config file $config_path not found"
+  exit 1
+fi

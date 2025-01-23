@@ -23,7 +23,7 @@ DEFAULTS=(
   # --pipeline.model.sdf-field.use-reflections True
   # --pipeline.model.sdf-field.use-n-dot-v True
   # --pipeline.model.sdf-field.off-axis True
-  --vis wandb
+  --vis tensorboard
 )
 
 DATA_DEFAULTS=(

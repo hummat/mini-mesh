@@ -2,9 +2,9 @@
 set -e
 
 if [ $# -lt 3 ]; then
-    echo "ERROR: Missing required arguments"
-    echo "Usage: $0 MODEL_NAME EXP_NAME DATA_DIR [CONFIG] [additional args...]"
-    exit 1
+  echo "ERROR: Missing required arguments"
+  echo "Usage: $0 MODEL_NAME EXP_NAME DATA_DIR [CONFIG] [additional args...]"
+  exit 1
 fi
 
 start_time="$(date +%s)"
@@ -18,10 +18,10 @@ echo "Python version:    $(python -c 'import sys; print(sys.version)')"
 echo "pip version:       $(pip --version)"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
-    nvidia-smi
+  nvidia-smi
 else
-    echo "[ERROR] nvidia-smi not found, unable to display GPU status."
-    exit 1
+  echo "[ERROR] nvidia-smi not found, unable to display GPU status."
+  exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
