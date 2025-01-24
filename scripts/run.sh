@@ -204,10 +204,9 @@ echo "          4. TRAIN           "
 echo "============================="
 
 name=$(basename "$input_dir")
-timestamp=$(date +"%Y-%m-%d_%H%M%S")
 if ! [ -d "$input_dir/train/$name/$model" ] || [ "$overwrite" = true ]; then
   echo "Train args: ${train_args[*]}"
-  "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp "$timestamp"
+  "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp ""
 fi
 
 echo "============================="
@@ -228,7 +227,7 @@ for arg in "${export_args[@]}"; do
   esac
 done
 
-config_path="$input_dir/train/$name/$model/$timestamp/config.yml"
+config_path="$input_dir/train/$name/$model/config.yml"
 if [ -f "$config_path" ]; then
   if  ! [ -f "$input_dir/mesh.ply" ] || [ "$overwrite" = true ]; then
     echo "Extracting mesh with: ${extract_args[*]}"
