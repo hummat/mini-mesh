@@ -78,9 +78,29 @@ The keywords `video`, `sfm`, `train` and `export` are sub-commands that can be u
 Steps that have already been completed are skipped by default unless `--overwrite` is specified.
 The final mesh can be found next to the input video or images you provided.
 
-If you have less VRAM, e.g. 12GB, add the following to the `train` sub-command:
-```bash
-  --pipeline.model.eval-num-rays-per-chunk 2048
-  --pipeline.datamanager.train-num-rays-per-batch 2048
-  --pipeline.datamanager.eval-num-rays-per-batch 2048
-```
+## Troubleshooting
+
+1. **_CUDA out of memory_:**
+   If you have less than 24 GB of VRAM, e.g. 12GB, add the following to the `train` sub-command:
+   ```bash
+     --pipeline.model.eval-num-rays-per-chunk 2048
+     --pipeline.datamanager.train-num-rays-per-batch 2048
+     --pipeline.datamanager.eval-num-rays-per-batch 2048
+   ```
+   Decrease these values appropriately based on your available VRAM. You might also want to decrease the image resolution
+   if your images are larger than 1080p. Try adding `--downscale-factor 2` to the `train` sub-command.
+2. **Few or no camera poses are estimated during the SfM step:**
+   Try adding the following arguments to the `sfm` sub-command in the following order:
+   1. `--matcher exhaustive`: Use the exhaustive matcher instead of the default sequential matcher.
+   2. `--use_glomap`: Use GLOMAP instead of COLMAP.
+   3. `--extra`: Sets some extra flags for the SfM step that can help with difficult cases but without GPU support.
+   4. `--method hloc`: Use the HLoc toolbox that relies on deep learning features for matching.
+3. **Training does not converge:**
+   Try setting the following arguments of the `train` sub-command:
+   1. `--pipeline.model.far-plane 10`: Doubles the maximum distance between the camera and the object.
+   2. `--model neus-facto-dev`: Use the `neus-facto` instead of the `neus-grid` model.
+4. **The final mesh is too small or not detailed enough:**
+   Your object of interest should fill a bounding box of +/-1. If your it is very small or you are far away during the 
+   image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
+
+## FAQ

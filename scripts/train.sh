@@ -54,7 +54,7 @@ ARGS=()
 DATA_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --downscale-factor|--scale-factor|--center-method|--orientation-method|--train-split-fraction)
+    --downscale-factor|--scale-factor|--center-method|--auto-scale-poses|--orientation-method|--train-split-fraction)
       DATA_ARGS+=("$1")
       shift
       if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then

@@ -2,7 +2,7 @@
 CONFIG=(
   --trainer.max-num-iterations 100001
   --pipeline.model.near-plane 1
-  --pipeline.model.far-plane 3
+  --pipeline.model.far-plane 5
   --pipeline.model.sdf-field.num-layers 2
   --pipeline.model.sdf-field.num-layers-color 2
   # --pipeline.model.sdf-field.hidden-dim 512

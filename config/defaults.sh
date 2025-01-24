@@ -28,9 +28,10 @@ DEFAULTS=(
 
 DATA_DEFAULTS=(
   --downscale-factor 1
-  --scale-factor 2
+  --scale-factor 2.5
   --center-method focus
   --orientation-method vertical
+  --auto-scale-poses median
   --train-split-fraction 0.95
   # --use-all-train-images True
 )

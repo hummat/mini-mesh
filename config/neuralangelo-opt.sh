@@ -2,7 +2,7 @@
 CONFIG=(
   --pipeline.model.steps-per-level 1000
   --pipeline.model.near-plane 1
-  --pipeline.model.far-plane 3
+  --pipeline.model.far-plane 5
   --pipeline.model.curvature-loss-multi 0  # Disable curvature loss
   --pipeline.model.curvature-loss-warmup-steps 1000
   --pipeline.model.sdf-field.num-layers 2
