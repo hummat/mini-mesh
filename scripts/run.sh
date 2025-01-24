@@ -22,6 +22,7 @@ function show_help {
   echo "  sfm [...args]      Additional arguments for sfm.sh. Call sfm.sh for more information."
   echo "  train [...args]    Additional arguments for train.sh:"
   echo "                       --model <model>     Model name (default: neus)"
+  echo "                       --name <name>       Experiment name (default: input directory name)"
   echo "                       --config <config>   Configuration file or name (default: neus-grid-dev)"
   echo "  export [...args]   Additional arguments for the mesh export:"
   echo "                       --resolution <value>                Resolution of the exported mesh (default: 1024)"
@@ -213,7 +214,8 @@ echo "============================="
 echo "          4. TRAIN           "
 echo "============================="
 
-if ! [ -d "$input_dir/train/$name/$model" ] || [ "$overwrite" = true ]; then
+exp_path="$input_dir/train/$name/$model"
+if ! [ -d "$exp_path" ] || [ "$overwrite" = true ]; then
   echo "Train args: ${train_args[*]}"
   "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp ""
 fi
@@ -236,27 +238,26 @@ for arg in "${export_args[@]}"; do
   esac
 done
 
-config_path="$input_dir/train/$name/$model/config.yml"
-if [ -f "$config_path" ]; then
-  if  ! [ -f "$input_dir/mesh.ply" ] || [ "$overwrite" = true ]; then
+if [ -f "$exp_path/config.yaml" ]; then
+  if  ! [ -f "$exp_path/mesh.ply" ] || [ "$overwrite" = true ]; then
     echo "Extracting mesh with: ${extract_args[*]}"
     ns-extract-mesh \
-      --load-config "$config_path" \
-      --output-path "$input_dir/mesh.ply" \
+      --load-config "$exp_path/config.yaml" \
+      --output-path "$exp_path/mesh.ply" \
       "${extract_args[@]}"
   fi
-  if [ -f "$input_dir/mesh.ply" ]; then
+  if [ -f "$exp_path/mesh.ply" ]; then
     echo "Texturing mesh with: ${texture_args[*]}"
     ns-texture-mesh \
-      --load-config "$config_path" \
-      --output-dir "$input_dir" \
-      --input-mesh-filename "$input_dir/mesh.ply" \
+      --load-config "$exp_path/config.yaml" \
+      --output-dir "$exp_path" \
+      --input-mesh-filename "$exp_path/mesh.ply" \
       "${texture_args[@]}"
   else
-    echo "[ERROR] Mesh file $input_dir/mesh.ply not found"
+    echo "[ERROR] Mesh file $exp_path/mesh.ply not found"
     exit 1
   fi
 else
-  echo "[ERROR] Config file $config_path not found"
+  echo "[ERROR] Config file $exp_path/config.yaml not found"
   exit 1
 fi
