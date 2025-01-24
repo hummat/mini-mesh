@@ -238,18 +238,18 @@ for arg in "${export_args[@]}"; do
   esac
 done
 
-if [ -f "$exp_path/config.yaml" ]; then
-  if  ! [ -f "$exp_path/mesh.ply" ] || [ "$overwrite" = true ]; then
+if [ -f "$exp_path/config.yml" ]; then
+  if ! [ -f "$exp_path/mesh.ply" ] || [ "$overwrite" = true ]; then
     echo "Extracting mesh with: ${extract_args[*]}"
     ns-extract-mesh \
-      --load-config "$exp_path/config.yaml" \
+      --load-config "$exp_path/config.yml" \
       --output-path "$exp_path/mesh.ply" \
       "${extract_args[@]}"
   fi
   if [ -f "$exp_path/mesh.ply" ]; then
     echo "Texturing mesh with: ${texture_args[*]}"
     ns-texture-mesh \
-      --load-config "$exp_path/config.yaml" \
+      --load-config "$exp_path/config.yml" \
       --output-dir "$exp_path" \
       --input-mesh-filename "$exp_path/mesh.ply" \
       "${texture_args[@]}"
@@ -258,6 +258,6 @@ if [ -f "$exp_path/config.yaml" ]; then
     exit 1
   fi
 else
-  echo "[ERROR] Config file $exp_path/config.yaml not found"
+  echo "[ERROR] Config file $exp_path/config.yml not found"
   exit 1
 fi
