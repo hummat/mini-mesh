@@ -70,6 +70,7 @@ overwrite=false
 current_context=global
 sfm_method=colmap
 model=neus
+name=$(basename "$input_dir")
 config=neus-grid-dev
 
 while [ $# -gt 0 ]; do
@@ -120,6 +121,15 @@ while [ $# -gt 0 ]; do
         shift 2
       else
         echo "Error: --model can only be used with the train context"
+        exit 1
+      fi
+      ;;
+    --name)
+      if [ "$current_context" = "train" ]; then
+        name="$2"
+        shift 2
+      else
+        echo "Error: --name can only be used with the train context"
         exit 1
       fi
       ;;
@@ -203,7 +213,6 @@ echo "============================="
 echo "          4. TRAIN           "
 echo "============================="
 
-name=$(basename "$input_dir")
 if ! [ -d "$input_dir/train/$name/$model" ] || [ "$overwrite" = true ]; then
   echo "Train args: ${train_args[*]}"
   "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp ""
