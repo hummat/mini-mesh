@@ -119,6 +119,7 @@ while [ $# -gt 0 ]; do
     --model)
       if [ "$current_context" = "train" ]; then
         model="$2"
+        config="$2"
         shift 2
       else
         echo "Error: --model can only be used with the train context"
