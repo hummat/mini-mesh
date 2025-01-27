@@ -6,7 +6,7 @@ Create detailed, textured 3D meshes of objects like tabletop miniatures from a s
 If you already have Docker installed and an NVIDIA GPU with at least 24GB of VRAM you can start immediately by running the following command with default settings:
 
 ```bash
-./docker/run.sh /path/to/your/video/or/images`
+docker/run.sh /path/to/your/video/or/images`
 ```
 
 This will download the pre-built Docker image from Docker Hub and run the `mini-mesh` pipeline on your video or images.
@@ -61,8 +61,8 @@ Add `--help` to see all available options. Please consult the [**Usage**](#usage
 
 Once installed, running the pipeline with default settings only requires a single command:
 
-* **docker:** Run `./docker/run.sh /path/to/your/video/or/images`
-* **manual:** Activate your Python environment and run `./scripts.run.sh /path/to/your/video/or/images`
+* **docker:** Run `docker/run.sh /path/to/your/video/or/images`
+* **manual:** Activate your Python environment and run `scripts/run.sh /path/to/your/video/or/images`
 
 Add `--help` to see all available options. The pipeline performs the following 5 steps sequentially:
 1. **Extract frames (video)** from the input video (if the input is a video)
@@ -70,13 +70,20 @@ Add `--help` to see all available options. The pipeline performs the following 5
 3. **Process the data** to prepare for the training
 4. **Reconstruct the 3D mesh (train)** using a neural surface reconstruction deep learning model.
 5. **Extract and texture (export)** the mesh.
-6. 
+
 The keywords `video`, `sfm`, `train` and `export` are sub-commands that can be used to pass arguments to a specific step, e.g.:
 ```bash
-./docker/run.sh /path/to/your/video/or/images video --fps 1 sfm --use_glomap train --config neus-facto-fast --vis wandb
+docker/run.sh /path/to/your/video/or/images video --fps 1 sfm --use_glomap train --config neus-facto-fast --vis wandb
 ```
 Steps that have already been completed are skipped by default unless `--overwrite` is specified.
 The final mesh can be found next to the input video or images you provided.
+
+### Final Touches
+
+For optimal results, you can further improve the final mesh by using a 3D modeling software like Blender. Simply open the
+reconstructed `mesh.ply` file and remove any unwanted parts or artifacts. You can also apply smoothing, hole filling, etc.
+but don't rotate, translate or scale the mesh as this will break the texture mapping. Save your edits and rerun the
+the pipeline which will use the edited mesh as input for the simplification and texturing step.
 
 ## Troubleshooting
 
@@ -97,10 +104,31 @@ The final mesh can be found next to the input video or images you provided.
    4. `--method hloc`: Use the HLoc toolbox that relies on deep learning features for matching.
 3. **Training does not converge:**
    Try setting the following arguments of the `train` sub-command:
-   1. `--pipeline.model.far-plane 10`: Doubles the maximum distance between the camera and the object.
-   2. `--model neus-facto-dev`: Use the `neus-facto` instead of the `neus-grid` model.
+   1. `--pipeline.model.far-plane 0.1` and/or `--pipeline.model.far-plane 10`: Increases reconstruction volume.
+   2. `--model neus-facto --config neus-facto-dev`: Use the `neus-facto` instead of the `neus` model.
 4. **The final mesh is too small or not detailed enough:**
    Your object of interest should fill a bounding box of +/-1. If your it is very small or you are far away during the 
    image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
+5. **Weakly textured, reflective and/or transparent surfaces are not well reconstructed:**
+   These are all challenging cases for any reconstruction pipeline. Weakly textured surfaces can lead to inaccurate
+   camera poses in the SfM step. You can try to learn improved poses during training using:
+   ```bash
+      --pipeline.datamanager.camera-optimizer.mode SO3xR3
+      --pipeline.datamanager.camera-optimizer.optimizer.weight-decay 0
+      # Adjust these values based on your general training config
+      --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
+      --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
+      --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
+   ```
+   For reflective surfaces you can try enabling the improvements proposed in RefNerf [1]:
+   ```bash
+      --pipeline.model.sdf-field.use-diffuse-color True
+      --pipeline.model.sdf-field.use-specular-tint True
+      --pipeline.model.sdf-field.use-reflections True
+      --pipeline.model.sdf-field.use-n-dot-v True
+   ```
+   Transparency is largely out of reach so far. You can try applying a washable paint to the object to make it opaque.
 
-## FAQ
+## References
+
+1. [**Ref-NeRF: Structured View-Dependent Appearance for Neural Radiance Fields**](https://arxiv.org/abs/2112.03907)
