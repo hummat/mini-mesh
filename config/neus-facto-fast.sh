@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 CONFIG=(
   --trainer.max-num-iterations 100001
+  --pipeline.model.near-plane 0.01
+  --pipeline.model.far-plane 1000
   --pipeline.model.proposal-warmup 1000
   --pipeline.model.sdf-field.hash-smoothstep True
   --pipeline.model.eval-num-rays-per-chunk 8192

@@ -6,6 +6,8 @@ CONFIG=(
   --trainer.steps-per-save 2000
   --optimizers.fields.optimizer.lr 0.01
   --optimizers.field-background.optimizer.lr 0.01
+  --pipeline.model.near-plane 0.01
+  --pipeline.model.far-plane 1000
   --pipeline.model.proposal-warmup 200
   --pipeline.model.sdf-field.hash-smoothstep True
   --pipeline.model.eval-num-rays-per-chunk 8192

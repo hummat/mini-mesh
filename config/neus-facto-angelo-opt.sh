@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 CONFIG=(
   --trainer.max-num-iterations 100001
+  --pipeline.model.near-plane 0.01
+  --pipeline.model.far-plane 1000
   --pipeline.model.level-init 4
   --pipeline.model.steps-per-level 1000
   --pipeline.model.eikonal-loss-mult 0.1

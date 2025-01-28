@@ -4,8 +4,6 @@ CONFIG=(
   --trainer.steps-per-eval-batch 500
   --trainer.steps-per-eval-image 500
   --trainer.steps-per-save 2000
-  --pipeline.model.near-plane 1
-  --pipeline.model.far-plane 5
   --pipeline.model.sdf-field.num-layers 2
   --pipeline.model.sdf-field.num-layers-color 2
   --pipeline.model.sdf-field.use-grid-feature True

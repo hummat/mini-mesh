@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 CONFIG=(
   --pipeline.model.steps-per-level 200
-  --pipeline.model.near-plane 1
-  --pipeline.model.far-plane 5
   --pipeline.model.curvature-loss-multi 0  # Disable curvature loss
   --pipeline.model.curvature-loss-warmup-steps 200
   --pipeline.model.sdf-field.num-layers 2
