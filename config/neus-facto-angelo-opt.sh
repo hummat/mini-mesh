@@ -17,7 +17,7 @@ CONFIG=(
   --pipeline.model.sdf-field.hash-features-per-level 2
   --pipeline.model.sdf-field.base-res 16
   --pipeline.model.sdf-field.max-res 2048
-  --pipeline.model.sdf-field.hash-smoothstep True
+  --pipeline.model.sdf-field.beta-init 0.1
   --pipeline.model.sdf-field.use-numerical-gradients False  # Disable numerical gradients
   --pipeline.model.eval-num-rays-per-chunk 8192
   --pipeline.datamanager.train-num-rays-per-batch 8192

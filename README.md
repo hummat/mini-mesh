@@ -114,7 +114,6 @@ the pipeline which will use the edited mesh as input for the simplification and 
    camera poses in the SfM step. You can try to learn improved poses during training using:
    ```bash
       --pipeline.datamanager.camera-optimizer.mode SO3xR3
-      --pipeline.datamanager.camera-optimizer.optimizer.weight-decay 0
       # Adjust these values based on your general training config
       --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
       --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5

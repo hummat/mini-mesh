@@ -11,7 +11,7 @@ CONFIG=(
   --pipeline.model.beta-anneal-max-num-iters 500000
   --pipeline.model.proposal-warmup 5000
   --pipeline.model.curvature-loss-warmup-steps 5000
-  --pipeline.model.sdf-field.hash-smoothstep True
+  --pipeline.model.sdf-field.beta-init 0.1
   --pipeline.model.eval-num-rays-per-chunk 2048
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --optimizers.field-background.scheduler.warm-up-end 5000
