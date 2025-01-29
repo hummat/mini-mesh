@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 CONFIG=(
   --pipeline.model.steps-per-level 200
-  --pipeline.model.near-plane 1
-  --pipeline.model.far-plane 5
   --pipeline.model.curvature-loss-multi 0  # Disable curvature loss
   --pipeline.model.curvature-loss-warmup-steps 200
   --pipeline.model.sdf-field.num-layers 2
@@ -11,7 +9,6 @@ CONFIG=(
   --pipeline.model.sdf-field.hash-features-per-level 2
   --pipeline.model.sdf-field.base-res 16
   --pipeline.model.sdf-field.max-res 2048
-  --pipeline.model.sdf-field.hash-smoothstep True
   --pipeline.model.sdf-field.use-numerical-gradients False  # Disable numerical gradients
   --pipeline.model.eval-num-rays-per-chunk 4096
   --pipeline.datamanager.train-num-rays-per-batch 6144

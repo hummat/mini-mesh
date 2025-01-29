@@ -8,14 +8,15 @@ DEFAULTS=(
   --optimizers.fields.optimizer.weight-decay 0.01
   --optimizers.field-background.optimizer.lr 0.001
   --optimizers.field-background.optimizer.weight-decay 0.01
-  --pipeline.model.near-plane 0.01
-  --pipeline.model.far-plane 1000
+  --pipeline.model.near-plane 1
+  --pipeline.model.far-plane 5
   --pipeline.model.overwrite-near-far-plane True
   --pipeline.model.background-model mlp
   --pipeline.model.eval-num-rays-per-chunk 1024
   --pipeline.model.sdf-field.inside-outside False
+  --pipeline.model.sdf-field.hash-smoothstep True
   --pipeline.model.sdf-field.bias 0.1
-  --pipeline.model.sdf-field.beta-init 0.1
+  --pipeline.model.sdf-field.beta-init 0.3
   --pipeline.model.sdf-field.use-appearance-embedding True
   --pipeline.model.sdf-field.appearance-embedding-dim 16
   # --pipeline.model.sdf-field.use-diffuse-color True
@@ -23,6 +24,10 @@ DEFAULTS=(
   # --pipeline.model.sdf-field.use-reflections True
   # --pipeline.model.sdf-field.use-n-dot-v True
   # --pipeline.model.sdf-field.off-axis True
+  --pipeline.datamanager.camera-optimizer.optimizer.weight-decay 0
+  --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
+  --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
+  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
   --vis tensorboard
 )
 
