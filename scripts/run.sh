@@ -33,8 +33,8 @@ function show_help {
   echo "                       --target-num-faces <value>          Target number of faces (default: 50_000)"
   echo
   echo "Examples:"
-  echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL"
-  echo "  $0 /path/to/video.mp4 video --fps 1 sfm --use_glomap train --config neus-facto-fast --vis wandb"
+  echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL --matcher exhaustive"
+  echo "  $0 /path/to/video.mp4 video --fps 1 --hdr sfm --use_glomap train --model neus-facto --config neus-facto-fast --vis wandb"
   exit 0
 }
 

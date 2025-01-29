@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 docker_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
   -u "$(id -u):$(id -g)" \

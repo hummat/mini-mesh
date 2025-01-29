@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Inspired by:
 # 1. https://docs.nerf.studio/quickstart/installation.html#using-an-interactive-container
 # 2. https://github.com/colmap/colmap/blob/main/docker/run-gui.sh
