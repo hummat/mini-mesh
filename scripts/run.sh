@@ -74,6 +74,15 @@ model=neus
 name=$(basename "$input_dir")
 config=neus-grid-dev
 
+video_skip=false
+sfm_skip=false
+train_skip=false
+export_skip=false
+video_overwrite=false
+sfm_overwrite=false
+train_overwrite=false
+export_overwrite=false
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --show)
@@ -82,10 +91,6 @@ while [ $# -gt 0 ]; do
       ;;
     --verbose)
       verbose=true
-      shift
-      ;;
-    --overwrite)
-      overwrite=true
       shift
       ;;
     --help)
@@ -144,6 +149,25 @@ while [ $# -gt 0 ]; do
         exit 1
       fi
       ;;
+     --skip)
+      case "$current_context" in
+        video) video_skip=true ;;
+        sfm)   sfm_skip=true ;;
+        train) train_skip=true ;;
+        export) export_skip=true ;;
+      esac
+      shift
+      ;;
+    --overwrite)
+      case "$current_context" in
+        video) video_overwrite=true ;;
+        sfm)   sfm_overwrite=true ;;
+        train) train_overwrite=true ;;
+        export) export_overwrite=true ;;
+        global) overwrite=true ;;
+      esac
+      shift
+      ;;
     *)
       case "$current_context" in
         global) global_args+=("$1");;
@@ -162,32 +186,42 @@ echo "============================="
 echo "          1. VIDEO           "
 echo "============================="
 
-if ([ -f "$input_path" ] && ! [ -d "$input_dir/images" ]) || [ "$overwrite" = true ]; then
-  echo "Video args: ${video_args[*]}"
-  "$script_dir"/ffmpeg.sh "$input_path" "${video_args[@]}"
+if [ "$video_skip" != true ]; then
+  if { [ -f "$input_path" ] && ! [ -d "$input_dir/images" ]; } || [ "$overwrite" = true ] || [ "$video_overwrite" = true ]; then
+    echo "Video args: ${video_args[*]}"
+    if [ -d "$input_dir/images" ] && { [ "$overwrite" = true ] || [ "$video_overwrite" = true ]; }; then
+      rm -rf "$input_dir/images"
+    fi
+    "$script_dir"/ffmpeg.sh "$input_path" "${video_args[@]}"
+  fi
 fi
 
 echo "============================="
 echo "          2. SfM             "
 echo "============================="
 
-if ! [ -d "$input_dir/sparse" ] || [ "$overwrite" = true ]; then
-  echo "SFM args: ${sfm_args[*]}"
-  case "$sfm_method" in
-    colmap|glomap)
-      if [ "$sfm_method" = glomap ]; then
-        sfm_args+=("--use_glomap")
-      fi
-      "$script_dir"/sfm.sh "$input_dir/images" "${sfm_args[@]}"
-      ;;
-    hloc|vggsfm)
-      "$script_dir"/dl_sfm.sh "$input_dir/images" --method "$sfm_method" "${sfm_args[@]}"
-      ;;
-    *)
-      echo "Unsupported SfM method: $sfm_method. Supported methods: colmap, glomap, hloc, vggsfm"
-      exit 1
-      ;;
-  esac
+if [ "$sfm_skip" != true ]; then
+  if ! [ -d "$input_dir/sparse" ] || [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; then
+    echo "SFM args: ${sfm_args[*]}"
+    if [ -d "$input_dir/sparse" ] && { [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; }; then
+      rm -rf "$input_dir/sparse"
+    fi
+    case "$sfm_method" in
+      colmap|glomap)
+        if [ "$sfm_method" = glomap ]; then
+          sfm_args+=("--use_glomap")
+        fi
+        "$script_dir"/sfm.sh "$input_dir/images" "${sfm_args[@]}"
+        ;;
+      hloc|vggsfm)
+        "$script_dir"/dl_sfm.sh "$input_dir/images" --method "$sfm_method" "${sfm_args[@]}"
+        ;;
+      *)
+        echo "Unsupported SfM method: $sfm_method. Supported methods: colmap, glomap, hloc, vggsfm"
+        exit 1
+        ;;
+    esac
+  fi
 fi
 
 if [ "$show" = true ]; then
@@ -216,49 +250,70 @@ echo "          4. TRAIN           "
 echo "============================="
 
 exp_path="$input_dir/train/$name/$model"
-if ! [ -d "$exp_path" ] || [ "$overwrite" = true ]; then
-  echo "Train args: ${train_args[*]}"
-  "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" "${train_args[@]}" --timestamp ""
+if [ "$train_skip" != true ]; then
+  if ! [ -d "$exp_path" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
+    echo "Train args: ${train_args[*]}"
+    if [ -d "$exp_path" ] && { [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; }; then
+      rm -rf "$exp_path"
+    fi
+    "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" \
+      "${train_args[@]}" --timestamp ""
+  fi
 fi
 
 echo "============================="
 echo "         5. EXPORT           "
 echo "============================="
 
-echo "Export args: ${export_args[*]}"
-extract_args=()
-texture_args=()
-for arg in "${export_args[@]}"; do
-  case "$arg" in
-    --resolution|--bounding-box-min|--bounding-box-max|--marching-cube-threshold)
-      extract_args+=("$arg")
+extract_mesh_args=()
+texture_mesh_args=()
+
+i=0
+while [ $i -lt ${#export_args[@]} ]; do
+  case "${export_args[$i]}" in
+    --resolution|--marching-cube-threshold)
+      extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      i=$((i+2))
+      ;;
+    --bounding-box-min|--bounding-box-max)
+      # Both flags expect x, y, z
+      extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
+      i=$((i+4))
       ;;
     --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces)
-      texture_args+=("$arg")
+      texture_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      i=$((i+2))
+      ;;
+    *)
+      # If you want to pass along unknown args to both, do so here
+      extract_mesh_args+=("${export_args[$i]}")
+      texture_mesh_args+=("${export_args[$i]}")
+      i=$((i+1))
       ;;
   esac
 done
 
-if [ -f "$exp_path/config.yml" ]; then
-  if ! [ -f "$exp_path/mesh.ply" ] || [ "$overwrite" = true ]; then
-    echo "Extracting mesh with: ${extract_args[*]}"
-    ns-extract-mesh \
-      --load-config "$exp_path/config.yml" \
-      --output-path "$exp_path/mesh.ply" \
-      "${extract_args[@]}"
-  fi
-  if [ -f "$exp_path/mesh.ply" ]; then
-    echo "Texturing mesh with: ${texture_args[*]}"
-    ns-texture-mesh \
-      --load-config "$exp_path/config.yml" \
-      --output-dir "$exp_path" \
-      --input-mesh-filename "$exp_path/mesh.ply" \
-      "${texture_args[@]}"
+if [ "$export_skip" != true ]; then
+  if [ -f "$exp_path/config.yml" ]; then
+    echo "Export args: ${export_args[*]}"
+    if ! [ -f "$exp_path/mesh.ply" ] || [ "$overwrite" = true ] || [ "$export_overwrite" = true ]; then
+      ns-extract-mesh \
+        --load-config "$exp_path/config.yml" \
+        --output-path "$exp_path/mesh.ply" \
+        "${extract_mesh_args[@]}"
+    fi
+    if [ -f "$exp_path/mesh.ply" ]; then
+      ns-texture-mesh \
+        --load-config "$exp_path/config.yml" \
+        --output-dir "$exp_path" \
+        --input-mesh-filename "$exp_path/mesh.ply" \
+        "${texture_mesh_args[@]}"
+    else
+      echo "[ERROR] Mesh file $exp_path/mesh.ply not found"
+      exit 1
+    fi
   else
-    echo "[ERROR] Mesh file $exp_path/mesh.ply not found"
+    echo "[ERROR] Config file $exp_path/config.yml not found"
     exit 1
   fi
-else
-  echo "[ERROR] Config file $exp_path/config.yml not found"
-  exit 1
 fi

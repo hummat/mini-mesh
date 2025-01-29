@@ -35,7 +35,7 @@ if [ -f "$CONFIG" ]; then
   source "$CONFIG"
   shift 4
 elif [ -f "$CONFIG_DIR/$CONFIG.sh" ]; then
-  echo "[INFO] Using config file from script directory: $CONFIG_DIR/$CONFIG.sh"
+  echo "[INFO] Using config file $CONFIG.sh from $CONFIG_DIR"
   source "$CONFIG_DIR/$CONFIG.sh"
   shift 4
 else
