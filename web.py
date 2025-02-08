@@ -2,8 +2,8 @@ import os
 
 import gradio as gr
 import subprocess
-from pathlib import Path
 from typing import Generator
+
 
 def run_workflow(
     input_path: str,
@@ -99,9 +99,10 @@ def run():
             input_path = gr.Textbox(label="Input Path", placeholder="/path/to/your/video/or/images")
 
         with gr.Accordion("Global Settings", open=False):
-            global_docker = gr.Checkbox(label="Use Docker", value=True)
-            global_verbose = gr.Checkbox(label="Verbose Output")
-            global_overwrite = gr.Checkbox(label="Overwrite All")
+            with gr.Row():
+                global_docker = gr.Checkbox(label="Use Docker", value=True)
+                global_verbose = gr.Checkbox(label="Verbose Output")
+                global_overwrite = gr.Checkbox(label="Overwrite All")
 
         with gr.Accordion("Video", open=False):
             video_enabled = gr.Checkbox(label="Enable Video Step", value=True)
@@ -144,7 +145,7 @@ def run():
             show_progress="full"
         )
 
-    app.queue().launch()
+    app.queue().launch(server_name=os.environ.get("HOSTNAME", "localhost"))
 
 
 if __name__ == "__main__":

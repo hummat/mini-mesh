@@ -33,8 +33,7 @@ RUN cd /workspace/git && git clone --depth 1 https://github.com/colmap/colmap.gi
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} \
     -DCMAKE_INSTALL_PREFIX=/workspace/colmap && \
-    ninja -C build install -j $(nproc) && \
-    cd /workspace/git && rm -rf colmap
+    ninja -C build install -j $(nproc)
 
 RUN cd /workspace/git && git clone --depth 1 https://github.com/colmap/glomap.git && cd glomap && \
     cmake . -B build -GNinja \
@@ -44,12 +43,11 @@ RUN cd /workspace/git && git clone --depth 1 https://github.com/colmap/glomap.gi
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} \
     -DCMAKE_INSTALL_PREFIX=/workspace/glomap && \
-    ninja -C build install -j $(nproc) && \
-    cd /workspace/git && rm -rf glomap
+    ninja -C build install -j $(nproc)
 
 RUN cd /workspace/git && git clone --depth 1 --recursive https://github.com/nvlabs/tiny-cuda-nn.git && cd tiny-cuda-nn/bindings/torch && \
     TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} MAX_JOBS=$(nproc) python setup.py bdist_wheel && \
-    mv dist/tinycudann*.whl /workspace && cd /workspace && rm -rf git
+    mv dist/tinycudann*.whl /workspace && cd /workspace/git && rm -rf tiny-cuda-nn
 
 FROM ${IMAGE}@sha256:${DIGEST} AS runtime
 ARG WORKDIR=/workspace
@@ -57,12 +55,32 @@ ARG MAX_JOBS=8
 ENV MAX_JOBS=${MAX_JOBS}
 
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
+    libgtest-dev libgoogle-glog-dev libgflags-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev \
     libboost-program-options1.74.0 libceres2 libfreeimage3 libglew2.2 libgoogle-glog0v5 \
     libqt5core5a libqt5gui5 libqt5widgets5 libcurl4 ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
+RUN mkdir -p /workspace/git && cd /workspace/git && git clone --depth 1 https://ceres-solver.googlesource.com/ceres-solver && cd ceres-solver && \
+    cmake . -B build -GNinja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DUSE_CUDA=ON && \
+    ninja -C build install -j $(nproc) && \
+    cd /workspace/git && rm -rf ceres-solver
+
+COPY --from=builder /workspace/poselib /usr/local
 COPY --from=builder /workspace/colmap /usr/local
 COPY --from=builder /workspace/glomap /usr/local
+
+RUN pip install --no-cache-dir git+https://github.com/cvg/pyceres.git
+
+COPY --from=builder /workspace/git/colmap /workspace/git/colmap
+RUN cd /workspace/git/colmap/pycolmap && \
+    PoseLib_DIR=/workspace/poselib colmap_DIR=/workspace/colmap pip install . -v
+
+COPY --from=builder /workspace/git/glomap /workspace/git/glomap
+RUN cd /workspace/git/glomap/pyglomap && \
+    PoseLib_DIR=/workspace/poselib colmap_DIR=/workspace/colmap pip install . -v && \
+    cd /workspace && rm -rf git
 
 COPY --from=builder /workspace/tinycudann*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/tinycudann*.whl && rm /tmp/tinycudann*.whl
