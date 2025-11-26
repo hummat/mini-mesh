@@ -25,7 +25,7 @@ def run_workflow(
     train_overwrite: bool,
     export_enabled: bool,
     export_resolution: int,
-    export_overwrite: bool
+    export_overwrite: bool,
 ) -> Generator[str, None, None]:
     cmd = ["docker/run.sh"] if global_docker else ["scripts/run.sh"]
     cmd.append(input_path)
@@ -78,10 +78,16 @@ def run_workflow(
     else:
         cmd.append("--skip")
 
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+    )
     accumulated_output = " ".join(cmd) + "\n"
     try:
-        for line in iter(process.stdout.readline, ''):
+        for line in iter(process.stdout.readline, ""):
             accumulated_output += line
             yield accumulated_output
         process.stdout.close()
@@ -112,20 +118,34 @@ def run():
 
         with gr.Accordion("SFM", open=False):
             sfm_enabled = gr.Checkbox(label="Enable SfM Step", value=True)
-            sfm_method = gr.Dropdown(label="SfM Method", choices=["colmap", "glomap", "hloc", "vggsfm"], value="colmap")
+            sfm_method = gr.Dropdown(
+                label="SfM Method",
+                choices=["colmap", "glomap", "hloc", "vggsfm"],
+                value="colmap",
+            )
             sfm_show = gr.Checkbox(label="Show SfM result in Colmap GUI")
             sfm_overwrite = gr.Checkbox(label="Overwrite SfM Step")
 
         with gr.Accordion("Train", open=False):
             train_enabled = gr.Checkbox(label="Enable Training Step", value=True)
-            train_model = gr.Dropdown(label="Model", choices=["neus", "neus-facto", "neuralangelo"], value="neus")
+            train_model = gr.Dropdown(
+                label="Model",
+                choices=["neus", "neus-facto", "neuralangelo"],
+                value="neus",
+            )
             train_name = gr.Textbox(label="Experiment Name")
             train_config = gr.Textbox(label="Config", value="neus-grid-dev")
             train_overwrite = gr.Checkbox(label="Overwrite Training Step")
 
         with gr.Accordion("Export", open=False):
             export_enabled = gr.Checkbox(label="Enable Export Step", value=True)
-            export_resolution = gr.Slider(label="Resolution", minimum=512, maximum=8192, value=2048, step=128)
+            export_resolution = gr.Slider(
+                label="Resolution",
+                minimum=512,
+                maximum=8192,
+                value=2048,
+                step=128,
+            )
             export_overwrite = gr.Checkbox(label="Overwrite Export Step")
 
         submit = gr.Button("Run Workflow")
@@ -135,14 +155,28 @@ def run():
             fn=run_workflow,
             inputs=[
                 input_path,
-                global_docker, sfm_show, global_verbose, global_overwrite,
-                video_enabled, video_fps, video_hdr, video_overwrite,
-                sfm_enabled, sfm_method, sfm_overwrite,
-                train_enabled, train_model, train_name, train_config, train_overwrite,
-                export_enabled, export_resolution, export_overwrite
+                global_docker,
+                sfm_show,
+                global_verbose,
+                global_overwrite,
+                video_enabled,
+                video_fps,
+                video_hdr,
+                video_overwrite,
+                sfm_enabled,
+                sfm_method,
+                sfm_overwrite,
+                train_enabled,
+                train_model,
+                train_name,
+                train_config,
+                train_overwrite,
+                export_enabled,
+                export_resolution,
+                export_overwrite,
             ],
             outputs=output,
-            show_progress="full"
+            show_progress="full",
         )
 
     app.queue().launch(server_name=os.environ.get("HOSTNAME", "localhost"))

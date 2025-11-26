@@ -90,6 +90,8 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     --verbose)
+      # Reserved for future use (e.g., verbose logging).
+      # shellcheck disable=SC2034
       verbose=true
       shift
       ;;

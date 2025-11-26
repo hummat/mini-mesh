@@ -1,0 +1,7 @@
+{
+  "include": ["web.py"],
+  "pythonVersion": "3.10",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "warning"
+}
+

@@ -161,17 +161,21 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 **Files:** `docker/Dockerfile`, `docker/run.sh`.
 
 - [ ] Ensure Docker image includes all runtime tools needed by ported features:
-  - [ ] `sdfstudio` fork (already present).
-  - [ ] `nerfstudio` (if required by NeRF models).
-  - [ ] `hloc` / `hloc-cli`.
-  - [ ] `vggsfm`.
-  - [ ] `rembg`.
-  - [ ] `sam2`.
+  - [ ] `sdfstudio` fork (already present; consider pinning a commit/tag instead of tracking `main`).
+  - [ ] `nerfstudio` (for NeRF/nerfacto training and `ns-export` modes).
+  - [ ] `hloc` / `hloc-cli` (for HLoc SfM).
+  - [ ] `vggsfm` (for VGGSfM SfM).
+  - [ ] `rembg` (for background masking).
+  - [ ] `sam2` (for Segment Anything v2 masking).
+  - [ ] Any additional CLI tools introduced by `video-to-mesh` feature ports.
 - [ ] Keep image size reasonable; consider:
-  - Optional installation of heavy packages.
-  - Clear documentation about what’s available in the default image.
+  - [ ] Optional installation or build-time flags for heavy packages (e.g., advanced SfM and masking).
+  - [ ] Clear documentation in `README.md` about which features are supported by the default image vs. require a custom build.
 - [ ] Confirm `docker/run.sh` remains a thin wrapper around `scripts/run.sh`:
   - [ ] Test that all contexts and key new flags are usable through Docker.
+  - [ ] Revisit host mounts and environment variables once masking and deep SfM are ported:
+    - [ ] Decide whether to standardize `HOME` inside the container (e.g., `/root`) and mount host `~/.cache` / `~/.config` there.
+    - [ ] Verify that X11/Qt environment (`DISPLAY`, `QT_XCB_GL_INTEGRATION`, `/tmp/.X11-unix`) still works for COLMAP GUI.
 
 ---
 

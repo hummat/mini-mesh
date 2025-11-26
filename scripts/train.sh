@@ -29,18 +29,22 @@ CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 MODEL_NAME="$1"
 EXP_NAME="$2"
 DATA_DIR="$3"
+# CONFIG may refer to a file path or a named config in CONFIG_DIR.
 CONFIG="$4"
 if [ -f "$CONFIG" ]; then
   echo "[INFO] Using config file: $CONFIG"
+  # shellcheck disable=SC1090
   source "$CONFIG"
   shift 4
 elif [ -f "$CONFIG_DIR/$CONFIG.sh" ]; then
   echo "[INFO] Using config file $CONFIG.sh from $CONFIG_DIR"
+  # shellcheck disable=SC1090
   source "$CONFIG_DIR/$CONFIG.sh"
   shift 4
 else
   if [ -f "$CONFIG_DIR/$MODEL_NAME.sh" ]; then
       echo "[INFO] Using config file $MODEL_NAME.sh"
+      # shellcheck disable=SC1090
       source "$CONFIG_DIR/$MODEL_NAME.sh"
   else
       echo "[INFO] No config file found"
@@ -48,6 +52,7 @@ else
   fi
   shift 3
 fi
+# shellcheck disable=SC1091
 source "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
 
 ARGS=()
