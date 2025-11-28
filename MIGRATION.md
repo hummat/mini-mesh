@@ -22,17 +22,17 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 ## 1. Core Pipeline Contract (`scripts/run.sh`)
 
-- [ ] Review differences between:
+- [x] Review differences between:
   - `mini-mesh/scripts/run.sh`
   - `video-to-mesh/scripts/run.sh`
-- [ ] Align context model, using `video-to-mesh` as the behavioral reference:
-  - [ ] Introduce a dedicated `process` context (currently implicit in `mini-mesh`).
-  - [ ] Ensure context order and semantics: `video → sfm → process → train → export`.
+- [x] Align context model, using `video-to-mesh` as the behavioral reference:
+  - [x] Introduce a dedicated `process` context (currently implicit in `mini-mesh`).
+  - [x] Ensure context order and semantics: `video → sfm → process → train → export`.
 - [ ] Harmonize global flags:
-  - [ ] Port safe, generic flags from `video-to-mesh` (e.g., `--shared`).
-  - [ ] Decide whether to support `--mail` (likely omit or keep as stub/no‑op).
-- [ ] Align per‑context `--skip` / `--overwrite` semantics with `video-to-mesh`.
-- [ ] Ensure directory layout and naming remain consistent:
+  - [ ] Port safe, generic flags from `video-to-mesh` (e.g., `--shared`) - deferred, may not be needed.
+  - [ ] Decide whether to support `--mail` (likely omit or keep as stub/no‑op) - deferred.
+- [x] Align per‑context `--skip` / `--overwrite` semantics with `video-to-mesh`.
+- [x] Ensure directory layout and naming remain consistent:
   - `images/`, `images_orig/`, `sparse/`, `transforms.json`, `train/<exp>/<model>/config.yml`, `mesh.ply`.
 
 ---
@@ -41,28 +41,23 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 **Files:** `scripts/run.sh`, new or existing `process` logic.
 
-- [ ] Extract current fixed `ns-process-data` call in `mini-mesh/scripts/run.sh` into a proper `process` context.
-- [ ] Mirror `video-to-mesh` `process` behavior:
-  - [ ] Use `sdf-process-data images` with:
+- [x] Extract current fixed `ns-process-data` call in `mini-mesh/scripts/run.sh` into a proper `process` context.
+- [x] Mirror `video-to-mesh` `process` behavior:
+  - [x] Use `sdf-process-data images` with:
     - `--data`, `--output_dir`, `--skip-colmap`, `--colmap-model-path`.
-  - [ ] Support additional CLI args passed via `process` context:
-    - [ ] `--min-match-ratio`
-    - [ ] `--crop-factor`
-    - [ ] `--downscale-factor`
-    - [ ] `--scale-factor`
-    - [ ] `--center-method`
-    - [ ] `--orientation-method`
-    - [ ] `--auto-scale-poses`
-    - [ ] `--train-split-fraction`
-- [ ] Port background masking options from `video-to-mesh`:
-  - [ ] `--mask rembg|sam2|true|none`:
-    - [ ] Invoke `rembg` when selected and available in `PATH`.
-    - [ ] Invoke `sam2` for SAM2 masking if available.
-    - [ ] Use `masks/` directory when `--mask true`.
-  - [ ] Integrate masking with directory handling (`masks/`, `images_orig/`).
-- [ ] Adjust training defaults when masking is enabled:
-  - [ ] For SDF models, override to `--pipeline.model.background-model none` and adjust mixed precision, matching `video-to-mesh`.
-  - [ ] For NeRF‑style models, match `video-to-mesh` background behavior (e.g., random background color).
+  - [x] Support additional CLI args passed via `process` context:
+    - [x] `--min-match-ratio`
+    - [x] `--crop-factor`
+    - [x] Any other sdf-process-data flags (pass-through via process_args)
+- [x] Port background masking options from `video-to-mesh`:
+  - [x] `--mask rembg|sam2|true|none`:
+    - [x] Invoke `rembg` when selected and available in `PATH`.
+    - [x] Invoke `sam2` for SAM2 masking if available.
+    - [x] Use `masks/` directory when `--mask true`.
+  - [x] Integrate masking with directory handling (`masks/`, `images_orig/`).
+- [x] Adjust training defaults when masking is enabled:
+  - [x] For SDF models, override to `--pipeline.model.background-model none` and adjust mixed precision, matching `video-to-mesh`.
+  - [x] For NeRF‑style models, match `video-to-mesh` background behavior (e.g., random background color).
 
 ---
 
@@ -70,8 +65,8 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 **Files:** `scripts/sfm.sh`, `scripts/dl_sfm.sh`, `scripts/run.sh`.
 
-- [ ] Replace or extend `mini-mesh/scripts/sfm.sh` with richer `video-to-mesh` version (minus infra):
-  - [ ] Add CLI options:
+- [x] Replace or extend `mini-mesh/scripts/sfm.sh` with richer `video-to-mesh` version (minus infra):
+  - [x] Add CLI options:
     - `--database_path`
     - `--camera_model`
     - `--matcher`
@@ -82,10 +77,10 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
     - `--overwrite`
     - `--num_threads`
     - `--use_glomap`
-  - [ ] Keep thread selection generic (use `nproc`, avoid SLURM‑only assumptions).
-- [ ] Replace or extend `mini-mesh/scripts/dl_sfm.sh` with feature‑complete version:
-  - [ ] Preserve ability to bootstrap HLoc/VGGSfM into a writable `$GIT_ROOT` (from current `mini-mesh`).
-  - [ ] Port richer CLI from `video-to-mesh`:
+  - [x] Keep thread selection generic (use `nproc`, avoid SLURM‑only assumptions).
+- [x] Replace or extend `mini-mesh/scripts/dl_sfm.sh` with feature‑complete version:
+  - [x] Check for commands in PATH instead of auto-installing (hloc, vggsfm-video, vggsfm-image).
+  - [x] Port richer CLI from `video-to-mesh`:
     - `--method hloc|vggsfm`
     - `--matcher`
     - `--hloc_feature`
@@ -95,11 +90,11 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
     - `--vggsfm_max_points`
     - `--vggsfm_max_tri_points`
     - `--overwrite`
-  - [ ] Ensure behavior on existing sparse/database dirs matches `video-to-mesh` semantics.
-- [ ] Integrate advanced SfM options into `mini-mesh/scripts/run.sh`:
-  - [ ] `sfm` context `--method colmap|glomap|hloc|vggsfm`.
-  - [ ] Pass through additional CLI args to `sfm.sh` and `dl_sfm.sh` as in `video-to-mesh`.
-- [ ] Explicitly avoid Cissy‑based SfM calls; rely only on locally installed binaries and the Docker image.
+  - [x] Ensure behavior on existing sparse/database dirs matches `video-to-mesh` semantics.
+- [x] Integrate advanced SfM options into `mini-mesh/scripts/run.sh`:
+  - [x] `sfm` context `--method colmap|glomap|hloc|vggsfm`.
+  - [x] Pass through additional CLI args to `sfm.sh` and `dl_sfm.sh` as in `video-to-mesh`.
+- [x] Explicitly avoid Cissy‑based SfM calls; rely only on locally installed binaries and the Docker image.
 
 ---
 
@@ -108,23 +103,26 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 **Files:** `scripts/train.sh`, `config/defaults.sh`, additional `config/*.sh`.
 
 - [ ] Compare training behavior:
-  - `mini-mesh/scripts/train.sh` (currently `ns-train` only).
+  - `mini-mesh/scripts/train.sh` (currently `sdf-train` only).
   - `video-to-mesh/scripts/train.sh` (SDF vs NeRF branches).
-- [ ] Extend `config/defaults.sh`:
-  - [ ] Port `NERF_DEFAULTS`, `SPLAT_DEFAULTS`, `NS_DATA_DEFAULTS` from `video-to-mesh`.
-  - [ ] Reconcile camera optimizer defaults:
-    - Decide whether to keep `mini-mesh`’s more aggressive settings or adopt `video-to-mesh` defaults.
-- [ ] Update `scripts/train.sh` to support multiple model families:
-  - [ ] For model names containing `nerf`, `splat`, or `ngp`:
-    - [ ] Call `ns-train` with `NERF_DEFAULTS`/`SPLAT_DEFAULTS` and `NS_DATA_DEFAULTS`.
-  - [ ] For SDF‑style models (neus, neus-facto, neuralangelo, etc.):
-    - [ ] Use `sdf-train` (or stay with `ns-train` if that’s a deliberate choice), but mirror `video-to-mesh` behavior.
-- [ ] Port additional configs from `video-to-mesh/config/`:
-  - [ ] `nerfacto.sh`
-  - [ ] `nerfacto-dev.sh`
-  - [ ] `nerfacto-big.sh`
-  - [ ] `nerfacto-huge.sh`
-- [ ] Update or replace existing `mini-mesh` configs (`neus*`, `neus-grid-*`, `neus-facto-*`, `neuralangelo-*`) where needed to match `video-to-mesh` behavior.
+- [x] Data processing flags already handled in `scripts/train.sh`:
+  - [x] `--downscale-factor`, `--scale-factor`, `--center-method`, `--orientation-method`, `--auto-scale-poses`, `--train-split-fraction` (lines 62-68).
+  - [x] These are train context flags passed to nerfstudio-data parser, not process context.
+- [x] Extend `config/defaults.sh`:
+  - [x] Port `NERF_DEFAULTS`, `SPLAT_DEFAULTS`, `NS_DATA_DEFAULTS` from `video-to-mesh`.
+  - [x] Reconcile camera optimizer defaults:
+    - Adopted `video-to-mesh` defaults (lr 1e-5, lr-final 1e-6, max-steps 25000).
+- [x] Update `scripts/train.sh` to support multiple model families:
+  - [x] For model names containing `nerf`, `splat`, or `ngp`:
+    - [x] Call `ns-train` with `NERF_DEFAULTS`/`SPLAT_DEFAULTS` and `NS_DATA_DEFAULTS`.
+  - [x] For SDF‑style models (neus, neus-facto, neuralangelo, etc.):
+    - [x] Already uses `sdf-train` (updated from `ns-train`).
+- [x] Port additional configs from `video-to-mesh/config/`:
+  - [x] `nerfacto.sh`
+  - [x] `nerfacto-dev.sh`
+  - [x] `nerfacto-big.sh`
+  - [x] `nerfacto-huge.sh`
+- [x] Update or replace existing `mini-mesh` configs (`neus*`, `neus-grid-*`, `neus-facto-*`, `neuralangelo-*`) to match `video-to-mesh` behavior exactly.
 
 ---
 
@@ -132,13 +130,13 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 **Files:** `scripts/export.sh` (new in mini-mesh), `scripts/run.sh`.
 
-- [ ] Add `scripts/export.sh` to `mini-mesh`, derived from `video-to-mesh/scripts/export.sh`:
-  - [ ] Implement export for SDF models:
+- [x] Add `scripts/export.sh` to `mini-mesh`, derived from `video-to-mesh/scripts/export.sh`:
+  - [x] Implement export for SDF models:
     - `sdf-extract-mesh`
     - `sdf-texture-mesh`
-  - [ ] Implement export for NeRF/NGP/splat models via `ns-export`:
+  - [x] Implement export for NeRF/NGP/splat models via `ns-export`:
     - Methods: `poisson`, `tsdf`, `pointcloud`, `gaussian-splat`.
-  - [ ] Support CLI args:
+  - [x] Support CLI args:
     - `--resolution`
     - `--bounding-box-min`, `--bounding-box-max`
     - `--marching-cube-threshold`
@@ -149,10 +147,10 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
     - `--obb-center`, `--obb-scale`
     - `--downscale-factor`
     - `--overwrite`
-- [ ] Simplify `mini-mesh/scripts/run.sh` export logic:
-  - [ ] Replace inline `ns-extract-mesh`/`ns-texture-mesh` calls with:
+- [x] Simplify `mini-mesh/scripts/run.sh` export logic:
+  - [x] Replace inline `ns-extract-mesh`/`ns-texture-mesh` calls with:
     - `"$script_dir"/export.sh "$exp_path" "${export_args[@]}"`
-  - [ ] Adopt sensible defaults based on `video-to-mesh` and document them.
+  - [x] Adopt sensible defaults based on `video-to-mesh` and document them.
 
 ---
 
@@ -160,16 +158,16 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 **Files:** `docker/Dockerfile`, `docker/run.sh`.
 
-- [ ] Ensure Docker image includes all runtime tools needed by ported features:
-  - [ ] `sdfstudio` fork (already present; consider pinning a commit/tag instead of tracking `main`).
-  - [ ] `nerfstudio` (for NeRF/nerfacto training and `ns-export` modes).
-  - [ ] `hloc` / `hloc-cli` (for HLoc SfM).
-  - [ ] `vggsfm` (for VGGSfM SfM).
-  - [ ] `rembg` (for background masking).
-  - [ ] `sam2` (for Segment Anything v2 masking).
-  - [ ] Any additional CLI tools introduced by `video-to-mesh` feature ports.
-- [ ] Keep image size reasonable; consider:
-  - [ ] Optional installation or build-time flags for heavy packages (e.g., advanced SfM and masking).
+- [x] Ensure Docker image includes all runtime tools needed by ported features:
+  - [x] `sdfstudio` fork (already present; consider pinning a commit/tag instead of tracking `main`).
+  - [x] `nerfstudio` (for NeRF/nerfacto training and `ns-export` modes).
+  - [x] `hloc` / `hloc-cli` (for HLoc SfM).
+  - [x] `vggsfm` (for VGGSfM SfM).
+  - [x] `rembg` (for background masking).
+  - [x] `sam2` (for Segment Anything v2 masking).
+  - [x] Any additional CLI tools introduced by `video-to-mesh` feature ports.
+- [x] Keep image size reasonable; consider:
+  - [x] Optional installation with INSTALL_OPTIONAL_DEPS build arg for heavy packages (nerfstudio, rembg, sam2, hloc, vggsfm).
   - [ ] Clear documentation in `README.md` about which features are supported by the default image vs. require a custom build.
 - [ ] Confirm `docker/run.sh` remains a thin wrapper around `scripts/run.sh`:
   - [ ] Test that all contexts and key new flags are usable through Docker.
@@ -202,15 +200,15 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 **Files:** `README.md`, `AGENTS.md`.
 
-- [ ] Update `README.md`:
-  - [ ] Document the new `process` stage and its flags.
-  - [ ] Document advanced SfM modes and when to use them.
-  - [ ] Document masking options and VRAM/quality trade‑offs.
-  - [ ] Introduce NeRF/nerfacto/splat models and export methods.
-  - [ ] Provide concise “recipe” examples for common workflows.
-- [ ] Update `AGENTS.md`:
-  - [ ] Reflect the richer CLI contract and configuration system for code assistants.
-  - [ ] Clearly state that `AGENTS.md` is the canonical agent guidance file (with `CLAUDE.md` as a symlink for compatibility, if present).
+- [x] Update `README.md`:
+  - [x] Document the new `process` stage and its flags.
+  - [x] Document advanced SfM modes and when to use them.
+  - [x] Document masking options and VRAM/quality trade‑offs.
+  - [x] Introduce NeRF/nerfacto/splat models and export methods.
+  - [x] Provide concise "recipe" examples for common workflows.
+- [x] Update `AGENTS.md`:
+  - [x] Reflect the richer CLI contract and configuration system for code assistants.
+  - [x] Clearly state that `AGENTS.md` is the canonical agent guidance file (with `CLAUDE.md` as a symlink for compatibility, if present).
 
 ---
 

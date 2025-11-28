@@ -16,4 +16,7 @@ CONFIG=(
   --optimizers.field-background.optimizer.lr 0.01
   --optimizers.field-background.scheduler.max-steps 20000
   --optimizers.field-background.scheduler.warm-up-end 200
+  --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
+  --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
+  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
 )

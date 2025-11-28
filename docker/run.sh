@@ -3,6 +3,7 @@
 # 1. https://docs.nerf.studio/quickstart/installation.html#using-an-interactive-container
 # 2. https://github.com/colmap/colmap/blob/main/docker/run-gui.sh
 # 3. NVIDIA
+xhost +local:"$(id -un)"
 docker_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
   -u "$(id -u):$(id -g)" \

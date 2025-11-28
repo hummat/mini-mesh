@@ -74,19 +74,40 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-COMMAND=(
-  ns-train
-  "$MODEL_NAME"
-  --output-dir "$DATA_DIR/train"
-  --experiment-name "$EXP_NAME"
-  "${DEFAULTS[@]}"
-  "${CONFIG[@]}"
-  "${ARGS[@]}"
-  nerfstudio-data
-  --data "$DATA_DIR"
-  "${DATA_DEFAULTS[@]}"
-  "${DATA_ARGS[@]}"
-)
+if [[ "$MODEL_NAME" == *nerf* ]] || [[ "$MODEL_NAME" == *splat* ]] || [[ "$MODEL_NAME" == *ngp* ]]; then
+  if [[ "$MODEL_NAME" == *splat* ]]; then
+    NS_DEFAULTS=("${SPLAT_DEFAULTS[@]}")
+  else
+    NS_DEFAULTS=("${NERF_DEFAULTS[@]}")
+  fi
+  COMMAND=(
+    ns-train
+    "$MODEL_NAME"
+    --output-dir "$DATA_DIR/train"
+    --experiment-name "$EXP_NAME"
+    "${NS_DEFAULTS[@]}"
+    "${CONFIG[@]}"
+    "${ARGS[@]}"
+    nerfstudio-data
+    --data "$DATA_DIR"
+    "${NS_DATA_DEFAULTS[@]}"
+    "${DATA_ARGS[@]}"
+  )
+else
+  COMMAND=(
+    sdf-train
+    "$MODEL_NAME"
+    --output-dir "$DATA_DIR/train"
+    --experiment-name "$EXP_NAME"
+    "${DEFAULTS[@]}"
+    "${CONFIG[@]}"
+    "${ARGS[@]}"
+    nerfstudio-data
+    --data "$DATA_DIR"
+    "${DATA_DEFAULTS[@]}"
+    "${DATA_ARGS[@]}"
+  )
+fi
 
 if [ -z "$SLURM_JOB_NAME" ]; then
   echo "[INFO] Running LOCALLY with COMMAND:" "${COMMAND[@]}"

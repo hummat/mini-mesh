@@ -1,22 +1,25 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- CLI entrypoints live in `scripts/` (`run.sh`, `ffmpeg.sh`, `sfm.sh`, `train.sh`, `dl_sfm.sh`) and orchestrate the 5‑step pipeline (video → SfM → data → train → export).
+- CLI entrypoints live in `scripts/` (`run.sh`, `ffmpeg.sh`, `sfm.sh`, `dl_sfm.sh`, `train.sh`, `export.sh`) and orchestrate the 5‑step pipeline (video → SfM → process → train → export).
 - Training and model hyperparameters are defined as Bash arrays in `config/*.sh` and are sourced by `scripts/train.sh` together with `config/defaults.sh`.
-- Docker assets in `docker/` provide a fully configured runtime (COLMAP, GLOMAP, SDFStudio, tiny-cuda-nn); `web.py` exposes the pipeline via a Gradio UI.
+- `config/defaults.sh` defines `DEFAULTS` (SDF models), `NERF_DEFAULTS`, `SPLAT_DEFAULTS`, `DATA_DEFAULTS` (SDF data processing), and `NS_DATA_DEFAULTS` (NeRF data processing).
+- Docker assets in `docker/` provide a fully configured runtime (COLMAP, GLOMAP, SDFStudio, Nerfstudio, tiny-cuda-nn, optional: rembg, sam2, hloc, vggsfm); `web.py` exposes the pipeline via a Gradio UI.
 - The root contains project docs (`README.md`, `AGENTS.md`); there is currently no `tests/` directory.
 
 ## Architecture Overview
 - `scripts/run.sh` is the single source of truth for the pipeline contract (contexts, flags, skip/overwrite semantics); `docker/run.sh` and `web.py` are thin wrappers around it.
-- `scripts/train.sh` is responsible for resolving config names to `config/*.sh` and wiring them into the `ns-train` CLI; do not duplicate this logic elsewhere.
-- Advanced SfM methods (`hloc`, `vggsfm`) are delegated to `scripts/dl_sfm.sh`, which assumes a `sdfstudio` Python env and a writable `$GIT_ROOT` for cloning helper repos.
+- `scripts/train.sh` resolves config names to `config/*.sh` and dispatches to `sdf-train` (for SDF models) or `ns-train` (for NeRF/splat models); do not duplicate this logic elsewhere.
+- `scripts/export.sh` handles mesh extraction and texturing, dispatching to `sdf-extract-mesh`/`sdf-texture-mesh` (for SDF models) or `ns-export` (for NeRF models).
+- Advanced SfM methods (`hloc`, `vggsfm`) are delegated to `scripts/dl_sfm.sh`, which requires the tools to be in PATH.
 
 ## Build, Test, and Development Commands
-- Manual run (local toolchain): `scripts/run.sh /path/to/video_or_images [global_opts] [video|sfm|train|export …]`.
+- Manual run (local toolchain): `scripts/run.sh /path/to/video_or_images [global_opts] [video|sfm|process|train|export …]`.
 - Docker run (recommended for contributors): `docker/run.sh /path/to/video_or_images [same options]`.
 - Web UI: `python web.py` then point a browser to the reported Gradio URL.
-- Example with contexts: `scripts/run.sh scene.mp4 video --fps 2 sfm --use_glomap train --model neus-facto --config neus-facto-fast export --resolution 2048`.
+- Example with contexts: `scripts/run.sh scene.mp4 video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto --config neus-facto-fast export --resolution 2048`.
 - For very fast smoke tests, downscale work: `train --config neus-grid-dev export --resolution 512`.
+- NeRF workflow example: `scripts/run.sh scene.mp4 video --fps 1 sfm --method glomap process train --model nerfacto --config nerfacto-dev export --method poisson`.
 
 ## Coding Style & Naming Conventions
 - Bash: `#!/usr/bin/env bash`, `set -e`, 2‑space indentation, lowercase names with `_`; extend existing case/flag patterns in `scripts/run.sh` rather than inventing new ones.
@@ -43,3 +46,16 @@
   - Keep old spellings/semantics working where possible; introduce new flags instead of repurposing existing ones.
 - Avoid editing `docker/Dockerfile_bak` unless you consciously need the older build path; treat `docker/Dockerfile` as canonical.
 - Before large edits, skim this file to align with project expectations and existing workflows.
+
+### Communication Style
+- You are a tool, not a buddy. Be direct, blunt, and practical. No sugar-coating.
+- Share strong opinions when appropriate. Be concise but clear.
+- No conversational fluff or greetings unless the user initiates it.
+- Prioritize clarity and usefulness over politeness.
+- Ask precise clarifying questions when something is unclear.
+- Be concise, humble, direct, practical, exact, precise, thorough, methodical, deliberate, conservative, and skeptical.
+
+### Code Quality Principles
+- Strictly adhere to the KISS principle (Keep It Simple, Stupid).
+- Follow the Zen of Python for all Python code.
+- Use type hints from the `typing` module in Python code.

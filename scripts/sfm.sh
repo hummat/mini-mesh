@@ -2,27 +2,40 @@
 set -e
 
 if ! command -v colmap &> /dev/null; then
-  echo "[ERROR] COLMAP binary could not be found."
+  echo "[ERROR]: COLMAP binary could not be found."
   exit 1
 fi
 
 CAMERA_MODEL="OPENCV"
 MATCHER="sequential"
 EXTRA=false
+REFINE_PRINCIPAL_POINT=true
+CONVERT_TXT=false
+UNDISTORT=false
 OVERWRITE=false
 USE_GLOMAP=false
+
+NUM_THREADS=$(nproc --all)
+OPENBLAS_NUM_THREADS="$NUM_THREADS"
+MKL_NUM_THREADS="$NUM_THREADS"
+OMP_NUM_THREADS="$NUM_THREADS"
+TBB_NUM_THREADS="$NUM_THREADS"
 
 function show_help {
   echo "Usage: $0 <path-to-images> [options]"
   echo
   echo "Options:"
-  echo "  --database_path <path>     Path to the COLMAP database file (default: <path-to-images>/../database.db)"
-  echo "  --camera_model <model>     Camera model for feature extraction: SIMPLE_PINHOLE, PINHOLE, SIMPLE_RADIAL, RADIAL, OPENCV (default: OPENCV)"
-  echo "  --matcher <type>           Matcher type: exhaustive, sequential, vocab_tree (default: sequential)"
-  echo "  --extra                    Set additional arguments for improved feature extraction and matching. No GPU support (slow)."
-  echo "  --overwrite                Overwrite existing sparse directory without confirmation"
-  echo "  --use_glomap               Use GLOMAP mapper instead of COLMAP mapper if available"
-  echo "  --help                     Show this help message and exit"
+  echo "  --database_path <str>             Path to the COLMAP database file (default: <path-to-images>/../database.db)"
+  echo "  --camera_model <str>              Camera model: SIMPLE_PINHOLE, PINHOLE, SIMPLE_RADIAL, RADIAL, OPENCV, FISHEYE (default: OPENCV)"
+  echo "  --matcher <str>                   Matching method: exhaustive, sequential, vocab_tree (default: sequential)"
+  echo "  --extra                           Set additional arguments for improved feature extraction and matching. No GPU support (slow)."
+  echo "  --refine_principal_point <bool>   Run bundle adjustment with principal point refinement (default: true)"
+  echo "  --convert_txt                     Convert the model to TXT format after reconstruction"
+  echo "  --undistort                       Undistort images after reconstruction"
+  echo "  --overwrite                       Overwrite existing sparse directory without confirmation"
+  echo "  --use_glomap                      Use GLOMAP mapper instead of COLMAP mapper if available"
+  echo "  --num_threads <int>               Number of threads to use for feature extraction and matching (default: all available)"
+  echo "  --help                            Show this help message and exit"
   echo
   echo "This script automates the Structure-from-Motion (SfM) pipeline using COLMAP:"
   echo "1. Feature extraction from images"
@@ -48,7 +61,7 @@ done
 
 IMAGES="$1"
 if [ ! -d "$IMAGES" ]; then
-  echo "[ERROR] Image directory does not exist: $IMAGES"
+  echo "[ERROR]: Image directory does not exist: $IMAGES"
   exit 1
 fi
 DB=$(dirname "$IMAGES")/database.db
@@ -72,9 +85,25 @@ while [[ $# -gt 0 ]]; do
       EXTRA=true
       shift
     ;;
+    --refine_principal_point)
+      REFINE_PRINCIPAL_POINT="$2"
+      shift 2
+    ;;
+    --convert_txt)
+      CONVERT_TXT=true
+      shift
+    ;;
+    --undistort)
+      UNDISTORT=true
+      shift
+    ;;
     --overwrite)
       OVERWRITE=true
       shift
+    ;;
+    --num_threads)
+      NUM_THREADS="$2"
+      shift 2
     ;;
     --use_glomap)
       USE_GLOMAP=true
@@ -84,7 +113,7 @@ while [[ $# -gt 0 ]]; do
       show_help
     ;;
     *)
-      echo "Unknown option: $1"
+      echo "[ERROR]: Unknown option: $1"
       show_help
     ;;
   esac
@@ -98,7 +127,7 @@ if ! [ "$EXTRA" = true ]; then
     GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
     if [ "$GPU_COUNT" -gt 0 ]; then
       USE_GPU=true
-    echo "[INFO] GPU detected. Using GPU for feature extraction and matching."
+    echo "[INFO]: GPU detected. Using GPU for feature extraction and matching."
     fi
   fi
 fi
@@ -108,15 +137,15 @@ if [ "$USE_GLOMAP" = true ]; then
   if command -v glomap &> /dev/null; then
     MAPPER_CMD="glomap mapper"
   else
-    echo "[ERROR] GLOMAP binary could not be found."
+    echo "[ERROR]: GLOMAP binary could not be found."
     exit 1
   fi
 fi
 
 SPARSE="$(dirname "$DB")/sparse"
 if [ -d "$SPARSE" ]; then
-  if [ "$OVERWRITE" = false ]; then
-    read -r -p "[WARNING] Directory '$SPARSE' already exists. Continue? (y/N): " confirm
+  if [ "$OVERWRITE" != true ]; then
+    read -r -p "[WARNING]: Directory '$SPARSE' already exists. Continue? (y/N): " confirm
     if ! [[ "$confirm" =~ ^[Yy]$ ]]; then
       exit 0
     fi
@@ -129,27 +158,23 @@ else
   mkdir -p "$SPARSE"
 fi
 
-NUM_THREADS=$(nproc --all)
-if [ "$NUM_THREADS" -gt 16 ]; then
-  NUM_THREADS=16
-fi
-echo "[INFO] Using $NUM_THREADS threads for feature extraction and matching."
+echo "[INFO]: Using $NUM_THREADS threads for feature extraction and matching."
 
 colmap feature_extractor \
   --database_path "$DB" \
   --image_path "$IMAGES" \
   --ImageReader.camera_model "$CAMERA_MODEL" \
+  --ImageReader.single_camera=true \
   --SiftExtraction.estimate_affine_shape="$EXTRA" \
   --SiftExtraction.domain_size_pooling="$EXTRA" \
-  --SiftExtraction.use_gpu="$USE_GPU" \
-  --ImageReader.single_camera=true \
-  --SiftExtraction.num_threads="$NUM_THREADS"
+  --FeatureExtraction.use_gpu="$USE_GPU" \
+  --FeatureExtraction.num_threads="$NUM_THREADS"
 
 colmap "${MATCHER}_matcher" \
   --database_path "$DB" \
-  --SiftMatching.guided_matching="$EXTRA" \
-  --SiftMatching.use_gpu="$USE_GPU" \
-  --SiftMatching.num_threads="$NUM_THREADS"
+  --FeatureMatching.guided_matching="$EXTRA" \
+  --FeatureMatching.use_gpu="$USE_GPU" \
+  --FeatureMatching.num_threads="$NUM_THREADS"
 
 $MAPPER_CMD \
   --database_path "$DB" \
@@ -161,7 +186,7 @@ if [ -d "$SPARSE/1" ]; then
     --input_path1 "$SPARSE/0" \
     --input_path2 "$SPARSE/1" \
     --output_path "$SPARSE"
-else
+elif [ -d "$SPARSE/0" ]; then
   mv "$SPARSE/0/"* "$SPARSE"
   rm -d "$SPARSE/0"
 fi
@@ -170,15 +195,19 @@ colmap bundle_adjuster \
   --input_path "$SPARSE" \
   --output_path "$SPARSE"
 
-colmap bundle_adjuster \
-  --input_path "$SPARSE" \
-  --output_path "$SPARSE" \
-  --BundleAdjustment.refine_principal_point=true
+if [ "$REFINE_PRINCIPAL_POINT" = true ]; then
+  colmap bundle_adjuster \
+    --input_path "$SPARSE" \
+    --output_path "$SPARSE" \
+    --BundleAdjustment.refine_principal_point=true
+fi
 
-colmap model_converter \
-  --input_path "$SPARSE" \
-  --output_path "$SPARSE" \
-  --output_type TXT
+if [ "$CONVERT_TXT" = true ]; then
+  colmap model_converter \
+    --input_path "$SPARSE" \
+    --output_path "$SPARSE" \
+    --output_type TXT
+fi
 
 if [ "$UNDISTORT" = true ]; then
   UNDISTORT_PATH="$(dirname "$DB")/undistorted"

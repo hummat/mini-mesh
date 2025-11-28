@@ -14,4 +14,7 @@ CONFIG=(
   --pipeline.datamanager.train-num-rays-per-batch 8192
   --pipeline.datamanager.eval-num-rays-per-batch 8192
   --optimizers.proposal-networks.scheduler.max-steps 20000
+  --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
+  --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
+  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
 )
