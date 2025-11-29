@@ -106,9 +106,7 @@ fi
 if [ "$METHOD" = hloc ]; then
   if ! command -v hloc >/dev/null 2>&1; then
     echo "[ERROR]: hloc not found in PATH"
-    echo "         Please install hloc following the instructions in README.md:"
-    echo "         pip install git+https://github.com/cvg/Hierarchical-Localization.git@abb252080282e31147db6291206ca102c43353f7"
-    echo "         pip install git+https://github.com/hummat/hloc-cli.git@1d8fd95120a339b823e86006fd99cfd03be093e0"
+    echo "         Please install hloc following the instructions in README.md"
     exit 1
   fi
 
@@ -128,7 +126,6 @@ elif [ "$METHOD" = vggsfm ]; then
   if ! command -v vggsfm-video >/dev/null 2>&1 || ! command -v vggsfm-image >/dev/null 2>&1; then
     echo "[ERROR]: vggsfm-video or vggsfm-image not found in PATH"
     echo "         Please install vggsfm following the instructions in README.md:"
-    echo "         pip install git+https://github.com/hummat/vggsfm.git@3e0ec00464c5ec4640aa471b226703432bb1bfe7"
     exit 1
   fi
 

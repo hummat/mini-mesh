@@ -134,6 +134,7 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
 
 def run_pipeline(
     input_path: Optional[str] = None,
+    mode: str = "local",
     # Global args
     global_show: bool = False,
     global_verbose: bool = False,
@@ -178,6 +179,7 @@ def run_pipeline(
 
     Args:
         input_path: Path to video file or image directory
+        mode: Execution mode ("local" or "docker")
         global_show: Show intermediate results
         global_verbose: Verbose output
         global_overwrite: Overwrite existing outputs
@@ -217,11 +219,14 @@ def run_pipeline(
     if not input_path:
         return ""
 
+    # Select run script based on mode
+    run_script = "docker/run.sh" if mode == "docker" else "scripts/run.sh"
+
     # Quote path if it contains spaces
     if " " in input_path:
         input_path = f'"{input_path}"'
 
-    cmd_parts = ["scripts/run.sh", input_path]
+    cmd_parts = [run_script, input_path]
 
     # Add global args
     if global_show:
@@ -316,6 +321,12 @@ def create_ui() -> gr.Blocks:
                     label="Video/Image Path",
                     placeholder="/path/to/video.mp4 or /path/to/images/",
                     info="Path to input video file or image directory",
+                )
+                mode = gr.Radio(
+                    label="Execution Mode",
+                    choices=["local", "docker"],
+                    value="local",
+                    info="Use local installation or Docker container",
                 )
 
                 # Global args
@@ -490,6 +501,7 @@ def create_ui() -> gr.Blocks:
         # Build command function
         def build_command(
             input_path_val,
+            mode_val,
             global_show_val,
             global_verbose_val,
             global_overwrite_val,
@@ -531,6 +543,7 @@ def create_ui() -> gr.Blocks:
             # Build command
             cmd = run_pipeline(
                 input_path=input_path_val,
+                mode=mode_val,
                 global_show=global_show_val,
                 global_verbose=global_verbose_val,
                 global_overwrite=global_overwrite_val,
@@ -567,7 +580,8 @@ def create_ui() -> gr.Blocks:
 
             # Validate command
             if cmd:
-                validation = test_cmd(cmd, "scripts/run.sh")
+                run_script = "docker/run.sh" if mode_val == "docker" else "scripts/run.sh"
+                validation = test_cmd(cmd, run_script)
                 if validation is None:
                     validation_msg = "✓ Command is valid"
                 else:
@@ -582,6 +596,7 @@ def create_ui() -> gr.Blocks:
             build_command,
             inputs=[
                 input_path,
+                mode,
                 global_show,
                 global_verbose,
                 global_overwrite,

@@ -65,3 +65,5 @@ pytestdebug.log
 CLAUDE.md
 GEMINI.md
 QWEN.md
+tmp*/
+runtime/

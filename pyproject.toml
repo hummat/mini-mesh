@@ -1,6 +1,6 @@
 [project]
 name = "mini-mesh"
-version = "0.1.0"
+version = "0.2.0"
 description = "Video to 3D mesh reconstruction pipeline"
 requires-python = ">=3.10"
 dependencies = [

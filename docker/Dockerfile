@@ -124,7 +124,6 @@ LABEL org.opencontainers.image.title="hummat/mini-mesh"
 LABEL org.opencontainers.image.description="Mini-mesh runtime with COLMAP, GLOMAP, tiny-cuda-nn and SDF/NeRF deps"
 LABEL org.opencontainers.image.source="https://github.com/hummat/mini-mesh"
 
-ARG WORKDIR=/workspace
 ARG MAX_JOBS=8
 ARG WITH_GUI=ON
 ARG INSTALL_OPTIONAL_DEPS=ON
@@ -135,7 +134,13 @@ ENV WITH_GUI=${WITH_GUI}
 # Make PyTorch's vendored CUDA runtime visible to non-Python binaries (COLMAP, etc.)
 ENV LD_LIBRARY_PATH=/opt/conda/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
 
-WORKDIR ${WORKDIR}
+# Ensure temp files go to /tmp, not working directory
+ENV TMPDIR=/tmp
+ENV TEMP=/tmp
+ENV TMP=/tmp
+
+# Hardcoded to match mounts in docker/run.sh and docker/start.sh
+WORKDIR /data
 
 # Core COLMAP/GLOMAP runtime deps (headless)
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
@@ -173,7 +178,7 @@ RUN pip install --no-cache-dir /tmp/tinycudann*.whl && rm /tmp/tinycudann*.whl
 
 # Pin only the core PyTorch-related packages (from base image)
 RUN pip list --format=json | python -c 'import sys, json; \
-    keys = {"torch", "torchvision", "torch-tensorrt", "numpy"}; \
+    keys = {"torch", "torchvision", "torch-tensorrt"}; \
     print("\n".join(["{}=={}".format(p["name"], p["version"]) for p in json.load(sys.stdin) if p["name"] in keys]))' \
     > /tmp/constraints.txt
 
@@ -181,16 +186,45 @@ RUN pip list --format=json | python -c 'import sys, json; \
 RUN pip install --no-cache-dir -c /tmp/constraints.txt \
     scikit-build-core>=0.11 \
     pybind11>=2.6 \
+    "numpy<2" \
     git+https://github.com/hummat/sdfstudio.git@ba1f247426a283197f724392a3a3b75f4cfa014d
 
+# rembg for background removal
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
-    "rembg[gpu,cli]" \
-    nerfstudio==1.1.5 \
-    git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c \
-    git+https://github.com/cvg/Hierarchical-Localization.git@abb252080282e31147db6291206ca102c43353f7 \
-    git+https://github.com/hummat/hloc-cli.git@1d8fd95120a339b823e86006fd99cfd03be093e0 \
-    git+https://github.com/hummat/vggsfm.git@55b6e4284dc9219f2683849cbc9968349707bff2; \
+    "rembg[gpu,cli]"; \
+    fi
+
+# nerfstudio for NeRF/Gaussian splatting methods
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+    nerfstudio==1.1.5; \
+    fi
+
+# sam2 for segmentation
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+    git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c; \
+    fi
+
+# hloc for hierarchical localization (advanced SfM)
+# Note: Hierarchical-Localization requires local clone with --recursive for submodules
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    mkdir -p /opt/git && \
+    cd /opt/git && \
+    git clone --recursive https://github.com/cvg/Hierarchical-Localization.git && \
+    cd Hierarchical-Localization && \
+    git checkout 3bdf494c852f157db57a1cf2039a6c826d52e702 && \
+    git submodule update --init --recursive && \
+    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt -e . && \
+    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+    git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29; \
+    fi
+
+# vggsfm for visual-geometry-grounded SfM
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+    git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834; \
     fi
 
 CMD ["bash"]

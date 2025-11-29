@@ -14,6 +14,6 @@ docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=671
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v ~/.cache:/.cache \
   -v ~/.config:/.config \
-  -v "$(dirname "$1")":/workspace \
-  -v "$(dirname "$docker_dir")":/tmp \
-  hummat/mini-mesh /tmp/scripts/run.sh /workspace/"$(basename "$1")" "${@:2}"
+  -v "$(dirname "$1")":/data \
+  -v "$(dirname "$docker_dir")":/app \
+  hummat/mini-mesh /app/scripts/run.sh /data/"$(basename "$1")" "${@:2}"

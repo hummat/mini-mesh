@@ -8,8 +8,8 @@ set -euo pipefail
 # Usage (inside a container based on pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
 # or a close equivalent):
 #   bash docker/debug.sh              # from the repo root if mounted
-# or, if the repo is mounted at /tmp:
-#   cd /tmp && bash docker/debug.sh
+# or, if the repo is mounted at /app:
+#   cd /app && bash docker/debug.sh
 #
 # You can override these environment variables (must roughly match
 # docker/Dockerfile):
@@ -218,13 +218,36 @@ run_step 7 "pip install sdfstudio" pip install --no-cache-dir \
 if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
   echo
   echo "=== Step 8: install optional dependencies (nerfstudio, masking, advanced SfM) ==="
-  run_step 8 "pip install optional deps" pip install --no-cache-dir --no-build-isolation \
-    nerfstudio==1.1.5 \
-    "rembg[gpu,cli]" \
-    git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c \
-    git+https://github.com/cvg/Hierarchical-Localization.git@abb252080282e31147db6291206ca102c43353f7 \
-    git+https://github.com/hummat/hloc-cli.git@1d8fd95120a339b823e86006fd99cfd03be093e0 \
-    git+https://github.com/hummat/vggsfm.git@55b6e4284dc9219f2683849cbc9968349707bff2
+
+  echo "=== Step 8a: rembg ==="
+  run_step 8a "pip install rembg" pip install --no-cache-dir --no-build-isolation \
+    "rembg[gpu,cli]"
+
+  echo "=== Step 8b: nerfstudio ==="
+  run_step 8b "pip install nerfstudio" pip install --no-cache-dir --no-build-isolation \
+    nerfstudio==1.1.5
+
+  echo "=== Step 8c: sam2 ==="
+  run_step 8c "pip install sam2" pip install --no-cache-dir --no-build-isolation \
+    git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
+
+  echo "=== Step 8d: hloc (requires local clone with --recursive for submodules) ==="
+  mkdir -p /opt/git
+  cd /opt/git
+  rm -rf Hierarchical-Localization
+  run_step 8d1 "clone hloc" git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
+  cd Hierarchical-Localization
+  run_step 8d2 "checkout hloc ref" git checkout 3bdf494c852f157db57a1cf2039a6c826d52e702
+  git submodule update --init --recursive
+  echo "HLoc HEAD: $(git rev-parse HEAD)" || true
+  run_step 8d3 "pip install hloc" pip install --no-cache-dir --no-build-isolation -e .
+  run_step 8d4 "pip install hloc-cli" pip install --no-cache-dir --no-build-isolation \
+    git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
+  cd "${WORKDIR}"
+
+  echo "=== Step 8e: vggsfm ==="
+  run_step 8e "pip install vggsfm" pip install --no-cache-dir --no-build-isolation \
+    git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834
 else
   echo
   echo "=== Step 8: SKIPPED (INSTALL_OPTIONAL_DEPS=${INSTALL_OPTIONAL_DEPS}) ==="

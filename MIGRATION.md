@@ -206,9 +206,20 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
   - [x] Document masking options and VRAM/quality trade‑offs.
   - [x] Introduce NeRF/nerfacto/splat models and export methods.
   - [x] Provide concise "recipe" examples for common workflows.
+  - [x] Port visual assets and references from `video-to-mesh`:
+    - [x] Copy `assets/` images (banner, example renders, normal maps).
+    - [x] Add banner and example table to README.
+    - [x] Expand References section with additional papers (NeuS, Instant NGP, Neuralangelo, Mip-NeRF, etc.).
+    - [x] Add Credits section acknowledging foundational projects.
+    - [x] Add "Results are rubbish!" troubleshooting section with recording tips.
 - [x] Update `AGENTS.md`:
   - [x] Reflect the richer CLI contract and configuration system for code assistants.
   - [x] Clearly state that `AGENTS.md` is the canonical agent guidance file (with `CLAUDE.md` as a symlink for compatibility, if present).
+- [ ] Create GitHub Pages branch with interactive content:
+  - [ ] Port video overlay from `video-to-mesh/README.md`.
+  - [ ] Add example 3D meshes for interactive viewing.
+  - [ ] Add NeRF/Gaussian splat demos if applicable.
+  - [ ] Link to Pages site from main README.
 
 ---
 

@@ -1,6 +1,13 @@
 # mini-mesh
 Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video
 
+![banner](assets/banner.png)
+
+|                                   |                               |                                       |
+|:---------------------------------:|:-----------------------------:|:-------------------------------------:|
+| ![mokka](assets/mokka_render.png) | ![dog](assets/dog_render.png) | ![mustard](assets/mustard_render.png) |
+| ![mokka](assets/mokka_normal.png) | ![dog](assets/dog_normal.png) | ![mustard](assets/mustard_normal.png) |
+
 ## Quick Start
 
 If you already have Docker installed and an NVIDIA GPU with at least 24GB of VRAM you can start immediately by running the following command with default settings:
@@ -86,11 +93,17 @@ Add `--help` to see all available options. Please consult the [**Usage**](#usage
    pip install git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
 
     # For advanced SfM with HLoc
-    pip install git+https://github.com/cvg/Hierarchical-Localization.git@abb252080282e31147db6291206ca102c43353f7
-    pip install git+https://github.com/hummat/hloc-cli.git@1d8fd95120a339b823e86006fd99cfd03be093e0
+    # Note: Hierarchical-Localization requires local clone with --recursive for submodules
+    git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
+    cd Hierarchical-Localization
+    git checkout 3bdf494c852f157db57a1cf2039a6c826d52e702
+    git submodule update --init --recursive
+    pip install .
+    cd ..
+    pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
 
    # For advanced SfM with VGGSfM
-   pip install git+https://github.com/hummat/vggsfm.git@55b6e4284dc9219f2683849cbc9968349707bff2
+   pip install git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834
     ```
 
 ## Usage
@@ -167,7 +180,18 @@ the pipeline which will use the edited mesh as input for the simplification and 
 
 ## Troubleshooting
 
-1. **_CUDA out of memory_:**
+1. **Results are rubbish!**
+   Most likely, your input data is not as good as it could be. Here are some tips to improve it:
+   - Make sure you have recorded a 30-120 seconds video or between 50-200 images.
+   - Prevent motion blur through fast motion or low light.
+   - Try for sufficiently bright, even and diffuse lighting, e.g. outside during a cloudy day.
+   - Make sure you cover all details of the object from all sides.
+   - Aim for sufficient contrast between the object and the background, i.e. avoid white objects on white backgrounds.
+   - Avoid overly cluttered backgrounds.
+   - Treat reflective and transparent surfaces if possible (see point 6 below).
+
+   The more of these points you can check off, the higher are the chances of a successful reconstruction.
+2. **_CUDA out of memory_:**
    If you have less than 24 GB of VRAM, e.g. 12GB, add the following to the `train` sub-command:
    ```bash
      --pipeline.model.eval-num-rays-per-chunk 2048
@@ -176,21 +200,21 @@ the pipeline which will use the edited mesh as input for the simplification and 
    ```
    Decrease these values appropriately based on your available VRAM. You might also want to decrease the image resolution
    if your images are larger than 1080p. Try adding `--downscale-factor 2` to the `train` sub-command.
-2. **Few or no camera poses are estimated during the SfM step:**
+3. **Few or no camera poses are estimated during the SfM step:**
    Try adding the following arguments to the `sfm` sub-command in the following order:
    1. `--matcher exhaustive`: Use the exhaustive matcher instead of the default sequential matcher.
    2. `--method glomap`: Use GLOMAP instead of COLMAP.
    3. `--extra`: Sets some extra flags for the SfM step that can help with difficult cases but without GPU support.
    4. `--method hloc`: Use the HLoc toolbox that relies on deep learning features for matching.
    5. `--method vggsfm`: Use VGGSfM for learning-based SfM.
-3. **Training does not converge:**
+4. **Training does not converge:**
    Try setting the following arguments of the `train` sub-command:
    1. `--pipeline.model.far-plane 0.1` and/or `--pipeline.model.far-plane 10`: Increases reconstruction volume.
    2. `--model neus-facto --config neus-facto-dev`: Use the `neus-facto` instead of the `neus` model.
-4. **The final mesh is too small or not detailed enough:**
+5. **The final mesh is too small or not detailed enough:**
    Your object of interest should fill a bounding box of +/-1. If your it is very small or you are far away during the 
    image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
-5. **Weakly textured, reflective and/or transparent surfaces are not well reconstructed:**
+6. **Weakly textured, reflective and/or transparent surfaces are not well reconstructed:**
    These are all challenging cases for any reconstruction pipeline. Weakly textured surfaces can lead to inaccurate
    camera poses in the SfM step. You can try to learn improved poses during training using:
    ```bash
@@ -200,7 +224,7 @@ the pipeline which will use the edited mesh as input for the simplification and 
       --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
       --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
    ```
-   For reflective surfaces you can try enabling the improvements proposed in RefNerf [1]:
+   For reflective surfaces you can try enabling the improvements proposed in Ref-NeRF [2]:
    ```bash
       --pipeline.model.sdf-field.use-diffuse-color True
       --pipeline.model.sdf-field.use-specular-tint True
@@ -211,4 +235,20 @@ the pipeline which will use the edited mesh as input for the simplification and 
 
 ## References
 
-1. [**Ref-NeRF: Structured View-Dependent Appearance for Neural Radiance Fields**](https://arxiv.org/abs/2112.03907)
+1. [**NeuS: Learning Neural Implicit Surfaces by Volume Rendering for Multi-view Reconstruction**](https://arxiv.org/abs/2106.10689)
+2. [**Ref-NeRF: Structured View-Dependent Appearance for Neural Radiance Fields**](https://arxiv.org/abs/2112.03907)
+3. [**Instant Neural Graphics Primitives with a Multiresolution Hash Encoding**](https://arxiv.org/abs/2201.05989)
+4. [**Neuralangelo: High-Fidelity Neural Surface Reconstruction**](https://arxiv.org/abs/2306.03092)
+5. [**Mip-NeRF: A Multiscale Representation for Anti-Aliasing Neural Radiance Fields**](https://arxiv.org/abs/2103.13415)
+6. [**Mip-NeRF 360: Unbounded Anti-Aliased Neural Radiance Fields**](https://arxiv.org/abs/2111.12077)
+7. [**NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis**](https://arxiv.org/abs/2003.08934)
+
+## Credits
+
+This project is based on the following awesome projects:
+1. [**SDFStudio**](https://github.com/autonomousvision/sdfstudio)
+2. [**COLMAP**](https://colmap.github.io)
+3. [**GLOMAP**](https://github.com/colmap/glomap)
+4. [**HLoc**](https://github.com/cvg/Hierarchical-Localization)
+5. [**VGGSfM**](https://vggsfm.github.io)
+6. [**nerfstudio**](https://github.com/nerfstudio-project/nerfstudio)

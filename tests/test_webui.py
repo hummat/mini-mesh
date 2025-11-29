@@ -32,7 +32,10 @@ class TestCommandValidation:
             "scripts/run.sh /path/to/video.mp4 --mail user@example.com",
             "scripts/run.sh /path/to/video.mp4 --show --verbose",
             "scripts/run.sh /path/to/video.mp4 --show --verbose --overwrite",
-            "scripts/run.sh /path/to/video.mp4 --show --verbose --overwrite --shared --mail user@example.com",
+            (
+                "scripts/run.sh /path/to/video.mp4 --show --verbose "
+                "--overwrite --shared --mail user@example.com"
+            ),
         ]
         for cmd in valid_args:
             result = test_cmd(cmd, "scripts/run.sh")
@@ -144,7 +147,10 @@ class TestVideoContextValidation:
         """Test video args work alongside other contexts."""
         from webui import test_cmd
 
-        cmd = "scripts/run.sh /path/to/video.mp4 video --fps 2 --hdr sfm --method glomap process --mask rembg train --model neus-facto"
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 video --fps 2 --hdr "
+            "sfm --method glomap process --mask rembg train --model neus-facto"
+        )
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
@@ -179,8 +185,15 @@ class TestSfmContextValidation:
             "scripts/run.sh /path/to/video.mp4 sfm --hloc_weights outdoor",
             "scripts/run.sh /path/to/video.mp4 sfm --skip",
             "scripts/run.sh /path/to/video.mp4 sfm --overwrite",
-            "scripts/run.sh /path/to/video.mp4 sfm --method colmap --matcher superglue --camera_model OPENCV",
-            "scripts/run.sh /path/to/video.mp4 sfm --method hloc --hloc_feature superpoint_aachen --hloc_matcher superglue --hloc_weights outdoor",
+            (
+                "scripts/run.sh /path/to/video.mp4 sfm --method colmap "
+                "--matcher superglue --camera_model OPENCV"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 sfm --method hloc "
+                "--hloc_feature superpoint_aachen --hloc_matcher superglue "
+                "--hloc_weights outdoor"
+            ),
         ]
         for cmd in valid_commands:
             result = test_cmd(cmd, "scripts/run.sh")
@@ -216,7 +229,10 @@ class TestSfmContextValidation:
         """Test sfm args work alongside other contexts."""
         from webui import test_cmd
 
-        cmd = "scripts/run.sh /path/to/video.mp4 video --fps 2 sfm --method colmap --matcher superglue process train"
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 video --fps 2 "
+            "sfm --method colmap --matcher superglue process train"
+        )
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
@@ -279,7 +295,10 @@ class TestProcessContextValidation:
         """Test process args work alongside other contexts."""
         from webui import test_cmd
 
-        cmd = "scripts/run.sh /path/to/video.mp4 video --fps 2 sfm --method glomap process --mask rembg --crop-factor 1.2 train"
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 video --fps 2 "
+            "sfm --method glomap process --mask rembg --crop-factor 1.2 train"
+        )
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
@@ -308,11 +327,26 @@ class TestTrainContextValidation:
             "scripts/run.sh /path/to/video.mp4 train --scale-factor 1.5",
             "scripts/run.sh /path/to/video.mp4 train --skip",
             "scripts/run.sh /path/to/video.mp4 train --overwrite",
-            "scripts/run.sh /path/to/video.mp4 train --pipeline.model.eval-num-rays-per-chunk 4096",
-            "scripts/run.sh /path/to/video.mp4 train --pipeline.datamanager.train-num-rays-per-batch 4096",
-            "scripts/run.sh /path/to/video.mp4 train --pipeline.model.sdf-field.use-reflections True",
-            "scripts/run.sh /path/to/video.mp4 train --viewer.quit-on-train-completion True",
-            "scripts/run.sh /path/to/video.mp4 train --model neus-facto --config neus-facto-dev --vis tensorboard",
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.model.eval-num-rays-per-chunk 4096"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.datamanager.train-num-rays-per-batch 4096"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.model.sdf-field.use-reflections True"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--viewer.quit-on-train-completion True"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
+                "--config neus-facto-dev --vis tensorboard"
+            ),
         ]
         for cmd in valid_commands:
             result = test_cmd(cmd, "scripts/run.sh")
@@ -348,7 +382,11 @@ class TestTrainContextValidation:
         """Test train args work alongside other contexts."""
         from webui import test_cmd
 
-        cmd = "scripts/run.sh /path/to/video.mp4 video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto --config neus-facto-dev export"
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 video --fps 2 "
+            "sfm --method glomap process --mask rembg "
+            "train --model neus-facto --config neus-facto-dev export"
+        )
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
@@ -414,7 +452,11 @@ class TestExportContextValidation:
         """Test export args work alongside other contexts."""
         from webui import test_cmd
 
-        cmd = "scripts/run.sh /path/to/video.mp4 video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto export --resolution 2048 --method poisson"
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 video --fps 2 "
+            "sfm --method glomap process --mask rembg "
+            "train --model neus-facto export --resolution 2048 --method poisson"
+        )
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
@@ -677,9 +719,9 @@ class TestRunPipelineTrainContext:
             train_vis="tensorboard",
             train_skip=True,
         )
-        assert (
-            cmd
-            == "scripts/run.sh /path/to/video.mp4 train --model neus-facto --config neus-facto-dev --vis tensorboard --skip"
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
+            "--config neus-facto-dev --vis tensorboard --skip"
         )
 
 
@@ -722,9 +764,9 @@ class TestRunPipelineExportContext:
             export_method="poisson",
             export_overwrite=True,
         )
-        assert (
-            cmd
-            == "scripts/run.sh /path/to/video.mp4 export --resolution 2048 --method poisson --overwrite"
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 export --resolution 2048 "
+            "--method poisson --overwrite"
         )
 
 
