@@ -29,17 +29,17 @@ DEFAULTS=(
   --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-6
   --pipeline.datamanager.camera-optimizer.scheduler.max-steps 25000
   --vis tensorboard
-  --viewer.ip-address "${HOSTNAME:-localhost}"
+  --viewer.ip-address "0.0.0.0"
 )
 
 NERF_DEFAULTS=(
   --vis tensorboard
-  --viewer.websocket-host "${HOSTNAME:-localhost}"
+  --viewer.websocket-host "0.0.0.0"
 )
 
 SPLAT_DEFAULTS=(
   --vis tensorboard
-  --viewer.websocket-host "${HOSTNAME:-localhost}"
+  --viewer.websocket-host "0.0.0.0"
 )
 
 DATA_DEFAULTS=(

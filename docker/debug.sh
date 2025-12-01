@@ -26,6 +26,12 @@ MAX_JOBS="${MAX_JOBS:-8}"
 WORKDIR="${WORKDIR:-$PWD}"
 INSTALL_OPTIONAL_DEPS="${INSTALL_OPTIONAL_DEPS:-ON}"
 INSTALL_SYSTEM_DEPS="${INSTALL_SYSTEM_DEPS:-ON}"
+WITH_GUI="${WITH_GUI:-ON}"
+COMPILE_POSELIB="${COMPILE_POSELIB:-ON}"
+COMPILE_COLMAP="${COMPILE_COLMAP:-ON}"
+COMPILE_GLOMAP="${COMPILE_GLOMAP:-ON}"
+COMPILE_TCNN="${COMPILE_TCNN:-ON}"
+INSTALL_SDFSTUDIO="${INSTALL_SDFSTUDIO:-ON}"
 
 run_step() {
   local step_id="$1"; shift
@@ -47,6 +53,11 @@ echo "CXXFLAGS              = ${CXXFLAGS}"
 echo "MAX_JOBS              = ${MAX_JOBS}"
 echo "INSTALL_OPTIONAL_DEPS = ${INSTALL_OPTIONAL_DEPS}"
 echo "INSTALL_SYSTEM_DEPS   = ${INSTALL_SYSTEM_DEPS}"
+echo "COMPILE_POSELIB       = ${COMPILE_POSELIB}"
+echo "COMPILE_COLMAP        = ${COMPILE_COLMAP}"
+echo "COMPILE_GLOMAP        = ${COMPILE_GLOMAP}"
+echo "COMPILE_TCNN          = ${COMPILE_TCNN}"
+echo "INSTALL_SDFSTUDIO     = ${INSTALL_SDFSTUDIO}"
 echo
 
 # Library refs (tags or commits). Can be overridden via env vars.
@@ -100,80 +111,97 @@ echo
 mkdir -p "${WORKDIR}/git"
 cd "${WORKDIR}/git"
 
-echo "=== Step 1: build and install PoseLib (exact Dockerfile match, approx. PoseLib 2.0.2) ==="
-rm -rf PoseLib
-run_step 1a "clone PoseLib" git clone --recursive https://github.com/PoseLib/PoseLib.git
-cd PoseLib
-run_step 1b "checkout PoseLib ref" git checkout "${POSELIB_REF}"
-git submodule update --init --recursive
-echo "PoseLib HEAD: $(git rev-parse HEAD)" || true
-run_step 1c "cmake PoseLib" cmake . -B build -GNinja \
-  -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
-  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX="${WORKDIR}/poselib"
-run_step 1d "ninja PoseLib" ninja -C build install -j"${MAX_JOBS}"
-cd "${WORKDIR}/git"
-echo
+if [ "${COMPILE_POSELIB}" = "ON" ]; then
+  echo "=== Step 1: build and install PoseLib (exact Dockerfile match, approx. PoseLib 2.0.2) ==="
+  rm -rf PoseLib
+  run_step 1a "clone PoseLib" git clone --recursive https://github.com/PoseLib/PoseLib.git
+  cd PoseLib
+  run_step 1b "checkout PoseLib ref" git checkout "${POSELIB_REF}"
+  git submodule update --init --recursive
+  echo "PoseLib HEAD: $(git rev-parse HEAD)" || true
+  run_step 1c "cmake PoseLib" cmake . -B build -GNinja \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="${WORKDIR}/poselib"
+  run_step 1d "ninja PoseLib" ninja -C build install -j"${MAX_JOBS}"
+  cd "${WORKDIR}/git"
+  echo
+else
+  echo "=== Step 1: SKIPPED (COMPILE_POSELIB=${COMPILE_POSELIB}) ==="
+fi
 
-echo "=== Step 2: build and install COLMAP (exact Dockerfile match, approx. COLMAP 3.12.6) ==="
-rm -rf colmap
-run_step 2a "clone COLMAP" git clone https://github.com/colmap/colmap.git
-cd colmap
-run_step 2b "checkout COLMAP ref" git checkout "${COLMAP_REF}"
-echo "COLMAP HEAD: $(git rev-parse HEAD)" || true
-run_step 2c "cmake COLMAP" cmake . -B build -GNinja \
-  -DCMAKE_PREFIX_PATH="${WORKDIR}/poselib;/usr/local" \
-  -DFETCH_POSELIB=OFF \
-  -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
-  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-  -DCMAKE_INSTALL_DO_STRIP=ON \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
-  -DGUI_ENABLED="${WITH_GUI}" \
-  -DCMAKE_INSTALL_PREFIX="${WORKDIR}/colmap"
-run_step 2d "ninja COLMAP" ninja -C build install -j"${MAX_JOBS}"
-echo "COLMAP installed to: ${WORKDIR}/colmap"
-echo "COLMAP config files:"
-find "${WORKDIR}/colmap" -maxdepth 6 -name "colmap-config.cmake" || true
-cd "${WORKDIR}/git"
-echo
+if [ "${COMPILE_COLMAP}" = "ON" ]; then
+  echo "=== Step 2: build and install COLMAP (exact Dockerfile match, approx. COLMAP 3.12.6) ==="
+  rm -rf colmap
+  run_step 2a "clone COLMAP" git clone https://github.com/colmap/colmap.git
+  cd colmap
+  run_step 2b "checkout COLMAP ref" git checkout "${COLMAP_REF}"
+  echo "COLMAP HEAD: $(git rev-parse HEAD)" || true
+  run_step 2c "cmake COLMAP" cmake . -B build -GNinja \
+    -DCMAKE_PREFIX_PATH="${WORKDIR}/poselib;/usr/local" \
+    -DFETCH_POSELIB=OFF \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_INSTALL_DO_STRIP=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
+    -DGUI_ENABLED="${WITH_GUI}" \
+    -DCMAKE_INSTALL_PREFIX="${WORKDIR}/colmap"
+  run_step 2d "ninja COLMAP" ninja -C build install -j"${MAX_JOBS}"
+  echo "COLMAP installed to: ${WORKDIR}/colmap"
+  echo "COLMAP config files:"
+  find "${WORKDIR}/colmap" -maxdepth 6 -name "colmap-config.cmake" || true
+  cd "${WORKDIR}/git"
+  echo
+else
+  echo "=== Step 2: SKIPPED (COMPILE_COLMAP=${COMPILE_COLMAP}) ==="
+fi
 
-echo "=== Step 3: build and install GLOMAP (exact Dockerfile match, approx. GLOMAP 1.2.0) ==="
-rm -rf glomap
-run_step 3a "clone GLOMAP" git clone https://github.com/colmap/glomap.git
-cd glomap
-run_step 3b "checkout GLOMAP ref" git checkout "${GLOMAP_REF}"
-echo "GLOMAP HEAD: $(git rev-parse HEAD)" || true
-run_step 3c "cmake GLOMAP" cmake . -B build -GNinja \
-  -DFETCH_POSELIB=OFF \
-  -DFETCH_COLMAP=OFF \
-  -DCMAKE_PREFIX_PATH="${WORKDIR}/poselib;${WORKDIR}/colmap;/usr/local" \
-  -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
-  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-  -DCMAKE_INSTALL_DO_STRIP=ON \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
-  -DCMAKE_INSTALL_PREFIX="${WORKDIR}/glomap"
-echo "GLOMAP CMake configure completed; starting build/install..."
-run_step 3d "ninja GLOMAP" ninja -C build install -j"${MAX_JOBS}"
-cd "${WORKDIR}/git"
-echo
+if [ "${COMPILE_GLOMAP}" = "ON" ]; then
+  echo "=== Step 3: build and install GLOMAP (exact Dockerfile match, approx. GLOMAP 1.2.0) ==="
+  rm -rf glomap
+  run_step 3a "clone GLOMAP" git clone https://github.com/colmap/glomap.git
+  cd glomap
+  run_step 3b "checkout GLOMAP ref" git checkout "${GLOMAP_REF}"
+  echo "GLOMAP HEAD: $(git rev-parse HEAD)" || true
+  run_step 3c "cmake GLOMAP" cmake . -B build -GNinja \
+    -DFETCH_POSELIB=OFF \
+    -DFETCH_COLMAP=OFF \
+    -DCMAKE_PREFIX_PATH="${WORKDIR}/poselib;${WORKDIR}/colmap;/usr/local" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_INSTALL_DO_STRIP=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
+    -DCMAKE_INSTALL_PREFIX="${WORKDIR}/glomap"
+  echo "GLOMAP CMake configure completed; starting build/install..."
+  run_step 3d "ninja GLOMAP" ninja -C build install -j"${MAX_JOBS}"
+  cd "${WORKDIR}/git"
+  echo
+else
+  echo "=== Step 3: SKIPPED (COMPILE_GLOMAP=${COMPILE_GLOMAP}) ==="
+fi
 
-echo "=== Step 4: build tiny-cuda-nn wheel (exact Dockerfile match, approx. tiny-cuda-nn 1.7) ==="
-rm -rf tiny-cuda-nn
-run_step 4a "clone tiny-cuda-nn" git clone --recursive https://github.com/nvlabs/tiny-cuda-nn.git
-cd tiny-cuda-nn
-run_step 4b "checkout tiny-cuda-nn SHA" git checkout "${TCNN_REF}"
-git submodule update --init --recursive
-echo "tiny-cuda-nn HEAD: $(git rev-parse HEAD)" || true
-cd bindings/torch
-echo "Running tiny-cuda-nn setup.py with TCNN_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST}, MAX_JOBS=${MAX_JOBS}"
-run_step 4c "build tiny-cuda-nn wheel" bash -c 'TCNN_CUDA_ARCHITECTURES="'"${TORCH_CUDA_ARCH_LIST}"'" MAX_JOBS="'"${MAX_JOBS}"'" python setup.py bdist_wheel'
-echo "Built wheel(s):"
-ls dist
+if [ "${COMPILE_TCNN}" = "ON" ]; then
+  echo "=== Step 4: build tiny-cuda-nn wheel (exact Dockerfile match, approx. tiny-cuda-nn 1.7) ==="
+  rm -rf tiny-cuda-nn
+  run_step 4a "clone tiny-cuda-nn" git clone --recursive https://github.com/nvlabs/tiny-cuda-nn.git
+  cd tiny-cuda-nn
+  run_step 4b "checkout tiny-cuda-nn SHA" git checkout "${TCNN_REF}"
+  git submodule update --init --recursive
+  echo "tiny-cuda-nn HEAD: $(git rev-parse HEAD)" || true
+  cd bindings/torch
+  echo "Running tiny-cuda-nn setup.py with TCNN_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST}, MAX_JOBS=${MAX_JOBS}"
+  run_step 4c "build tiny-cuda-nn wheel" bash -c 'TCNN_CUDA_ARCHITECTURES="'"${TORCH_CUDA_ARCH_LIST}"'" MAX_JOBS="'"${MAX_JOBS}"'" python setup.py bdist_wheel'
+  echo "Built wheel(s):"
+  ls dist
+  cd "${WORKDIR}/git"
+  echo
+else
+  echo "=== Step 4: SKIPPED (COMPILE_TCNN=${COMPILE_TCNN}) ==="
+fi
 
-echo
 if [ "${INSTALL_SYSTEM_DEPS}" = "ON" ]; then
   echo "=== Step 5: install runtime libraries (Dockerfile runtime stage) ==="
   run_step 5 "apt-get runtime libs (core)" bash -c '
@@ -200,20 +228,28 @@ else
 fi
 
 echo
-echo "=== Step 6: install tiny-cuda-nn wheel into Python env ==="
-cd "${WORKDIR}/tiny-cuda-nn/bindings/torch"
-TCNN_WHL="$(find dist -maxdepth 1 -type f -name 'tinycudann*.whl' | head -n 1 || true)"
-if [ -z "${TCNN_WHL}" ]; then
-  echo "ERROR: tiny-cuda-nn wheel not found under dist/" >&2
-  exit 1
+if [ "${COMPILE_TCNN}" = "ON" ]; then
+  echo "=== Step 6: install tiny-cuda-nn wheel into Python env ==="
+  cd "${WORKDIR}/tiny-cuda-nn/bindings/torch"
+  TCNN_WHL="$(find dist -maxdepth 1 -type f -name 'tinycudann*.whl' | head -n 1 || true)"
+  if [ -z "${TCNN_WHL}" ]; then
+    echo "ERROR: tiny-cuda-nn wheel not found under dist/" >&2
+    exit 1
+  fi
+  echo "Installing wheel: ${TCNN_WHL}"
+  run_step 6 "pip install tiny-cuda-nn wheel" pip install --no-cache-dir "${TCNN_WHL}"
+else
+  echo "=== Step 6: SKIPPED (COMPILE_TCNN=${COMPILE_TCNN}) ==="
 fi
-echo "Installing wheel: ${TCNN_WHL}"
-run_step 6 "pip install tiny-cuda-nn wheel" pip install --no-cache-dir "${TCNN_WHL}"
 
 echo
-echo "=== Step 7: install sdfstudio (Dockerfile match, constraints approximated) ==="
-run_step 7 "pip install sdfstudio" pip install --no-cache-dir \
-  git+https://github.com/hummat/sdfstudio.git@ba1f247426a283197f724392a3a3b75f4cfa014d
+if [ "${INSTALL_SDFSTUDIO}" = "ON" ]; then
+  echo "=== Step 7: install sdfstudio (Dockerfile match, constraints approximated) ==="
+  run_step 7 "pip install sdfstudio" pip install --no-cache-dir \
+    git+https://github.com/hummat/sdfstudio.git@ba1f247426a283197f724392a3a3b75f4cfa014d
+else
+  echo "=== Step 7: SKIPPED (INSTALL_SDFSTUDIO=${INSTALL_SDFSTUDIO}) ==="
+fi
 
 if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
   echo
@@ -225,15 +261,13 @@ if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
 
   echo "=== Step 8b: nerfstudio ==="
   run_step 8b "pip install nerfstudio" pip install --no-cache-dir --no-build-isolation \
-    nerfstudio==1.1.5
+    git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
 
   echo "=== Step 8c: sam2 ==="
   run_step 8c "pip install sam2" pip install --no-cache-dir --no-build-isolation \
     git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
 
   echo "=== Step 8d: hloc (requires local clone with --recursive for submodules) ==="
-  mkdir -p /opt/git
-  cd /opt/git
   rm -rf Hierarchical-Localization
   run_step 8d1 "clone hloc" git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
   cd Hierarchical-Localization
@@ -243,7 +277,7 @@ if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
   run_step 8d3 "pip install hloc" pip install --no-cache-dir --no-build-isolation -e .
   run_step 8d4 "pip install hloc-cli" pip install --no-cache-dir --no-build-isolation \
     git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
-  cd "${WORKDIR}"
+  cd "${WORKDIR}/git"
 
   echo "=== Step 8e: vggsfm ==="
   run_step 8e "pip install vggsfm" pip install --no-cache-dir --no-build-isolation \

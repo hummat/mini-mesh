@@ -7,9 +7,10 @@ CONFIG=(
   --pipeline.model.sdf-field.num-layers 2
   --pipeline.model.sdf-field.num-layers-color 2
   --pipeline.model.sdf-field.use-grid-feature True
-  --pipeline.model.eval-num-rays-per-chunk 4096
-  --pipeline.datamanager.train-num-rays-per-batch 6144
-  --pipeline.datamanager.eval-num-rays-per-batch 4096
+  # VRAM-friendly defaults for ~12 GB GPUs; higher values are possible on 24 GB+
+  --pipeline.model.eval-num-rays-per-chunk 2048
+  --pipeline.datamanager.train-num-rays-per-batch 2048
+  --pipeline.datamanager.eval-num-rays-per-batch 2048
   --optimizers.fields.optimizer.lr 0.01
   --optimizers.fields.scheduler.max-steps 20000
   --optimizers.fields.scheduler.warm-up-end 200

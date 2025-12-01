@@ -1,4 +1,5 @@
 # mini-mesh
+
 Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video
 
 ![banner](assets/banner.png)
@@ -21,30 +22,36 @@ Add `--help` to see all available options. Please consult the [**Usage**](#usage
 
 ## Installation
 
-### Option 1: docker (recommended)
+### Option 1: docker (strongly recommended)
 
 > TL;DR: Install `docker` and the `nvidia-container-toolkit`, then configure the Docker runtime using `nvidia-ctk` and restart the Docker daemon.
 
 1. Install [Docker](https://docs.docker.com/get-docker)
 2. Start and enable the Docker service:
+
     ```bash
     sudo systemctl start docker
     sudo systemctl enable docker
     ```
+
 3. Install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 4. [Configure](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#configuring-docker) the Docker runtime using `nvidia-container-toolkit` and restart the Docker daemon:
+
     ```bash
     sudo nvidia-ctk runtime configure --runtime=docker
     sudo systemctl restart docker
     ```
+
 5. Done! :tada:
 
 > Note: The pre-built Docker image comes with support for NVIDIA compute capability (CC) 6.1 (GTX 10XX) to 8.9 (RTX 40XX). If your GPU has a different CC (e.g. 100 for RTX 50XX), you can build the Docker image yourself using:
+>
 > ```bash
 > docker build -t hummat/mini-mesh -f docker/Dockerfile --build-arg TORCH_CUDA_ARCH_LIST=<YOUR-CC> --build-arg CXXFLAGS="-O3 -DNDEBUG -march=native" .
 > ```
 >
 > The Docker image includes optional dependencies (nerfstudio, rembg, sam2, hloc, vggsfm) by default and enables the COLMAP GUI by default (`WITH_GUI=ON`). To build without optional deps or without the GUI:
+>
 > ```bash
 > # Disable optional Python deps
 > docker build -t hummat/mini-mesh -f docker/Dockerfile --build-arg INSTALL_OPTIONAL_DEPS=OFF .
@@ -52,39 +59,54 @@ Add `--help` to see all available options. Please consult the [**Usage**](#usage
 > # Disable COLMAP GUI (headless build only)
 > docker build -t hummat/mini-mesh -f docker/Dockerfile --build-arg WITH_GUI=OFF .
 > ```
+>
+> With `INSTALL_OPTIONAL_DEPS=OFF`, the following features are disabled inside the container:
+> - NeRF and Gaussian splatting models (nerfstudio-based training and export).
+> - Background masking with `rembg` and `sam2`.
+> - Advanced SfM methods `hloc` and `vggsfm`.
+> The core COLMAP/GLOMAP + SDF pipeline continues to work without these optional dependencies.
 
 ### Option 2: manual
 
-> TL;DR: Install Python 3.10, [PyTorch 2.5.1](https://pytorch.org/get-started/previous-versions/#v251), [CUDA 12.4.1](https://developer.nvidia.com/cuda-toolkit), [`COLMAP`](https://colmap.github.io/install.html), [`GLOMAP`](https://github.com/colmap/glomap?tab=readme-ov-file#getting-started), [`PoseLib`](https://github.com/PoseLib/PoseLib) and [my `SDFStudio` fork](https://github.com/hummat/sdfstudio) with [`tiny-cuda-nn`](https://github.com/NVlabs/tiny-cuda-nn?tab=readme-ov-file#pytorch-extension).
+> TL;DR: Install Python 3.11, [PyTorch 2.5.1](https://pytorch.org/get-started/previous-versions/#v251), [CUDA 12.4.1](https://developer.nvidia.com/cuda-toolkit), [`COLMAP`](https://colmap.github.io/install.html), [`GLOMAP`](https://github.com/colmap/glomap?tab=readme-ov-file#getting-started), [`PoseLib`](https://github.com/PoseLib/PoseLib) and [my `SDFStudio` fork](https://github.com/hummat/sdfstudio) with [`tiny-cuda-nn`](https://github.com/NVlabs/tiny-cuda-nn?tab=readme-ov-file#pytorch-extension).
 
-1. Install [Python 3.10](https://www.python.org/downloads/release/python-3100). Bonus points for using [pyenv](https://github.com/pyenv/pyenv), ([micro](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html))[mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html), ([mini](https://docs.conda.io/en/latest/miniconda.html))[conda](https://docs.anaconda.com/anaconda/install/), ...
+1. Install [Python 3.11](https://www.python.org/downloads/release/python-3110). Bonus points for using [pyenv](https://github.com/pyenv/pyenv), ([micro](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html))[mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html), ([mini](https://docs.conda.io/en/latest/miniconda.html))[conda](https://docs.anaconda.com/anaconda/install/), ...
 2. Install [PyTorch 2.5.1](https://pytorch.org/get-started/previous-versions/#v251) with [CUDA 12.4.1](https://developer.nvidia.com/cuda-toolkit) support. For example, using `pip`:
+
     ```bash
    pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
     ```
+
 3. Install [CUDA Toolkit 12.4.1](https://developer.nvidia.com/cuda-toolkit).
 4. Install [`tiny-cuda-nn`](https://github.com/NVlabs/tiny-cuda-nn?tab=readme-ov-file#pytorch-extension) (the commit below corresponds approximately to tiny-cuda-nn 1.7):
+
    ```bash
    pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@32507f059d7abc8c13f5df81ea9597b70923ee44#subdirectory=bindings/torch
    ```
-5. Install [`PoseLib`](https://github.com/PoseLib/PoseLib) (optional but recommended if you build COLMAP/GLOMAP from source; the commit below corresponds approximately to PoseLib 2.0.1):
+
+5. Install [`PoseLib`](https://github.com/PoseLib/PoseLib) (optional but recommended if you build COLMAP/GLOMAP from source; the commit below corresponds approximately to PoseLib 2.0.2):
+
    ```bash
    git clone https://github.com/PoseLib/PoseLib.git
    cd PoseLib
    git checkout 7e9f5f53372e43f89655040d4dfc4a00e5ace11c
    # Configure & build according to the PoseLib README
    ```
+
 6. Install [`COLMAP`](https://colmap.github.io/install.html) and [`GLOMAP`](https://github.com/colmap/glomap?tab=readme-ov-file#getting-started). Please refer to the respective installation guides. When building from source, you can use the following revisions for reproducibility (corresponding approximately to COLMAP 3.12.6 and GLOMAP 1.2.0):
    - COLMAP: `c5f9cefc87e5dd596b638e4cee0ff543c7d14755` (≈ 3.12.6)
    - GLOMAP: `0edb1b8435e0f9a594318908b81a31f078a51bf7` (≈ 1.2.0)
-6. Install [my `SDFStudio` fork](https://github.com/hummat/sdfstudio):
+7. Install [my `SDFStudio` fork](https://github.com/hummat/sdfstudio):
+
     ```bash
    pip install git+https://github.com/hummat/sdfstudio.git@ba1f247426a283197f724392a3a3b75f4cfa014d
     ```
-7. **(Optional)** Install additional dependencies for advanced features:
-    ```bash
+
+8. **(Optional)** Install additional dependencies for advanced features:
+
+   ```bash
    # For NeRF/splat models and ns-export
-   pip install nerfstudio==1.1.5
+   pip install git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
 
     # For background masking with rembg
     pip install "rembg[gpu,cli]"
@@ -110,10 +132,11 @@ Add `--help` to see all available options. Please consult the [**Usage**](#usage
 
 Once installed, running the pipeline with default settings only requires a single command:
 
-* **docker:** Run `docker/run.sh /path/to/your/video/or/images`
-* **manual:** Activate your Python environment and run `scripts/run.sh /path/to/your/video/or/images`
+- **docker:** Run `docker/run.sh /path/to/your/video/or/images`
+- **manual:** Activate your Python environment and run `scripts/run.sh /path/to/your/video/or/images`
 
 Add `--help` to see all available options. The pipeline performs the following 5 steps sequentially:
+
 1. **Extract frames (video)** from the input video (if the input is a video)
 2. **Estimate camera poses (sfm)** using COLMAP, GLOMAP, HLoc, or VGGSfM
 3. **Process the data (process)** to prepare for training (with optional background masking)
@@ -121,9 +144,11 @@ Add `--help` to see all available options. The pipeline performs the following 5
 5. **Extract and texture (export)** the mesh
 
 The keywords `video`, `sfm`, `process`, `train` and `export` are sub-commands that can be used to pass arguments to a specific step, e.g.:
+
 ```bash
 docker/run.sh /path/to/your/video/or/images video --fps 1 sfm --method glomap process --mask rembg train --config neus-facto-fast --vis wandb
 ```
+
 Steps that have already been completed are skipped by default unless `--overwrite` is specified.
 The final mesh can be found next to the input video or images you provided.
 
@@ -132,20 +157,24 @@ The final mesh can be found next to the input video or images you provided.
 The pipeline supports multiple model families:
 
 **SDF Models** (default, best for mesh reconstruction):
+
 - `neus`: Baseline NeuS model
 - `neus-facto`: NeuS with factorized features (faster, more memory efficient)
 - `neuralangelo`: High-quality reconstruction with hierarchical hash grids
 
 **Available configs** (use with `train --config <name>`):
+
 - `neus-grid-dev`: Fast development config (20k steps)
 - `neus-facto-fast`: Fast neus-facto (100k steps)
 - `neus-facto-dev`: Development neus-facto (20k steps)
 
 **NeRF Models** (requires nerfstudio, use with `train --model <name>`):
+
 - `nerfacto`: General-purpose NeRF for novel view synthesis
 - `splatfacto`: 3D Gaussian Splatting for real-time rendering
 
 **NeRF configs**:
+
 - `nerfacto-dev`: Fast config (10k steps)
 - `nerfacto`: Standard config (30k steps)
 - `nerfacto-big`: Minimal config with normal prediction
@@ -154,11 +183,13 @@ The pipeline supports multiple model families:
 ### Export Methods
 
 **For SDF models** (automatic):
+
 - Marching cubes mesh extraction
 - UV unwrapping and texture baking
 - Mesh simplification
 
 **For NeRF models** (use `export --method <name>`):
+
 - `poisson`: Poisson surface reconstruction (default)
 - `tsdf`: TSDF fusion
 - `pointcloud`: Export as point cloud
@@ -167,9 +198,37 @@ The pipeline supports multiple model families:
 ### Process Context Options
 
 The `process` context supports:
+
 - `--mask <method>`: Background masking (rembg, sam2, true, none)
 - `--min-match-ratio <float>`: Minimum acceptable camera pose ratio
 - `--crop-factor <top bot left right>`: Crop images before processing
+
+### Logging and Visualization
+
+The training step supports several visualization options to monitor progress:
+
+**Tensorboard (default):**
+```bash
+docker/run.sh video.mp4 train --vis tensorboard
+```
+TensorBoard logs are written to the experiment directory alongside your input data. To view them, run from your host machine:
+```bash
+tensorboard --logdir /path/to/your/data/directory
+```
+Then open `http://localhost:6006` in your browser.
+
+**Wandb:**
+```bash
+# Interactive authentication (prompts for API key)
+docker/run.sh video.mp4 train --vis wandb
+
+# Set API key to avoid prompts
+WANDB_API_KEY=your_api_key docker/run.sh video.mp4 train --vis wandb
+```
+Uploads metrics to Weights & Biases for cloud-based tracking and collaboration.
+
+**Web Viewer:**
+The viewer is automatically configured with `--viewer.ip-address "0.0.0.0"` and `--viewer.websocket-host "0.0.0.0"` to enable nerfstudio's built-in web viewer. This provides a real-time 3D visualization of training progress that you can access in your browser during training.
 
 ### Final Touches
 
@@ -192,12 +251,14 @@ the pipeline which will use the edited mesh as input for the simplification and 
 
    The more of these points you can check off, the higher are the chances of a successful reconstruction.
 2. **_CUDA out of memory_:**
-   If you have less than 24 GB of VRAM, e.g. 12GB, add the following to the `train` sub-command:
+   If you have significantly less than 24 GB of VRAM, e.g. 6–8 GB, add the following to the `train` sub-command:
+
    ```bash
-     --pipeline.model.eval-num-rays-per-chunk 2048
-     --pipeline.datamanager.train-num-rays-per-batch 2048
-     --pipeline.datamanager.eval-num-rays-per-batch 2048
+     --pipeline.model.eval-num-rays-per-chunk 1024
+     --pipeline.datamanager.train-num-rays-per-batch 1024
+     --pipeline.datamanager.eval-num-rays-per-batch 1024
    ```
+
    Decrease these values appropriately based on your available VRAM. You might also want to decrease the image resolution
    if your images are larger than 1080p. Try adding `--downscale-factor 2` to the `train` sub-command.
 3. **Few or no camera poses are estimated during the SfM step:**
@@ -211,12 +272,12 @@ the pipeline which will use the edited mesh as input for the simplification and 
    Try setting the following arguments of the `train` sub-command:
    1. `--pipeline.model.far-plane 0.1` and/or `--pipeline.model.far-plane 10`: Increases reconstruction volume.
    2. `--model neus-facto --config neus-facto-dev`: Use the `neus-facto` instead of the `neus` model.
-5. **The final mesh is too small or not detailed enough:**
-   Your object of interest should fill a bounding box of +/-1. If your it is very small or you are far away during the 
-   image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
+5. **The final mesh is incomplete or too small/not detailed enough:**
+   Your object of interest (OOI) should fill a bounding box of +/-1. If it your were too close during capture (the OOI isn't fully visible in each frame), is very small or you are far away during the image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
 6. **Weakly textured, reflective and/or transparent surfaces are not well reconstructed:**
    These are all challenging cases for any reconstruction pipeline. Weakly textured surfaces can lead to inaccurate
    camera poses in the SfM step. You can try to learn improved poses during training using:
+
    ```bash
       --pipeline.datamanager.camera-optimizer.mode SO3xR3
       # Adjust these values based on your general training config
@@ -224,14 +285,25 @@ the pipeline which will use the edited mesh as input for the simplification and 
       --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
       --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
    ```
+
    For reflective surfaces you can try enabling the improvements proposed in Ref-NeRF [2]:
+
    ```bash
       --pipeline.model.sdf-field.use-diffuse-color True
       --pipeline.model.sdf-field.use-specular-tint True
       --pipeline.model.sdf-field.use-reflections True
       --pipeline.model.sdf-field.use-n-dot-v True
    ```
+
    Transparency is largely out of reach so far. You can try applying a washable paint to the object to make it opaque.
+7. **Wandb authentication prompts in Docker:**
+   To avoid entering your wandb API key every time when using `--vis wandb`, set it as an environment variable:
+
+   ```bash
+   WANDB_API_KEY=your_api_key docker/run.sh your_video.mp4 train --vis wandb
+   ```
+
+   Get your key from https://wandb.ai/authorize.
 
 ## References
 
@@ -246,9 +318,10 @@ the pipeline which will use the edited mesh as input for the simplification and 
 ## Credits
 
 This project is based on the following awesome projects:
+
 1. [**SDFStudio**](https://github.com/autonomousvision/sdfstudio)
-2. [**COLMAP**](https://colmap.github.io)
-3. [**GLOMAP**](https://github.com/colmap/glomap)
-4. [**HLoc**](https://github.com/cvg/Hierarchical-Localization)
-5. [**VGGSfM**](https://vggsfm.github.io)
-6. [**nerfstudio**](https://github.com/nerfstudio-project/nerfstudio)
+2. [**nerfstudio**](https://github.com/nerfstudio-project/nerfstudio)
+3. [**COLMAP**](https://colmap.github.io)
+4. [**GLOMAP**](https://github.com/colmap/glomap)
+5. [**HLoc**](https://github.com/cvg/Hierarchical-Localization)
+6. [**VGGSfM**](https://vggsfm.github.io)

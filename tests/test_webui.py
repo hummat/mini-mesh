@@ -325,6 +325,10 @@ class TestTrainContextValidation:
             "scripts/run.sh /path/to/video.mp4 train --vis tensorboard",
             "scripts/run.sh /path/to/video.mp4 train --downscale-factor 2",
             "scripts/run.sh /path/to/video.mp4 train --scale-factor 1.5",
+            "scripts/run.sh /path/to/video.mp4 train --center-method focus",
+            "scripts/run.sh /path/to/video.mp4 train --orientation-method vertical",
+            "scripts/run.sh /path/to/video.mp4 train --auto-scale-poses median",
+            "scripts/run.sh /path/to/video.mp4 train --train-split-fraction 0.9",
             "scripts/run.sh /path/to/video.mp4 train --skip",
             "scripts/run.sh /path/to/video.mp4 train --overwrite",
             (
@@ -339,10 +343,7 @@ class TestTrainContextValidation:
                 "scripts/run.sh /path/to/video.mp4 train "
                 "--pipeline.model.sdf-field.use-reflections True"
             ),
-            (
-                "scripts/run.sh /path/to/video.mp4 train "
-                "--viewer.quit-on-train-completion True"
-            ),
+            ("scripts/run.sh /path/to/video.mp4 train --viewer.quit-on-train-completion True"),
             (
                 "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
                 "--config neus-facto-dev --vis tensorboard"
@@ -410,10 +411,14 @@ class TestExportContextValidation:
             "scripts/run.sh /path/to/video.mp4 export --resolution 2048",
             "scripts/run.sh /path/to/video.mp4 export --marching-cube-threshold 0.5",
             "scripts/run.sh /path/to/video.mp4 export --num-pixels-per-side 2048",
+            "scripts/run.sh /path/to/video.mp4 export --downscale-factor 2",
             "scripts/run.sh /path/to/video.mp4 export --method poisson",
             "scripts/run.sh /path/to/video.mp4 export --target-num-faces 50000",
             "scripts/run.sh /path/to/video.mp4 export --bounding-box-min -1.0 -1.0 -1.0",
             "scripts/run.sh /path/to/video.mp4 export --bounding-box-max 1.0 1.0 1.0",
+            "scripts/run.sh /path/to/video.mp4 export --px-per-uv-triangle 4",
+            "scripts/run.sh /path/to/video.mp4 export --obb-center 0 0 0",
+            "scripts/run.sh /path/to/video.mp4 export --obb-scale 1 1 1",
             "scripts/run.sh /path/to/video.mp4 export --skip",
             "scripts/run.sh /path/to/video.mp4 export --overwrite",
             "scripts/run.sh /path/to/video.mp4 export --resolution 2048 --method poisson",
@@ -724,6 +729,28 @@ class TestRunPipelineTrainContext:
             "--config neus-facto-dev --vis tensorboard --skip"
         )
 
+    def test_train_data_args(self):
+        """Test train context with data-related arguments."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_model="neus-facto",
+            train_downscale_factor=2,
+            train_scale_factor=1.5,
+            train_center_method="focus",
+            train_orientation_method="vertical",
+            train_auto_scale_poses="median",
+            train_split_fraction=0.9,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
+            "--downscale-factor 2 --scale-factor 1.5 --center-method focus "
+            "--orientation-method vertical --auto-scale-poses median "
+            "--train-split-fraction 0.9"
+        )
+
 
 class TestRunPipelineExportContext:
     """Test run_pipeline() function for export context building."""
@@ -767,6 +794,47 @@ class TestRunPipelineExportContext:
         assert cmd == (
             "scripts/run.sh /path/to/video.mp4 export --resolution 2048 "
             "--method poisson --overwrite"
+        )
+
+    def test_export_additional_args(self):
+        """Test export context with additional SDF/NeRF arguments."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            export_enable=True,
+            export_resolution=256,
+            export_method="poisson",
+            export_marching_cube_threshold=0.5,
+            export_num_pixels_per_side=4096,
+            export_target_num_faces=50000,
+            export_px_per_uv_triangle=4,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 export --resolution 256 "
+            "--method poisson --marching-cube-threshold 0.5 "
+            "--num-pixels-per-side 4096 --target-num-faces 50000 "
+            "--px-per-uv-triangle 4"
+        )
+
+    def test_export_obb_args(self):
+        """Test export context with OBB arguments."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            export_enable=True,
+            export_method="poisson",
+            export_obb_center_x=0.0,
+            export_obb_center_y=1.0,
+            export_obb_center_z=2.0,
+            export_obb_scale_x=1.0,
+            export_obb_scale_y=2.0,
+            export_obb_scale_z=3.0,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 export --method poisson "
+            "--obb-center 0.0 1.0 2.0 --obb-scale 1.0 2.0 3.0"
         )
 
 
@@ -1019,3 +1087,15 @@ class TestIntegration:
         validation_result = test_cmd(cmd, "scripts/run.sh")
         assert validation_result is None
         assert '"/path/to/my video.mp4"' in cmd
+
+
+class TestCreateUI:
+    """Smoke tests for the Gradio layout."""
+
+    def test_create_ui_builds_blocks(self):
+        """create_ui() should construct a Gradio Blocks app without raising."""
+        import gradio as gr
+        from webui import create_ui
+
+        demo = create_ui()
+        assert isinstance(demo, gr.Blocks)

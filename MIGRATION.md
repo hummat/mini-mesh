@@ -102,7 +102,7 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 **Files:** `scripts/train.sh`, `config/defaults.sh`, additional `config/*.sh`.
 
-- [ ] Compare training behavior:
+- [x] Compare training behavior:
   - `mini-mesh/scripts/train.sh` (currently `sdf-train` only).
   - `video-to-mesh/scripts/train.sh` (SDF vs NeRF branches).
 - [x] Data processing flags already handled in `scripts/train.sh`:
@@ -168,7 +168,7 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
   - [x] Any additional CLI tools introduced by `video-to-mesh` feature ports.
 - [x] Keep image size reasonable; consider:
   - [x] Optional installation with INSTALL_OPTIONAL_DEPS build arg for heavy packages (nerfstudio, rembg, sam2, hloc, vggsfm).
-  - [ ] Clear documentation in `README.md` about which features are supported by the default image vs. require a custom build.
+  - [x] Clear documentation in `README.md` about which features are supported by the default image vs. require a custom build.
 - [ ] Confirm `docker/run.sh` remains a thin wrapper around `scripts/run.sh`:
   - [ ] Test that all contexts and key new flags are usable through Docker.
   - [ ] Revisit host mounts and environment variables once masking and deep SfM are ported:
@@ -177,22 +177,24 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 ---
 
-## 7. Web UI Integration (`web.py`)
+## 7. Web UI Integration (`webui.py`)
 
-**Files:** `web.py`.
+**Files:** `webui.py`.
 
-- [ ] Extend UI to match the enriched pipeline contract:
-  - [ ] Add controls for `process` context:
-    - `--min-match-ratio`, `--crop-factor`, `--mask`, `--downscale-factor`, `--scale-factor`, `--center-method`, `--orientation-method`, `--auto-scale-poses`.
-  - [ ] Expose advanced SfM options:
+- [x] Extend UI to match the enriched pipeline contract:
+  - [x] Add controls for `process` context:
+    - `--min-match-ratio`, `--crop-factor`, `--mask`.
+  - [x] Expose advanced SfM options:
     - `sfm` method (colmap/glomap/hloc/vggsfm).
-    - Basic HLoc/VGGSfM settings if desired (or keep them CLI‑only for now).
-  - [ ] Extend training controls:
+    - Basic HLoc/VGGSfM settings remain CLI‑only for now.
+  - [x] Extend training controls:
     - Include NeRF/nerfacto/splat models in the model dropdown.
     - Optional config selection for nerfacto variants.
-  - [ ] Extend export controls:
-    - `--method`, resolution, bbox, OBB center/scale, texture resolution, target faces.
-- [ ] Ensure `run_workflow` builds CLI invocations consistent with updated `scripts/run.sh`.
+    - Expose data processing flags under the train context (consistent with `scripts/train.sh`): `--downscale-factor`, `--scale-factor`, `--center-method`, `--orientation-method`, `--auto-scale-poses`, `--train-split-fraction`.
+  - [x] Extend export controls:
+    - `--method`, resolution, texture resolution, pixels-per-UV-triangle, target faces.
+    - Basic OBB center/scale controls for NeRF exports.
+- [x] Ensure `run_pipeline` builds CLI invocations consistent with updated `scripts/run.sh`.
 
 ---
 

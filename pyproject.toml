@@ -2,10 +2,8 @@
 name = "mini-mesh"
 version = "0.2.0"
 description = "Video to 3D mesh reconstruction pipeline"
-requires-python = ">=3.10"
-dependencies = [
-    "gradio>=4.0.0",
-]
+requires-python = ">=3.11"
+dependencies = ["gradio>=4.0.0"]
 
 [project.optional-dependencies]
 dev = [
@@ -28,19 +26,11 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
-markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-]
+markers = ["unit: Unit tests", "integration: Integration tests"]
 
 [tool.coverage.run]
 source = ["."]
-omit = [
-    "tests/*",
-    "*/test_*",
-    ".venv/*",
-    "venv/*",
-]
+omit = ["tests/*", "*/test_*", ".venv/*", "venv/*"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -55,10 +45,13 @@ exclude_lines = [
 [tool.pyright]
 include = ["webui.py", "tests"]
 exclude = ["**/__pycache__", ".venv", "venv"]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
+
+[tool.setuptools]
+py-modules = ["webui"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

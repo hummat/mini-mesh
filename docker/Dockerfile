@@ -198,7 +198,7 @@ RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
 # nerfstudio for NeRF/Gaussian splatting methods
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
-    nerfstudio==1.1.5; \
+    git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4; \
     fi
 
 # sam2 for segmentation

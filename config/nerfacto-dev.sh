@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 CONFIG=(
-  --pipeline.datamanager.train-num-rays-per-batch 32768
-  --pipeline.datamanager.eval-num-rays-per-batch 32768
+  # VRAM-friendly defaults for ~12 GB GPUs; higher values are possible on 24 GB+
+  --pipeline.datamanager.train-num-rays-per-batch 16384
+  --pipeline.datamanager.eval-num-rays-per-batch 16384
   --pipeline.model.predict-normals True
   --use-grad-scaler True
   --steps-per-save 1000
