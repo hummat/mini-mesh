@@ -232,10 +232,42 @@ The viewer is automatically configured with `--viewer.ip-address "0.0.0.0"` and 
 
 ### Final Touches
 
-For optimal results, you can further improve the final mesh by using a 3D modeling software like Blender. Simply open the
-reconstructed `mesh.ply` file and remove any unwanted parts or artifacts. You can also apply smoothing, hole filling, etc.
-but don't rotate, translate or scale the mesh as this will break the texture mapping. Save your edits and rerun the
-the pipeline which will use the edited mesh as input for the simplification and texturing step.
+For optimal results, you can further improve the final mesh by using a 3D modeling software like Blender.
+
+**SDF models: artist-in-the-loop workflow**
+
+1. Run the pipeline up to training and SDF mesh extraction only:
+
+   ```bash
+   scripts/run.sh /path/to/video_or_images \
+     video --fps 2 sfm --method glomap process --mask rembg \
+     train --model neus-facto --config neus-facto-fast \
+     export --mesh-only
+   ```
+
+   This writes the extracted mesh to `train/<name>/<model>/mesh.ply` without running texturing.
+
+2. Open `mesh.ply` in your DCC (e.g. Blender), remove unwanted parts, fill holes, and smooth as needed.
+   Do **not** change the global transform (no scale/rotate/translate), as this breaks the existing camera alignment.
+
+3. Save your edited mesh either in-place (overwrite `mesh.ply`) or as a new file (e.g. `mesh_edited.ply`).
+
+4. Run texturing only:
+
+   ```bash
+   # If you overwrote mesh.ply in-place:
+   scripts/export.sh /path/to/data/train/<name>/<model> --texture-only
+
+   # If you saved a separate mesh file:
+   scripts/export.sh /path/to/data/train/<name>/<model> \
+     --texture-only --input-mesh-filename /path/to/data/train/<name>/<model>/mesh_edited.ply
+   ```
+
+   You can also drive this via `scripts/run.sh` by repeating the same `--model`/`--name` and passing
+   `export --texture-only [--input-mesh-filename ...]`.
+
+For NeRF-based exports (`nerf*`, `splat*`, `ngp*` models), mesh extraction and texturing are handled via `ns-export`
+and currently run as a single step.
 
 ## Troubleshooting
 
@@ -275,8 +307,11 @@ the pipeline which will use the edited mesh as input for the simplification and 
 5. **The final mesh is incomplete or too small/not detailed enough:**
    Your object of interest (OOI) should fill a bounding box of +/-1. If it your were too close during capture (the OOI isn't fully visible in each frame), is very small or you are far away during the image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
 6. **Weakly textured, reflective and/or transparent surfaces are not well reconstructed:**
-   These are all challenging cases for any reconstruction pipeline. Weakly textured surfaces can lead to inaccurate
-   camera poses in the SfM step. You can try to learn improved poses during training using:
+   These are all challenging cases for any reconstruction pipeline.
+
+   **Weakly textured surfaces (pose / alignment issues):**  
+   Weak texture often means poor feature matches and therefore noisy SfM poses. You can try to learn improved poses
+   during training using:
 
    ```bash
       --pipeline.datamanager.camera-optimizer.mode SO3xR3
@@ -286,7 +321,9 @@ the pipeline which will use the edited mesh as input for the simplification and 
       --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
    ```
 
-   For reflective surfaces you can try enabling the improvements proposed in Ref-NeRF [2]:
+   **Reflective / glossy surfaces (view-dependent appearance issues):**  
+   Here the main problem is not just pose, but that specular highlights move with the camera and can “confuse”
+   geometry learning. You can bias SDFStudio’s BRDF head to handle this better by enabling the Ref-NeRF–style flags:
 
    ```bash
       --pipeline.model.sdf-field.use-diffuse-color True
@@ -294,6 +331,82 @@ the pipeline which will use the edited mesh as input for the simplification and 
       --pipeline.model.sdf-field.use-reflections True
       --pipeline.model.sdf-field.use-n-dot-v True
    ```
+
+   Recommended usage:
+
+   - Mostly diffuse / matte scenes, but with some view dependence:  
+     Enable at least:
+
+     ```bash
+     --pipeline.model.sdf-field.use-diffuse-color True
+     --pipeline.model.sdf-field.use-n-dot-v True
+     ```
+
+     `use-diffuse-color` splits view-independent “albedo” from view-dependent effects, which helps keep geometry
+     honest. `use-n-dot-v` provides the angle of incidence (cosine term) so the network can easily learn
+     foreshortening / limb-darkening and Fresnel-like ramps.
+
+   - Strong specular highlights / moderately reflective materials (glossy plastics, varnished wood, ceramics):  
+     Use the full Ref-NeRF bundle:
+
+     ```bash
+     --pipeline.model.sdf-field.use-diffuse-color True
+     --pipeline.model.sdf-field.use-specular-tint True
+     --pipeline.model.sdf-field.use-reflections True
+     --pipeline.model.sdf-field.use-n-dot-v True
+     ```
+
+     `use-reflections` feeds reflection directions into the color MLP, making specular highlight *position* much more
+     sensitive to geometry and normals. `use-specular-tint` lets specular become colored (metals / coated surfaces)
+     instead of always white.
+
+   - Very shiny / metallic objects (strong mirror-like reflections):  
+     In addition to the above, you can enable roughness prediction and the mixed view/reflection encoding:
+
+     ```bash
+     --pipeline.model.sdf-field.enable-pred-roughness True
+     ```
+
+     With `use-reflections=True`, this predicts a roughness in `[0, 1]` and uses it to mix view-direction features
+     (rough, diffuse-like) and reflection-direction features (smooth, specular-like). This tends to give cleaner
+     specular geometry and a more interpretable roughness map. It adds a bit of capacity and complexity, so only use
+     it when you actually have strong specular behavior.
+
+   Notes:
+
+   - All of these flags affect only the *appearance* model; geometry is still learned from color via the SDF and its
+     regularizers. They mainly change how strongly color residuals push on normals and surface shape.
+   - `use-n-dot-v` is cheap and generally safe to keep **on** whenever you care about good geometry.
+
+   You can further regularize geometry with:
+
+   - **Orientation loss (Ref-NeRF-style)** – encourages visible normals to face the camera:
+
+     ```bash
+     --pipeline.model.orientation-loss-mult 1e-4
+     ```
+
+     Works for SDF-based models (`neus`, `neus-facto`, `neuralangelo` variants) and is most useful when normals are
+     noisy or flipped in low-texture regions.
+
+   - **Distortion loss (Mip-NeRF 360-style)** – discourages stretched or double-peaked depth distributions:
+
+     ```bash
+     # neus (single-level)
+     --pipeline.model.distortion-loss-mult 0.002
+
+     # neus-facto / bakedsdf / bakedangelo (proposal-based)
+     --pipeline.model.distortion-loss-mult 0.002
+     ```
+
+     Start with small values; this is a soft regularizer to tighten geometry, not a replacement for good data.
+
+   In practice, apply changes roughly in this order:
+
+   1. Fix SfM and poses (stronger `sfm` settings, then camera-optimizer in `train`).
+   2. Enable robust BRDF flags (`use-diffuse-color`, `use-n-dot-v`, plus `use-reflections`/`use-specular-tint` for glossy scenes).
+   3. If needed, turn up existing geometry priors (patch warping, mono priors, sparse SfM point losses) via the SDFStudio config.
+   4. Only after that, consider heavier capture changes (matte spray, textured backgrounds, polarization) or research-level models with explicit lighting/BRDF.
 
    Transparency is largely out of reach so far. You can try applying a washable paint to the object to make it opaque.
 7. **Wandb authentication prompts in Docker:**

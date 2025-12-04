@@ -102,6 +102,9 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--pipeline.model.sdf-field.use-diffuse-color",
         "--pipeline.model.sdf-field.use-specular-tint",
         "--pipeline.model.sdf-field.use-appearance-embedding",
+        "--pipeline.model.sdf-field.enable-pred-roughness",
+        "--pipeline.model.orientation-loss-mult",
+        "--pipeline.model.distortion-loss-mult",
         "--logging.local-writer.enable",
         "--viewer.quit-on-train-completion",
         "--skip",
@@ -128,6 +131,9 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--bounding-box-max",
         "--obb-center",
         "--obb-scale",
+        "--mesh-only",
+        "--texture-only",
+        "--input-mesh-filename",
         "--skip",
         "--overwrite",
     ]
@@ -197,6 +203,9 @@ def run_pipeline(
     train_camera_optimizer_mode: Optional[str] = None,
     train_use_reflections: bool = False,
     train_use_diffuse_specular: bool = False,
+    train_enable_pred_roughness: bool = False,
+    train_orientation_loss_mult: Optional[float] = None,
+    train_distortion_loss_mult: Optional[float] = None,
     train_disable_appearance_embedding: bool = False,
     train_viewer_quit_on_completion: bool = False,
     train_skip: bool = False,
@@ -216,6 +225,9 @@ def run_pipeline(
     export_obb_scale_y: Optional[float] = None,
     export_obb_scale_z: Optional[float] = None,
     export_downscale_factor: Optional[int] = None,
+    export_mesh_only: bool = False,
+    export_texture_only: bool = False,
+    export_input_mesh_filename: Optional[str] = None,
     export_skip: bool = False,
     export_overwrite: bool = False,
     # Extra args (verbatim, expert use)
@@ -277,6 +289,9 @@ def run_pipeline(
         train_camera_optimizer_mode: Camera optimizer mode (e.g. SO3xR3)
         train_use_reflections: Enable SDF reflection model
         train_use_diffuse_specular: Enable diffuse+specular SDF colors
+        train_enable_pred_roughness: Enable PBR roughness prediction
+        train_orientation_loss_mult: Ref-NeRF orientation loss multiplier
+        train_distortion_loss_mult: Mip-NeRF 360 distortion loss multiplier
         train_disable_appearance_embedding: Disable appearance embedding
         train_viewer_quit_on_completion: Close viewer when training ends
         train_skip: Skip training
@@ -291,6 +306,9 @@ def run_pipeline(
         export_obb_center_x/y/z: Oriented bounding-box center components
         export_obb_scale_x/y/z: Oriented bounding-box scale components
         export_downscale_factor: Downscale factor for TSDF export
+        export_mesh_only: SDF only: extract mesh but skip texturing
+        export_texture_only: SDF only: texture an existing mesh, skip extraction
+        export_input_mesh_filename: SDF only: custom mesh file for texturing
         export_skip: Skip export
         export_overwrite: Overwrite export outputs
         sfm_extra_args: Additional SfM args (verbatim, expert use)
@@ -453,6 +471,27 @@ def run_pipeline(
                     "True",
                 ]
             )
+        if train_enable_pred_roughness:
+            cmd_parts.extend(
+                [
+                    "--pipeline.model.sdf-field.enable-pred-roughness",
+                    "True",
+                ]
+            )
+        if train_orientation_loss_mult is not None:
+            cmd_parts.extend(
+                [
+                    "--pipeline.model.orientation-loss-mult",
+                    str(train_orientation_loss_mult),
+                ]
+            )
+        if train_distortion_loss_mult is not None:
+            cmd_parts.extend(
+                [
+                    "--pipeline.model.distortion-loss-mult",
+                    str(train_distortion_loss_mult),
+                ]
+            )
         if train_disable_appearance_embedding:
             cmd_parts.extend(
                 [
@@ -517,6 +556,12 @@ def run_pipeline(
                     str(export_obb_scale_z),
                 ]
             )
+        if export_mesh_only:
+            cmd_parts.append("--mesh-only")
+        if export_texture_only:
+            cmd_parts.append("--texture-only")
+        if export_input_mesh_filename:
+            cmd_parts.extend(["--input-mesh-filename", export_input_mesh_filename])
         if export_extra_args:
             cmd_parts.extend(shlex.split(export_extra_args))
         if export_skip:
@@ -837,6 +882,20 @@ def create_ui() -> gr.Blocks:
                             label="Enable diffuse+specular colors (SDF)",
                             info="Enables diffuse/specular color modeling for SDF models.",
                         )
+                        train_enable_pred_roughness = gr.Checkbox(
+                            label="Enable predicted roughness (PBR)",
+                            info="Predict PBR roughness [0,1]; enables roughness map export.",
+                        )
+                        train_orientation_loss_mult = gr.Number(
+                            label="Orientation loss multiplier",
+                            value=None,
+                            info="Ref-NeRF orientation loss (normals face camera). Default: 0.0.",
+                        )
+                        train_distortion_loss_mult = gr.Number(
+                            label="Distortion loss multiplier",
+                            value=None,
+                            info="Mip-NeRF 360 distortion loss (reduce double walls). Default 0.0.",
+                        )
                         train_disable_appearance_embedding = gr.Checkbox(
                             label="Disable appearance embedding",
                             info="Disables --pipeline.model.sdf-field.use-appearance-embedding.",
@@ -890,6 +949,20 @@ def create_ui() -> gr.Blocks:
                         value=None,
                         precision=0,
                         info="Pixels per UV triangle for UV baking.",
+                    )
+                    with gr.Row():
+                        export_mesh_only = gr.Checkbox(
+                            label="Mesh only (SDF)",
+                            info="SDF only: extract mesh but skip texturing.",
+                        )
+                        export_texture_only = gr.Checkbox(
+                            label="Texture only (SDF)",
+                            info="SDF only: texture an existing mesh, skip extraction.",
+                        )
+                    export_input_mesh_filename = gr.Textbox(
+                        label="Input mesh filename (SDF, optional)",
+                        placeholder="Defaults to mesh.ply in the experiment directory",
+                        info="Custom mesh file for texturing. Requires 'Texture only (SDF)'.",
                     )
                     with gr.Accordion("Advanced OBB (NeRF only)", open=False):
                         export_obb_center_x = gr.Number(
@@ -1007,6 +1080,9 @@ def create_ui() -> gr.Blocks:
             train_camera_optimizer_mode_val,
             train_use_reflections_val,
             train_use_diffuse_specular_val,
+            train_enable_pred_roughness_val,
+            train_orientation_loss_mult_val,
+            train_distortion_loss_mult_val,
             train_disable_appearance_embedding_val,
             train_viewer_quit_on_completion_val,
             train_extra_args_val,
@@ -1018,6 +1094,9 @@ def create_ui() -> gr.Blocks:
             export_num_pixels_per_side_val,
             export_target_num_faces_val,
             export_px_per_uv_triangle_val,
+            export_mesh_only_val,
+            export_texture_only_val,
+            export_input_mesh_filename_val,
             export_obb_center_x_val,
             export_obb_center_y_val,
             export_obb_center_z_val,
@@ -1072,6 +1151,8 @@ def create_ui() -> gr.Blocks:
             train_eval_num_rays_per_chunk_val = _norm_num(train_eval_num_rays_per_chunk_val)
             train_train_num_rays_per_batch_val = _norm_num(train_train_num_rays_per_batch_val)
             train_eval_num_rays_per_batch_val = _norm_num(train_eval_num_rays_per_batch_val)
+            train_orientation_loss_mult_val = _norm_num(train_orientation_loss_mult_val)
+            train_distortion_loss_mult_val = _norm_num(train_distortion_loss_mult_val)
             export_resolution_val = _norm_num(export_resolution_val)
             export_marching_cube_threshold_val = _norm_num(export_marching_cube_threshold_val)
             export_num_pixels_per_side_val = _norm_num(export_num_pixels_per_side_val)
@@ -1168,6 +1249,9 @@ def create_ui() -> gr.Blocks:
                     train_camera_optimizer_mode_val,
                     train_use_reflections_val,
                     train_use_diffuse_specular_val,
+                    train_enable_pred_roughness_val,
+                    train_orientation_loss_mult_val,
+                    train_distortion_loss_mult_val,
                     train_disable_appearance_embedding_val,
                     train_viewer_quit_on_completion_val,
                     train_skip_val,
@@ -1183,6 +1267,8 @@ def create_ui() -> gr.Blocks:
                     export_num_pixels_per_side_val,
                     export_target_num_faces_val,
                     export_px_per_uv_triangle_val,
+                    export_mesh_only_val,
+                    export_texture_only_val,
                     export_obb_center_x_val,
                     export_obb_center_y_val,
                     export_obb_center_z_val,
@@ -1265,6 +1351,13 @@ def create_ui() -> gr.Blocks:
                 train_camera_optimizer_mode=train_camera_optimizer_mode_val or None,
                 train_use_reflections=bool(train_use_reflections_val),
                 train_use_diffuse_specular=bool(train_use_diffuse_specular_val),
+                train_enable_pred_roughness=bool(train_enable_pred_roughness_val),
+                train_orientation_loss_mult=float(train_orientation_loss_mult_val)
+                if train_orientation_loss_mult_val is not None
+                else None,
+                train_distortion_loss_mult=float(train_distortion_loss_mult_val)
+                if train_distortion_loss_mult_val is not None
+                else None,
                 train_disable_appearance_embedding=bool(train_disable_appearance_embedding_val),
                 train_viewer_quit_on_completion=bool(train_viewer_quit_on_completion_val),
                 train_extra_args=train_extra_args_val or None,
@@ -1285,6 +1378,14 @@ def create_ui() -> gr.Blocks:
                 export_px_per_uv_triangle=int(export_px_per_uv_triangle_val)
                 if export_px_per_uv_triangle_val is not None
                 else None,
+                export_mesh_only=bool(export_mesh_only_val),
+                export_texture_only=bool(export_texture_only_val),
+                export_input_mesh_filename=(
+                    str(export_input_mesh_filename_val).strip()
+                    if export_input_mesh_filename_val
+                    and str(export_input_mesh_filename_val).strip()
+                    else None
+                ),
                 export_obb_center_x=float(export_obb_center_x_val)
                 if export_obb_center_x_val is not None
                 else None,
@@ -1383,6 +1484,9 @@ def create_ui() -> gr.Blocks:
                 train_camera_optimizer_mode,
                 train_use_reflections,
                 train_use_diffuse_specular,
+                train_enable_pred_roughness,
+                train_orientation_loss_mult,
+                train_distortion_loss_mult,
                 train_disable_appearance_embedding,
                 train_viewer_quit_on_completion,
                 train_extra_args,
@@ -1394,6 +1498,9 @@ def create_ui() -> gr.Blocks:
                 export_num_pixels_per_side,
                 export_target_num_faces,
                 export_px_per_uv_triangle,
+                export_mesh_only,
+                export_texture_only,
+                export_input_mesh_filename,
                 export_obb_center_x,
                 export_obb_center_y,
                 export_obb_center_z,

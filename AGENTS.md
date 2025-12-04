@@ -4,11 +4,11 @@
 - CLI entrypoints live in `scripts/` (`run.sh`, `ffmpeg.sh`, `sfm.sh`, `dl_sfm.sh`, `train.sh`, `export.sh`) and orchestrate the 5‑step pipeline (video → SfM → process → train → export).
 - Training and model hyperparameters are defined as Bash arrays in `config/*.sh` and are sourced by `scripts/train.sh` together with `config/defaults.sh`.
 - `config/defaults.sh` defines `DEFAULTS` (SDF models), `NERF_DEFAULTS`, `SPLAT_DEFAULTS`, `DATA_DEFAULTS` (SDF data processing), and `NS_DATA_DEFAULTS` (NeRF data processing).
-- Docker assets in `docker/` provide a fully configured runtime (COLMAP, GLOMAP, SDFStudio, Nerfstudio, tiny-cuda-nn, optional: rembg, sam2, hloc, vggsfm); `web.py` exposes the pipeline via a Gradio UI.
-- The root contains project docs (`README.md`, `AGENTS.md`); there is currently no `tests/` directory.
+- Docker assets in `docker/` provide a fully configured runtime (COLMAP, GLOMAP, SDFStudio, Nerfstudio, tiny-cuda-nn, optional: rembg, sam2, hloc, vggsfm); `webui.py` exposes the pipeline via a Gradio UI.
+- The root contains project docs (`README.md`, `AGENTS.md`); `tests/` contains unit tests for `webui.py` command construction/validation.
 
 ## Architecture Overview
-- `scripts/run.sh` is the single source of truth for the pipeline contract (contexts, flags, skip/overwrite semantics); `docker/run.sh` and `web.py` are thin wrappers around it.
+- `scripts/run.sh` is the single source of truth for the pipeline contract (contexts, flags, skip/overwrite semantics); `docker/run.sh` and `webui.py` are thin wrappers around it.
 - `scripts/train.sh` resolves config names to `config/*.sh` and dispatches to `sdf-train` (for SDF models) or `ns-train` (for NeRF/splat models); do not duplicate this logic elsewhere.
 - `scripts/export.sh` handles mesh extraction and texturing, dispatching to `sdf-extract-mesh`/`sdf-texture-mesh` (for SDF models) or `ns-export` (for NeRF models).
 - Advanced SfM methods (`hloc`, `vggsfm`) are delegated to `scripts/dl_sfm.sh`, which requires the tools to be in PATH.
@@ -23,15 +23,25 @@
 
 ## Coding Style & Naming Conventions
 - Bash: `#!/usr/bin/env bash`, `set -e`, 2‑space indentation, lowercase names with `_`; extend existing case/flag patterns in `scripts/run.sh` rather than inventing new ones.
-- Python (`web.py`): 4‑space indentation, type hints where useful, snake_case names; keep side effects in `run()`/`run_workflow()`.
+- Python (`webui.py`): 4‑space indentation, type hints where useful, snake_case names; keep side effects in `run()`/`run_workflow()`.
 - Add new configs as `CONFIG=(...)` files in `config/`, using Nerfstudio CLI flags consistent with existing ones.
 
 ## Testing Guidelines
-- No formal unit tests; validate changes by running a small example and checking that:
+- **Single entry point (preferred)**: Run `scripts/lint.sh` to execute shellcheck, ruff, pyright, and pytest in one go. This is what CI runs and must pass before merging.
+- **Unit tests**: Run `pytest tests/` to execute the full test suite (≈100 tests covering `webui.py`)
+  - `pytest tests/ --cov=webui --cov-report=term-missing` for coverage report (target: ≥80%)
+  - `pytest tests/ -v` for verbose output showing all test names
+  - `pytest tests/ -k test_name` to run specific tests
+- **Linting**: Run `ruff check webui.py tests/` to check code style (must pass)
+- **Type checking**: Run `pyright webui.py` to verify types (must pass, 0 errors)
+- **Integration tests**: Validate end-to-end pipeline by running a small example and checking that:
   - `images/`, `sparse/`, `transforms.json`, and `train/<exp>/<model>/config.yml` are created.
   - `mesh.ply` and textures are written in the experiment directory.
 - When changing Docker or CLI behavior, test both `scripts/run.sh` and `docker/run.sh` where relevant.
-- If you touch `web.py`, verify that its arguments still line up with `scripts/run.sh` (contexts, defaults, and flags).
+- If you touch `webui.py`, you MUST:
+  - Add tests for new functionality in `tests/test_webui.py`.
+  - Run `scripts/lint.sh` locally (or, at minimum, `pytest`, `ruff check webui.py tests/`, and `pyright webui.py`) and ensure all pass.
+  - Verify that its arguments still line up with `scripts/run.sh` (contexts, defaults, and flags).
 
 ## Commit & Pull Request Guidelines
 - Follow the existing log style: short, imperative summaries (e.g., `Add CLAUDE.md with project and usage guidelines`).

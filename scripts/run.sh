@@ -44,6 +44,9 @@ function show_help {
   echo "                       --num-pixels-per-side <value>       Pixels per side (default: 2048)"
   echo "                       --target-num-faces <value>          Target number of faces (default: 50_000)"
   echo "                       --method <str>                      NeRF export: poisson, tsdf, pointcloud (default: poisson)"
+  echo "                       --mesh-only                         SDF only: extract mesh but skip texturing"
+  echo "                       --texture-only                      SDF only: texture an existing mesh, skip extraction"
+  echo "                       --input-mesh-filename <path>        SDF only: custom mesh file for texturing (requires --texture-only)"
   echo
   echo "Examples:"
   echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL --matcher exhaustive"

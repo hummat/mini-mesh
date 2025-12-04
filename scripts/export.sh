@@ -21,6 +21,9 @@ function show_help {
   echo "                           --obb-center <float float float>         Center of oriented bounding-box (default: 0 0 0)"
   echo "                           --obb-scale <float float float>          Scale of oriented bounding-box (default: 1 1 1)"
   echo "                           --downscale-factor <int>                 Image downscale factor for TSDF extraction (default: 2)"
+  echo "                           --mesh-only                              SDF only: extract mesh but skip texturing"
+  echo "                           --texture-only                           SDF only: texture an existing mesh, skip extraction"
+  echo "                           --input-mesh-filename <path>             SDF only: custom mesh file for texturing (requires --texture-only)"
   echo "                           --overwrite                              Overwrite existing files"
   echo "                           --help                                   Show this help message"
   echo
@@ -44,6 +47,9 @@ extract_mesh_args=()
 texture_mesh_args=()
 nerf_args=()
 method=poisson
+mesh_only=false
+texture_only=false
+input_mesh_filename=""
 
 i=0
 while [ $i -lt ${#export_args[@]} ]; do
@@ -71,6 +77,18 @@ while [ $i -lt ${#export_args[@]} ]; do
       nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
       i=$((i+4))
       ;;
+    --mesh-only)
+      mesh_only=true
+      i=$((i+1))
+      ;;
+    --texture-only)
+      texture_only=true
+      i=$((i+1))
+      ;;
+    --input-mesh-filename)
+      input_mesh_filename="${export_args[$((i+1))]}"
+      i=$((i+2))
+      ;;
     --overwrite)
       overwrite=true
       i=$((i+1))
@@ -87,61 +105,93 @@ if [ -f "$exp_path/config.yml" ]; then
     echo "[INFO]: Export args: ${export_args[*]}"
   fi
   model_name=$(basename "$exp_path")
-    if [[ "$model_name" == *nerf* ]] || [[ "$model_name" == *splat* ]] || [[ "$model_name" == *ngp* ]] ; then
-      if [[ "$model_name" == *splat* ]]; then
-        ns-export gaussian-splat \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --obb-center 0 0 0 \
-          --obb-rotation 0 0 0 \
-          --obb-scale 1 1 1 \
-          "${nerf_args[@]}"
-      elif [ "$method" = pointcloud ]; then
-        ns-export pointcloud \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --obb-center 0 0 0 \
-          --obb-rotation 0 0 0 \
-          --obb-scale 1 1 1 \
-          --std-ratio 1 \
-          "${nerf_args[@]}"
-      elif [ "$method" = tsdf ]; then
-        ns-export tsdf \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --batch-size 1 \
-          --resolution 256 256 256 \
-          "${nerf_args[@]}"
-      else
-        ns-export poisson \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --save-point-cloud True \
-          --obb-center 0 0 0 \
-          --obb-rotation 0 0 0 \
-          --obb-scale 1 1 1 \
-          --std-ratio 1 \
-          --density-quantile 0.01 \
-          "${nerf_args[@]}"
-      fi
-    else
-    if [ ! -f "$exp_path/mesh.ply" ] || [ "${overwrite:-false}" = true ]; then
-      sdf-extract-mesh \
-        --load-config "$exp_path/config.yml" \
-        --output-path "$exp_path/mesh.ply" \
-        "${extract_mesh_args[@]}"
+  if [[ "$model_name" == *nerf* ]] || [[ "$model_name" == *splat* ]] || [[ "$model_name" == *ngp* ]]; then
+    if [ "$mesh_only" = true ] || [ "$texture_only" = true ] || [ -n "$input_mesh_filename" ]; then
+      echo "[ERROR]: --mesh-only/--texture-only/--input-mesh-filename are only supported for SDF experiments."
+      exit 1
     fi
-    if [ -f "$exp_path/mesh.ply" ]; then
+    if [[ "$model_name" == *splat* ]]; then
+      ns-export gaussian-splat \
+        --load-config "$exp_path/config.yml" \
+        --output-dir "$exp_path" \
+        --obb-center 0 0 0 \
+        --obb-rotation 0 0 0 \
+        --obb-scale 1 1 1 \
+        "${nerf_args[@]}"
+    elif [ "$method" = pointcloud ]; then
+      ns-export pointcloud \
+        --load-config "$exp_path/config.yml" \
+        --output-dir "$exp_path" \
+        --obb-center 0 0 0 \
+        --obb-rotation 0 0 0 \
+        --obb-scale 1 1 1 \
+        --std-ratio 1 \
+        "${nerf_args[@]}"
+    elif [ "$method" = tsdf ]; then
+      ns-export tsdf \
+        --load-config "$exp_path/config.yml" \
+        --output-dir "$exp_path" \
+        --batch-size 1 \
+        --resolution 256 256 256 \
+        "${nerf_args[@]}"
+    else
+      ns-export poisson \
+        --load-config "$exp_path/config.yml" \
+        --output-dir "$exp_path" \
+        --save-point-cloud True \
+        --obb-center 0 0 0 \
+        --obb-rotation 0 0 0 \
+        --obb-scale 1 1 1 \
+        --std-ratio 1 \
+        --density-quantile 0.01 \
+        "${nerf_args[@]}"
+    fi
+  else
+    if [ "$mesh_only" = true ] && [ "$texture_only" = true ]; then
+      echo "[ERROR]: --mesh-only and --texture-only cannot be used together"
+      exit 1
+    fi
+    if [ -n "$input_mesh_filename" ] && [ "$texture_only" != true ]; then
+      echo "[ERROR]: --input-mesh-filename requires --texture-only for SDF experiments"
+      exit 1
+    fi
+
+    default_mesh_path="$exp_path/mesh.ply"
+
+    if [ "$texture_only" = true ]; then
+      mesh_path="${input_mesh_filename:-$default_mesh_path}"
+      if [ ! -f "$mesh_path" ]; then
+        echo "[ERROR]: Mesh file $mesh_path not found"
+        exit 1
+      fi
       if [ ! -f "$exp_path/mesh.obj" ] || [ "${overwrite:-false}" = true ]; then
         sdf-texture-mesh \
           --load-config "$exp_path/config.yml" \
           --output-dir "$exp_path" \
-          --input-mesh-filename "$exp_path/mesh.ply" \
+          --input-mesh-filename "$mesh_path" \
           "${texture_mesh_args[@]}"
       fi
     else
-      echo "[ERROR]: Mesh file $exp_path/mesh.ply not found"
-      exit 1
+      if [ ! -f "$default_mesh_path" ] || [ "${overwrite:-false}" = true ]; then
+        sdf-extract-mesh \
+          --load-config "$exp_path/config.yml" \
+          --output-path "$default_mesh_path" \
+          "${extract_mesh_args[@]}"
+      fi
+      if [ "$mesh_only" != true ]; then
+        if [ -f "$default_mesh_path" ]; then
+          if [ ! -f "$exp_path/mesh.obj" ] || [ "${overwrite:-false}" = true ]; then
+            sdf-texture-mesh \
+              --load-config "$exp_path/config.yml" \
+              --output-dir "$exp_path" \
+              --input-mesh-filename "$default_mesh_path" \
+              "${texture_mesh_args[@]}"
+          fi
+        else
+          echo "[ERROR]: Mesh file $default_mesh_path not found"
+          exit 1
+        fi
+      fi
     fi
   fi
 else

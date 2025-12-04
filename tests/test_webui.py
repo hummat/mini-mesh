@@ -348,6 +348,24 @@ class TestTrainContextValidation:
                 "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
                 "--config neus-facto-dev --vis tensorboard"
             ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.model.sdf-field.enable-pred-roughness True"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.model.orientation-loss-mult 0.01"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.model.distortion-loss-mult 0.001"
+            ),
+            (
+                "scripts/run.sh /path/to/video.mp4 train "
+                "--pipeline.model.sdf-field.enable-pred-roughness True "
+                "--pipeline.model.orientation-loss-mult 0.01 "
+                "--pipeline.model.distortion-loss-mult 0.001"
+            ),
         ]
         for cmd in valid_commands:
             result = test_cmd(cmd, "scripts/run.sh")
@@ -419,6 +437,12 @@ class TestExportContextValidation:
             "scripts/run.sh /path/to/video.mp4 export --px-per-uv-triangle 4",
             "scripts/run.sh /path/to/video.mp4 export --obb-center 0 0 0",
             "scripts/run.sh /path/to/video.mp4 export --obb-scale 1 1 1",
+            "scripts/run.sh /path/to/video.mp4 export --mesh-only",
+            "scripts/run.sh /path/to/video.mp4 export --texture-only",
+            (
+                "scripts/run.sh /path/to/video.mp4 export "
+                "--texture-only --input-mesh-filename /tmp/edited_mesh.ply"
+            ),
             "scripts/run.sh /path/to/video.mp4 export --skip",
             "scripts/run.sh /path/to/video.mp4 export --overwrite",
             "scripts/run.sh /path/to/video.mp4 export --resolution 2048 --method poisson",
@@ -751,6 +775,70 @@ class TestRunPipelineTrainContext:
             "--train-split-fraction 0.9"
         )
 
+    def test_train_brdf_flags(self):
+        """Test train context with BRDF/shading flags."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_use_reflections=True,
+            train_use_diffuse_specular=True,
+            train_enable_pred_roughness=True,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train "
+            "--pipeline.model.sdf-field.use-reflections True "
+            "--pipeline.model.sdf-field.use-n-dot-v True "
+            "--pipeline.model.sdf-field.use-diffuse-color True "
+            "--pipeline.model.sdf-field.use-specular-tint True "
+            "--pipeline.model.sdf-field.enable-pred-roughness True"
+        )
+
+    def test_train_regularization_losses(self):
+        """Test train context with regularization loss multipliers."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_model="neus-facto",
+            train_orientation_loss_mult=0.01,
+            train_distortion_loss_mult=0.001,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
+            "--pipeline.model.orientation-loss-mult 0.01 "
+            "--pipeline.model.distortion-loss-mult 0.001"
+        )
+
+    def test_train_all_new_flags_combined(self):
+        """Test train context with all new BRDF and loss flags."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_model="neus-facto",
+            train_config="neus-facto-fast",
+            train_use_reflections=True,
+            train_use_diffuse_specular=True,
+            train_enable_pred_roughness=True,
+            train_orientation_loss_mult=0.01,
+            train_distortion_loss_mult=0.001,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
+            "--config neus-facto-fast "
+            "--pipeline.model.sdf-field.use-reflections True "
+            "--pipeline.model.sdf-field.use-n-dot-v True "
+            "--pipeline.model.sdf-field.use-diffuse-color True "
+            "--pipeline.model.sdf-field.use-specular-tint True "
+            "--pipeline.model.sdf-field.enable-pred-roughness True "
+            "--pipeline.model.orientation-loss-mult 0.01 "
+            "--pipeline.model.distortion-loss-mult 0.001"
+        )
+
 
 class TestRunPipelineExportContext:
     """Test run_pipeline() function for export context building."""
@@ -835,6 +923,28 @@ class TestRunPipelineExportContext:
         assert cmd == (
             "scripts/run.sh /path/to/video.mp4 export --method poisson "
             "--obb-center 0.0 1.0 2.0 --obb-scale 1.0 2.0 3.0"
+        )
+
+    def test_export_mesh_only_and_texture_only(self):
+        """Test export context with mesh-only / texture-only flags."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            export_enable=True,
+            export_mesh_only=True,
+        )
+        assert cmd == "scripts/run.sh /path/to/video.mp4 export --mesh-only"
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            export_enable=True,
+            export_texture_only=True,
+            export_input_mesh_filename="/tmp/edited_mesh.ply",
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 export "
+            "--texture-only --input-mesh-filename /tmp/edited_mesh.ply"
         )
 
 
@@ -1087,6 +1197,287 @@ class TestIntegration:
         validation_result = test_cmd(cmd, "scripts/run.sh")
         assert validation_result is None
         assert '"/path/to/my video.mp4"' in cmd
+
+
+class TestRunPipelineEdgeCases:
+    """Test edge cases and less common code paths in run_pipeline()."""
+
+    def test_video_overwrite_flag(self):
+        """Test video context with overwrite flag."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            video_enable=True,
+            video_overwrite=True,
+        )
+        assert "--overwrite" in cmd
+
+    def test_sfm_overwrite_flag(self):
+        """Test sfm context with overwrite flag."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_overwrite=True,
+        )
+        assert "sfm --overwrite" in cmd
+
+    def test_sfm_extra_args(self):
+        """Test sfm context with extra args."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_method="colmap",
+            sfm_extra_args="--custom-flag value",
+        )
+        assert "sfm --method colmap --custom-flag value" in cmd
+
+    def test_process_extra_args(self):
+        """Test process context with extra args."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            process_enable=True,
+            process_extra_args="--extra-option 123",
+        )
+        assert "process --extra-option 123" in cmd
+
+    def test_train_extra_args(self):
+        """Test train context with extra args."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_extra_args="--custom-train-flag value",
+        )
+        assert "train --custom-train-flag value" in cmd
+
+    def test_export_extra_args(self):
+        """Test export context with extra args."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            export_enable=True,
+            export_extra_args="--custom-export-flag",
+        )
+        assert "export --custom-export-flag" in cmd
+
+    def test_sfm_refine_principal_point_false(self):
+        """Test sfm with refine_principal_point=False."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_refine_principal_point=False,
+        )
+        assert "--refine_principal_point False" in cmd
+
+    def test_sfm_num_threads(self):
+        """Test sfm with num_threads specified."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_num_threads=8,
+        )
+        assert "--num_threads 8" in cmd
+
+    def test_sfm_hloc_args(self):
+        """Test sfm with hloc arguments."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_hloc_camera="OPENCV",
+            sfm_hloc_feature="superpoint_aachen",
+            sfm_hloc_matcher="superglue",
+            sfm_hloc_weights="outdoor",
+        )
+        assert "--hloc_camera OPENCV" in cmd
+        assert "--hloc_feature superpoint_aachen" in cmd
+        assert "--hloc_matcher superglue" in cmd
+        assert "--hloc_weights outdoor" in cmd
+
+    def test_sfm_vggsfm_args(self):
+        """Test sfm with vggsfm arguments."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_vggsfm_max_points=16384,
+            sfm_vggsfm_max_tri_points=8192,
+        )
+        assert "--vggsfm_max_points 16384" in cmd
+        assert "--vggsfm_max_tri_points 8192" in cmd
+
+    def test_process_crop_factor_string(self):
+        """Test process with crop_factor as string."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            process_enable=True,
+            process_crop_factor="0.1 0.2 0.3 0.4",
+        )
+        assert "--crop-factor 0.1 0.2 0.3 0.4" in cmd
+
+    def test_process_min_match_ratio(self):
+        """Test process with min_match_ratio."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            process_enable=True,
+            process_min_match_ratio=0.5,
+        )
+        assert "--min-match-ratio 0.5" in cmd
+
+    def test_train_all_ray_options(self):
+        """Test train with all ray-related options."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_eval_num_rays_per_chunk=8192,
+            train_train_num_rays_per_batch=4096,
+            train_eval_num_rays_per_batch=2048,
+        )
+        assert "--pipeline.model.eval-num-rays-per-chunk 8192" in cmd
+        assert "--pipeline.datamanager.train-num-rays-per-batch 4096" in cmd
+        assert "--pipeline.datamanager.eval-num-rays-per-batch 2048" in cmd
+
+    def test_train_camera_optimizer_mode(self):
+        """Test train with camera_optimizer_mode."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_camera_optimizer_mode="SO3xR3",
+        )
+        assert "--pipeline.datamanager.camera-optimizer.mode SO3xR3" in cmd
+
+    def test_train_disable_appearance_embedding(self):
+        """Test train with appearance embedding disabled."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_disable_appearance_embedding=True,
+        )
+        assert "--pipeline.model.sdf-field.use-appearance-embedding False" in cmd
+
+    def test_train_viewer_quit_on_completion(self):
+        """Test train with viewer quit on completion."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_viewer_quit_on_completion=True,
+        )
+        assert "--viewer.quit-on-train-completion True" in cmd
+
+    def test_export_downscale_factor(self):
+        """Test export with downscale_factor."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            export_enable=True,
+            export_downscale_factor=2,
+        )
+        assert "--downscale-factor 2" in cmd
+
+    def test_docker_mode(self):
+        """Test docker mode uses correct script."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            mode="docker",
+            train_enable=True,
+        )
+        assert cmd.startswith("docker/run.sh")
+
+    def test_sfm_camera_model_non_default(self):
+        """Test sfm with non-default camera model."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_camera_model="PINHOLE",
+        )
+        assert "--camera_model PINHOLE" in cmd
+
+    def test_sfm_extra_flag(self):
+        """Test sfm with extra flag."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            sfm_enable=True,
+            sfm_extra=True,
+        )
+        assert "sfm --extra" in cmd
+
+    def test_process_skip_flag(self):
+        """Test process with skip flag."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            process_enable=True,
+            process_skip=True,
+        )
+        assert "process --skip" in cmd
+
+    def test_train_name(self):
+        """Test train with experiment name."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_name="my-experiment",
+        )
+        assert "--name my-experiment" in cmd
+
+    def test_train_overwrite_flag(self):
+        """Test train with overwrite flag."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_overwrite=True,
+        )
+        assert "train --overwrite" in cmd
+
+    def test_export_skip_flag(self):
+        """Test export with skip flag."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            export_enable=True,
+            export_skip=True,
+        )
+        assert "export --skip" in cmd
 
 
 class TestCreateUI:
