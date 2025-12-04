@@ -99,7 +99,7 @@ Add `--help` to see all available options. Please consult the [**Usage**](#usage
 7. Install [my `SDFStudio` fork](https://github.com/hummat/sdfstudio):
 
     ```bash
-   pip install git+https://github.com/hummat/sdfstudio.git@ba1f247426a283197f724392a3a3b75f4cfa014d
+   pip install git+https://github.com/hummat/sdfstudio.git@6289984bd3c3954e5052d02718d142e85e046f11
     ```
 
 8. **(Optional)** Install additional dependencies for advanced features:
@@ -375,8 +375,35 @@ and currently run as a single step.
    Notes:
 
    - All of these flags affect only the *appearance* model; geometry is still learned from color via the SDF and its
-     regularizers. They mainly change how strongly color residuals push on normals and surface shape.
+     regularizers. They mainly change how strongly color residuals push on normals and surface shape, which can help
+     or hurt geometry depending on the scene.
+   - With `use-diffuse-color=True`, the color MLP no longer sees raw points/normals directly; that’s good for
+     separating albedo from specular, but it also makes it easier for the BRDF heads (`use-specular-tint`,
+     `use-reflections`, `enable-pred-roughness`) to “explain away” view-dependent artifacts instead of fixing the SDF.
+     On some scenes this can manifest as slightly wavier surfaces than a simpler setup.
+   - `use-reflections` and especially `enable-pred-roughness` noticeably increase appearance capacity. They are most
+     useful on clearly glossy / metallic objects; for mostly diffuse scenes, they may add complexity without clear
+     gains and can slow down or destabilize geometry a bit.
+   - `use-appearance-embedding` (when enabled in the underlying SDFStudio config) adds a small per-image latent code
+     to the color network. For the typical mini-mesh use case (short, shaky smartphone videos with imperfect lighting),
+     this usually helps, because it lets the model soak up per-frame exposure / white-balance / noise differences
+     without twisting geometry. For very clean, studio-lit photo sets, advanced users may prefer to disable it to push
+     more supervision into geometry instead of appearance.
+   - The NeuS sharpness parameters interact with scene scale:
+     - ``bias`` (in the SDF field config) sets the radius of the initial geometric SDF sphere. For small tabletop
+       objects, values around ``0.3–0.5`` generally give a more stable start than an extremely tight sphere; if you
+       make it too small, the initial surface can be so tiny that gradients are weak.
+     - ``beta-init`` seeds both the VolSDF Laplace density scale and the NeuS variance network. Typical values are
+       ``0.1–0.3``; smaller makes the initial band sharper, larger makes it softer.
+     - ``s_val`` (logged as a metric) is the learned NeuS sharpness scalar; it roughly controls how thin the transition
+       band around the surface is (thickness ≈ ``1 / s_val`` in SDF units). You should see it rise from its initial
+       value and then plateau. Treat it as a diagnostic (is training doing something?) rather than a target — higher is
+       only better if the rendered images and meshes also improve.
    - `use-n-dot-v` is cheap and generally safe to keep **on** whenever you care about good geometry.
+   - Do **not** treat the full Ref-NeRF bundle as an “always on” preset. A practical ablation order is:
+     1) turn on `use-n-dot-v`, 2) add `use-reflections` for glossy scenes, 3) add `use-diffuse-color` if you care
+     about albedo/specular separation, and 4) only then add `use-specular-tint`/`enable-pred-roughness` for very
+     shiny/metallic objects, checking that geometry does not regress at each step.
 
    You can further regularize geometry with:
 
