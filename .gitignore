@@ -1,2 +1,69 @@
 .idea/
 .vscode/
+__pycache__/
+*.py[cod]
+# IDEs & editors
+.idea/
+.vscode/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.Python
+.venv/
+.env/
+.env
+env/
+env.bak/
+venv/
+venv.bak/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg
+*.egg-info/
+pip-wheel-metadata/
+pip-wheel-metadata
+*.manifest
+
+# Type checkers & linters
+.ruff_cache/
+.pyright/
+.mypy_cache/
+.pyre/
+.pytype/
+dmypy.json
+.dmypy.json
+
+# Test artifacts
+.pytest_cache/
+.benchmarks/
+.nox/
+.tox/
+.hypothesis/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+*.cover
+*.py,cover
+pytestdebug.log
+
+# General caches
+.cache/
+
+# Env metadata
+.python-version
+
+# Agent files
+CLAUDE.md
+GEMINI.md
+QWEN.md
+tmp*/
+runtime/

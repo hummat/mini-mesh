@@ -29,18 +29,22 @@ CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 MODEL_NAME="$1"
 EXP_NAME="$2"
 DATA_DIR="$3"
+# CONFIG may refer to a file path or a named config in CONFIG_DIR.
 CONFIG="$4"
 if [ -f "$CONFIG" ]; then
   echo "[INFO] Using config file: $CONFIG"
+  # shellcheck disable=SC1090
   source "$CONFIG"
   shift 4
 elif [ -f "$CONFIG_DIR/$CONFIG.sh" ]; then
   echo "[INFO] Using config file $CONFIG.sh from $CONFIG_DIR"
+  # shellcheck disable=SC1090
   source "$CONFIG_DIR/$CONFIG.sh"
   shift 4
 else
   if [ -f "$CONFIG_DIR/$MODEL_NAME.sh" ]; then
       echo "[INFO] Using config file $MODEL_NAME.sh"
+      # shellcheck disable=SC1090
       source "$CONFIG_DIR/$MODEL_NAME.sh"
   else
       echo "[INFO] No config file found"
@@ -48,6 +52,7 @@ else
   fi
   shift 3
 fi
+# shellcheck disable=SC1091
 source "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
 
 ARGS=()
@@ -69,19 +74,40 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-COMMAND=(
-  ns-train
-  "$MODEL_NAME"
-  --output-dir "$DATA_DIR/train"
-  --experiment-name "$EXP_NAME"
-  "${DEFAULTS[@]}"
-  "${CONFIG[@]}"
-  "${ARGS[@]}"
-  nerfstudio-data
-  --data "$DATA_DIR"
-  "${DATA_DEFAULTS[@]}"
-  "${DATA_ARGS[@]}"
-)
+if [[ "$MODEL_NAME" == *nerf* ]] || [[ "$MODEL_NAME" == *splat* ]] || [[ "$MODEL_NAME" == *ngp* ]]; then
+  if [[ "$MODEL_NAME" == *splat* ]]; then
+    NS_DEFAULTS=("${SPLAT_DEFAULTS[@]}")
+  else
+    NS_DEFAULTS=("${NERF_DEFAULTS[@]}")
+  fi
+  COMMAND=(
+    ns-train
+    "$MODEL_NAME"
+    --output-dir "$DATA_DIR/train"
+    --experiment-name "$EXP_NAME"
+    "${NS_DEFAULTS[@]}"
+    "${CONFIG[@]}"
+    "${ARGS[@]}"
+    nerfstudio-data
+    --data "$DATA_DIR"
+    "${NS_DATA_DEFAULTS[@]}"
+    "${DATA_ARGS[@]}"
+  )
+else
+  COMMAND=(
+    sdf-train
+    "$MODEL_NAME"
+    --output-dir "$DATA_DIR/train"
+    --experiment-name "$EXP_NAME"
+    "${DEFAULTS[@]}"
+    "${CONFIG[@]}"
+    "${ARGS[@]}"
+    nerfstudio-data
+    --data "$DATA_DIR"
+    "${DATA_DEFAULTS[@]}"
+    "${DATA_ARGS[@]}"
+  )
+fi
 
 if [ -z "$SLURM_JOB_NAME" ]; then
   echo "[INFO] Running LOCALLY with COMMAND:" "${COMMAND[@]}"

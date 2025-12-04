@@ -8,9 +8,9 @@ function show_help {
   echo "This script automates a multi-step 3D reconstruction workflow:"
   echo "1. Optional video extraction using ffmpeg (video context)"
   echo "2. Structure-from-Motion (SfM) using sfm.sh (sfm context)"
-  echo "3. Data processing using ns-process-data (global context)"
+  echo "3. Data processing using sdf-process-data (process context)"
   echo "4. Training using train.sh (train context)"
-  echo "5. Mesh export using ns-extract-mesh (export context)"
+  echo "5. Mesh export using export.sh (export context)"
   echo
   echo "Options:"
   echo "  --show      Show COLMAP GUI after SfM completes"
@@ -20,21 +20,38 @@ function show_help {
   echo "Contexts:"
   echo "  video [...args]    Additional arguments for ffmpeg.sh. Call ffmpeg.sh for more information."
   echo "  sfm [...args]      Additional arguments for sfm.sh. Call sfm.sh for more information."
+  echo "                       --method <str>                    SfM method: colmap, glomap, hloc, vggsfm (default: colmap)"
+  echo "  process [...args]  Additional arguments for sdf-process-data:"
+  echo "                       --mask <str>                      Mask background: rembg, sam2, true, none (default: none)"
+  echo "                       --min-match-ratio <float>         Acceptable percentage of estimated camera poses"
+  echo "                       --crop-factor <top bot left rgt>  Crop ratio for images"
   echo "  train [...args]    Additional arguments for train.sh:"
-  echo "                       --model <model>     Model name (default: neus)"
-  echo "                       --name <name>       Experiment name (default: input directory name)"
-  echo "                       --config <config>   Configuration file or name (default: neus-grid-dev)"
-  echo "  export [...args]   Additional arguments for the mesh export:"
+  echo "                       --model <model>                   Model name (default: neus)"
+  echo "                       --name <name>                     Experiment name (default: input directory name)"
+  echo "                       --config <config>                 Configuration file or name (default: neus-grid-dev)"
+  echo "                     Data processing flags (passed to nerfstudio-data):"
+  echo "                       --downscale-factor <int>          Downscale factor for images"
+  echo "                       --scale-factor <float>            Scale factor for scene"
+  echo "                       --center-method <str>             Method to center poses"
+  echo "                       --orientation-method <str>        Method to orient poses"
+  echo "                       --auto-scale-poses <bool>         Auto-scale poses"
+  echo "                       --train-split-fraction <float>    Train/val split fraction"
+  echo "  export [...args]   Additional arguments for export.sh:"
   echo "                       --resolution <value>                Resolution of the exported mesh (default: 1024)"
   echo "                       --bounding-box-min/max <x y z>      Bounding box for the exported mesh (default: +-1)"
   echo "                       --marching-cube-threshold <value>   Isosurface value (default: 0.0)"
   echo "                       --px-per-uv-triangle <value>        Pixels per UV triangle (default: 4)"
   echo "                       --num-pixels-per-side <value>       Pixels per side (default: 2048)"
   echo "                       --target-num-faces <value>          Target number of faces (default: 50_000)"
+  echo "                       --method <str>                      NeRF export: poisson, tsdf, pointcloud (default: poisson)"
+  echo "                       --mesh-only                         SDF only: extract mesh but skip texturing"
+  echo "                       --texture-only                      SDF only: texture an existing mesh, skip extraction"
+  echo "                       --input-mesh-filename <path>        SDF only: custom mesh file for texturing (requires --texture-only)"
   echo
   echo "Examples:"
   echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL --matcher exhaustive"
-  echo "  $0 /path/to/video.mp4 video --fps 1 --hdr sfm --use_glomap train --model neus-facto --config neus-facto-fast --vis wandb"
+  echo "  $0 /path/to/video.mp4 video --fps 1 sfm --method glomap train --model neus-facto --config neus-facto-fast"
+  echo "  $0 /path/to/images sfm --method hloc process --mask rembg train --config neus-grid-dev export --resolution 2048"
   exit 0
 }
 
@@ -62,6 +79,7 @@ shift
 global_args=()
 video_args=()
 sfm_args=()
+process_args=()
 train_args=()
 export_args=()
 
@@ -70,16 +88,19 @@ verbose=false
 overwrite=false
 current_context=global
 sfm_method=colmap
+mask=none
 model=neus
 name=$(basename "$input_dir")
 config=neus-grid-dev
 
 video_skip=false
 sfm_skip=false
+process_skip=false
 train_skip=false
 export_skip=false
 video_overwrite=false
 sfm_overwrite=false
+process_overwrite=false
 train_overwrite=false
 export_overwrite=false
 
@@ -90,6 +111,8 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     --verbose)
+      # Reserved for future use (e.g., verbose logging).
+      # shellcheck disable=SC2034
       verbose=true
       shift
       ;;
@@ -104,6 +127,10 @@ while [ $# -gt 0 ]; do
       current_context="sfm"
       shift
       ;;
+    process)
+      current_context="process"
+      shift
+      ;;
     train)
       current_context="train"
       shift
@@ -116,8 +143,25 @@ while [ $# -gt 0 ]; do
       if [ "$current_context" = "sfm" ]; then
         sfm_method="$2"
         shift 2
+      elif [ "$current_context" = "export" ]; then
+        export_args+=("$1" "$2")
+        shift 2
       else
-        echo "Error: --method can only be used with the sfm context"
+        echo "Error: --method can only be used with the sfm or export context"
+        exit 1
+      fi
+      ;;
+    --mask)
+      if [ "$current_context" = "process" ]; then
+        if [ "$2" = rembg ] || [ "$2" = sam2 ] || [ "$2" = true ] || [ "$2" = none ]; then
+          mask="$2"
+          shift 2
+        else
+          echo "Error: Unsupported mask method '$2'. Supported: rembg, sam2, true, none"
+          exit 1
+        fi
+      else
+        echo "Error: --mask can only be used with the process context"
         exit 1
       fi
       ;;
@@ -152,7 +196,8 @@ while [ $# -gt 0 ]; do
      --skip)
       case "$current_context" in
         video) video_skip=true ;;
-        sfm)   sfm_skip=true ;;
+        sfm) sfm_skip=true ;;
+        process) process_skip=true ;;
         train) train_skip=true ;;
         export) export_skip=true ;;
       esac
@@ -161,7 +206,8 @@ while [ $# -gt 0 ]; do
     --overwrite)
       case "$current_context" in
         video) video_overwrite=true ;;
-        sfm)   sfm_overwrite=true ;;
+        sfm) sfm_overwrite=true ;;
+        process) process_overwrite=true ;;
         train) train_overwrite=true ;;
         export) export_overwrite=true ;;
         global) overwrite=true ;;
@@ -173,6 +219,7 @@ while [ $# -gt 0 ]; do
         global) global_args+=("$1");;
         video) video_args+=("$1");;
         sfm) sfm_args+=("$1");;
+        process) process_args+=("$1");;
         train) train_args+=("$1");;
         export) export_args+=("$1");;
       esac
@@ -234,15 +281,48 @@ echo "============================="
 echo "     3. DATA PROCESSING      "
 echo "============================="
 
-if ! [ -f "$input_dir/transforms.json" ] || [ "$overwrite" = true ]; then
-  if [ -d "$input_dir/images" ] && ! [ -d "$input_dir/images_orig" ]; then
-    mv "$input_dir/images" "$input_dir/images_orig"
+if [ "$process_skip" != true ]; then
+  if ! [ -f "$input_dir/transforms.json" ] || [ "$overwrite" = true ] || [ "$process_overwrite" = true ]; then
+    if [[ ${#process_args[@]} -gt 0 ]]; then
+      echo "Process args: ${process_args[*]}"
+    fi
+    if [ "$process_overwrite" = true ]; then
+      rm -rf "$input_dir/images_2" "$input_dir/images_4" "$input_dir/images_8" "$input_dir/masks"
+      rm -f "$input_dir/transforms.json" "$input_dir/sparse_pc.ply"
+      if [ -d "$input_dir/images_orig" ]; then
+        rm -rf "$input_dir/images"
+      fi
+    fi
+    if [ -d "$input_dir/images" ] && ! [ -d "$input_dir/images_orig" ]; then
+      mv "$input_dir/images" "$input_dir/images_orig"
+    fi
+
+    process_data="$input_dir/images_orig"
+    if [ "$mask" != none ]; then
+      echo "Masking images using $mask"
+      if [ "$mask" = rembg ]; then
+        rembg p "$input_dir/images_orig" "$input_dir/masks"
+      elif [ "$mask" = sam2 ]; then
+        sam2 --data "$input_dir/images_orig" --output_dir "$input_dir/masks" --model.huggingface
+      elif [ "$mask" != true ]; then
+        echo "[ERROR]: Unsupported mask method '$mask'"
+        exit 1
+      fi
+      process_data="$input_dir/masks"
+    fi
+
+    sdf-process-data images \
+      --data "$process_data" \
+      --output_dir "$input_dir" \
+      --skip-colmap \
+      --colmap-model-path "$input_dir/sparse" \
+      "${process_args[@]}"
+
+    if ! [ -f "$input_dir/transforms.json" ]; then
+      echo "[ERROR]: transforms.json not generated"
+      exit 1
+    fi
   fi
-  ns-process-data images \
-    --data "$input_dir/images_orig" \
-    --output_dir "$input_dir" \
-    --skip-colmap \
-    --colmap-model-path "$input_dir/sparse"
 fi
 
 echo "============================="
@@ -252,9 +332,18 @@ echo "============================="
 exp_path="$input_dir/train/$name/$model"
 if [ "$train_skip" != true ]; then
   if ! [ -d "$exp_path" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
-    echo "Train args: ${train_args[*]}"
+    if [[ ${#train_args[@]} -gt 0 ]]; then
+      echo "Train args: ${train_args[*]}"
+    fi
     if [ -d "$exp_path" ] && { [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; }; then
       rm -rf "$exp_path"
+    fi
+    if [ "$mask" != none ]; then
+      if [[ "$model" != *nerf* && "$model" != *splat* && "$model" != *ngp* ]]; then
+        train_args+=("--pipeline.model.background-model" "none" "--trainer.mixed-precision" "False")
+      else
+        train_args+=("--pipeline.model.background-color" "random")
+      fi
     fi
     "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" \
       "${train_args[@]}" --timestamp ""
@@ -265,55 +354,10 @@ echo "============================="
 echo "         5. EXPORT           "
 echo "============================="
 
-extract_mesh_args=()
-texture_mesh_args=()
-
-i=0
-while [ $i -lt ${#export_args[@]} ]; do
-  case "${export_args[$i]}" in
-    --resolution|--marching-cube-threshold)
-      extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
-      i=$((i+2))
-      ;;
-    --bounding-box-min|--bounding-box-max)
-      # Both flags expect x, y, z
-      extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
-      i=$((i+4))
-      ;;
-    --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces)
-      texture_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
-      i=$((i+2))
-      ;;
-    *)
-      # If you want to pass along unknown args to both, do so here
-      extract_mesh_args+=("${export_args[$i]}")
-      texture_mesh_args+=("${export_args[$i]}")
-      i=$((i+1))
-      ;;
-  esac
-done
-
 if [ "$export_skip" != true ]; then
-  if [ -f "$exp_path/config.yml" ]; then
-    echo "Export args: ${export_args[*]}"
-    if ! [ -f "$exp_path/mesh.ply" ] || [ "$overwrite" = true ] || [ "$export_overwrite" = true ]; then
-      ns-extract-mesh \
-        --load-config "$exp_path/config.yml" \
-        --output-path "$exp_path/mesh.ply" \
-        "${extract_mesh_args[@]}"
-    fi
-    if [ -f "$exp_path/mesh.ply" ]; then
-      ns-texture-mesh \
-        --load-config "$exp_path/config.yml" \
-        --output-dir "$exp_path" \
-        --input-mesh-filename "$exp_path/mesh.ply" \
-        "${texture_mesh_args[@]}"
-    else
-      echo "[ERROR] Mesh file $exp_path/mesh.ply not found"
-      exit 1
-    fi
-  else
-    echo "[ERROR] Config file $exp_path/config.yml not found"
-    exit 1
+  export_cmd_args=("${export_args[@]}")
+  if [ "$overwrite" = true ] || [ "$export_overwrite" = true ]; then
+    export_cmd_args+=("--overwrite")
   fi
+  "$script_dir"/export.sh "$exp_path" "${export_cmd_args[@]}"
 fi

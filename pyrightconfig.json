@@ -1,0 +1,6 @@
+{
+  "include": ["webui.py"],
+  "pythonVersion": "3.11",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "warning"
+}

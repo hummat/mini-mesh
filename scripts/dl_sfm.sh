@@ -1,113 +1,152 @@
 #!/usr/bin/env bash
 set -e
 
-COLMAP_BINARY="colmap"
-if ! command -v "$COLMAP_BINARY" &> /dev/null; then
-  echo "[ERROR] COLMAP could not be found"
-  exit 1
-fi
-
 function show_help {
-    echo "Usage: $0 <path-to-images> [options]"
-    echo
-    echo "Options:"
-    echo "  --method <method>          Method for SfM: hloc, vggsfm (default: hloc)"
-    echo "  --help                     Show this help message and exit"
-    echo
-    echo "This script performs Structure-from-Motion (SfM) using Deep Learning methods."
-    exit 0
+  echo "Usage: $0 <path-to-images> [options]"
+  echo
+  echo "Options:"
+  echo "  --method <str>                    Deep Learning SfM method: hloc, vggsfm (default: hloc)"
+  echo "  --matcher <str>                   Matching method: exhaustive, sequential (default: sequential)"
+  echo "  --hloc_feature <str>              HLoc feature extractor config. See hloc --help for available options (default: superpoint_aachen)"
+  echo "  --hloc_matcher <str>              HLoc matcher config. See hloc --help for available options (default: superglue)"
+  echo "  --hloc_weights <str>              HLoc matcher weights type: indoor, outdoor (default: outdoor)"
+  echo "  --hloc_camera <str>               HLoc camera model: SIMPLE_PINHOLE, PINHOLE, SIMPLE_RADIAL, RADIAL, OPENCV, FISHEYE (default: OPENCV)"
+  echo "  --vggsfm_max_points <int>         Maximum number of points for VGGSfM (default: 32768)"
+  echo "  --vggsfm_max_tri_points <int>     Maximum number of triangulation points for VGGSfM (default: 16384)"
+  echo "  --overwrite                       Overwrite existing sparse directory without confirmation"
+  echo "  --help                            Show this help message and exit"
+  echo
+  echo "This script performs Structure-from-Motion (SfM) using Deep Learning methods."
+  exit 0
 }
 
-# Check if no arguments are provided
 if [ $# -eq 0 ]; then
-    show_help
+  show_help
 fi
 
-# Check if user wants help early
 for arg in "$@"; do
-    if [ "$arg" == "--help" ]; then
-        show_help
-    fi
+  if [ "$arg" == "--help" ]; then
+    show_help
+  fi
 done
 
 IMAGES="$1"
 if [ ! -d "$IMAGES" ]; then
-    echo "[ERROR] Image directory does not exist: $IMAGES"
-    exit 1
+  echo "[ERROR]: Image directory does not exist: $IMAGES"
+  exit 1
 fi
 DIR=$(dirname "$IMAGES")
 METHOD="hloc"
+MATCHER="sequential"
+HLOC_FEATURE="superpoint_aachen"
+HLOC_MATCHER="superglue"
+HLOC_WEIGHTS="outdoor"
+HLOC_CAMERA="OPENCV"
+VGGSFM_MAX_POINTS=32768
+VGGSFM_MAX_TRI_POINTS=16384
+OVERWRITE=false
 shift
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --method)
-            METHOD="$2"
-            shift 2
-        ;;
-        --help)
-            show_help
-        ;;
-        *)
-            echo "Unknown option: $1"
-            show_help
-        ;;
-    esac
+  case "$1" in
+    --method)
+      METHOD="$2"
+      shift 2
+    ;;
+    --matcher)
+      MATCHER="$2"
+      shift 2
+    ;;
+    --hloc_feature)
+      HLOC_FEATURE="$2"
+      shift 2
+    ;;
+    --hloc_matcher)
+      HLOC_MATCHER="$2"
+      shift 2
+    ;;
+    --hloc_weights)
+      HLOC_WEIGHTS="$2"
+      shift 2
+    ;;
+    --hloc_camera)
+      HLOC_CAMERA="$2"
+      shift 2
+    ;;
+    --vggsfm_max_points)
+      VGGSFM_MAX_POINTS="$2"
+      shift 2
+    ;;
+    --vggsfm_max_tri_points)
+      VGGSFM_MAX_TRI_POINTS="$2"
+      shift 2
+    ;;
+    --overwrite)
+      OVERWRITE=true
+      shift
+    ;;
+    --help)
+      show_help
+    ;;
+    *)
+      echo "[ERROR]: Unknown option: $1"
+      show_help
+    ;;
+  esac
 done
 
-# Attempt to use pyenv if available; otherwise fall back to conda
-if command -v pyenv >/dev/null 2>&1; then
-  eval "$(pyenv init -)"
-  # Check if the current pyenv environment matches 'sdfstudio'
-  if ! pyenv which python | grep -q "sdfstudio"; then
-      pyenv activate sdfstudio
+if [ -d "$DIR/sparse" ]; then
+  if [ "$OVERWRITE" = true ] || { read -r -p "[WARNING]: Directory '$DIR/sparse' already exists. Continue? (y/N): " confirm && [[ "$confirm" =~ ^[Yy]$ ]]; }; then
+    rm -rf "$DIR/sparse" "$DIR/database.db" "$DIR/hloc"
+  else
+    exit 0
   fi
-  echo "[INFO] Using pyenv $(pyenv version-name)"
-else
-  echo "[INFO] Using conda"
-  if ! command -v conda >/dev/null 2>&1; then
-    echo "[ERROR] Neither pyenv nor conda found. Exiting."
-    exit 1
-  fi
-  eval "$(conda shell.bash hook)"
-  conda activate sdfstudio
 fi
 
-if [ "$METHOD" == hloc ]; then
-  # Install Hierarchical-Localization (hloc)
-  if ! pip show hloc > /dev/null 2>&1; then
-    REPO_NAME=Hierarchical-Localization
-    REPO_URL=https://github.com/cvg/Hierarchical-Localization
-    if [ ! -d "$GIT_ROOT/$REPO_NAME" ]; then
-      echo "Cloning $REPO_NAME from $REPO_URL into $GIT_ROOT"
-      git -C "$GIT_ROOT" clone --recursive "$REPO_URL"
-    else
-      echo "Updating $REPO_NAME"
-      git -C "$GIT_ROOT/$REPO_NAME" pull
-    fi
-    echo "Installing $REPO_NAME"
-    pip install --use-pep517 -e "$GIT_ROOT/$REPO_NAME"
+if [ "$METHOD" = hloc ]; then
+  if ! command -v hloc >/dev/null 2>&1; then
+    echo "[ERROR]: hloc not found in PATH"
+    echo "         Please install hloc following the instructions in README.md"
+    exit 1
   fi
-  ns-process-data images --data "$IMAGES" --output_dir "$DIR" --sfm-tool hloc --skip-image-processing
-  mv "$DIR"/colmap/sparse/0 "$DIR"/sparse
-  mv "$DIR"/sparse/database.db "$DIR"/database.db
-elif [ "$METHOD" == vggsfm ]; then
-  REPO_NAME=vggsfm
-  if ! pip show vggsfm > /dev/null 2>&1; then
-    REPO_URL=https://github.com/hummat/vggsfm.git
-    if [ ! -d "$GIT_ROOT/$REPO_NAME" ]; then
-      echo "Cloning $REPO_NAME from $REPO_URL into $GIT_ROOT"
-      git -C "$GIT_ROOT" clone "$REPO_URL"
-    else
-      echo "Updating $REPO_NAME"
-      git -C "$GIT_ROOT/$REPO_NAME" pull
-    fi
-    echo "Installing $REPO_NAME"
-    pip install hydra-core==1.3.2 pycolmap==3.10.0 pyceres==2.3 poselib==2.0.4
-    pip install --use-pep517 -e "$GIT_ROOT/$REPO_NAME"
+
+  if [ "$MATCHER" != exhaustive ]; then
+    MATCHER=retrieval
   fi
-  python "$GIT_ROOT/$REPO_NAME/video_demo.py" SCENE_DIR="$DIR" camera_type=SIMPLE_RADIAL
+  NUM_THREADS=$(nproc --all)
+
+  hloc --images "$IMAGES" \
+       --feature "$HLOC_FEATURE" \
+       --pairs "$MATCHER" \
+       --matcher "$HLOC_MATCHER" \
+       --matcher-weights "$HLOC_WEIGHTS" \
+       --camera-model "$HLOC_CAMERA" \
+       --num-threads "$NUM_THREADS"
+elif [ "$METHOD" = vggsfm ]; then
+  if ! command -v vggsfm-video >/dev/null 2>&1 || ! command -v vggsfm-image >/dev/null 2>&1; then
+    echo "[ERROR]: vggsfm-video or vggsfm-image not found in PATH"
+    echo "         Please install vggsfm following the instructions in README.md:"
+    exit 1
+  fi
+
+  if [ "$MATCHER" = sequential ]; then
+    vggsfm-video SCENE_DIR="$DIR" \
+      shared_camera=True \
+      camera_type="SIMPLE_RADIAL" \
+      max_tri_points_num="$VGGSFM_MAX_TRI_POINTS" \
+      max_points_num="$VGGSFM_MAX_POINTS"
+  elif [ "$MATCHER" = exhaustive ]; then
+    vggsfm-image SCENE_DIR="$DIR" \
+      shared_camera=True \
+      camera_type="SIMPLE_RADIAL" \
+      max_tri_points_num="$VGGSFM_MAX_TRI_POINTS" \
+      max_points_num="$VGGSFM_MAX_POINTS"
+  else
+    echo "[ERROR]: Unknown matcher: $MATCHER. Supported matchers are: exhaustive, sequential"
+    exit 1
+  fi
+  rm -rf video_demo.log demo.log .hydra
 else
-  echo "Unknown method: $METHOD. Supported methods are: hloc, vggsfm"
+  echo "[ERROR]: Unknown method: $METHOD. Supported methods are: hloc, vggsfm"
   exit 1
 fi

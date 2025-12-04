@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+xhost +local:"$(id -un)"
 docker_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
   -u "$(id -u):$(id -g)" \
@@ -9,6 +10,6 @@ docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=671
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v ~/.cache:/.cache \
   -v ~/.config:/.config \
-  -v "$(dirname "$1")":/workspace \
-  -v "$(dirname "$docker_dir")":/tmp \
+  -v "$(dirname "$1")":/data \
+  -v "$(dirname "$docker_dir")":/app \
   hummat/mini-mesh

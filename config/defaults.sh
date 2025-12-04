@@ -25,10 +25,21 @@ DEFAULTS=(
   # --pipeline.model.sdf-field.use-n-dot-v True
   # --pipeline.model.sdf-field.off-axis True
   --pipeline.datamanager.camera-optimizer.optimizer.weight-decay 0
-  --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
-  --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
-  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
+  --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-5
+  --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-6
+  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 25000
   --vis tensorboard
+  --viewer.ip-address "0.0.0.0"
+)
+
+NERF_DEFAULTS=(
+  --vis tensorboard
+  --viewer.websocket-host "0.0.0.0"
+)
+
+SPLAT_DEFAULTS=(
+  --vis tensorboard
+  --viewer.websocket-host "0.0.0.0"
 )
 
 DATA_DEFAULTS=(
@@ -37,6 +48,16 @@ DATA_DEFAULTS=(
   --center-method focus
   --orientation-method vertical
   --auto-scale-poses median
+  --train-split-fraction 0.95
+  # --use-all-train-images True
+)
+
+NS_DATA_DEFAULTS=(
+  --downscale-factor 1
+  --scale-factor 1
+  --center-method focus
+  --orientation-method vertical
+  --auto-scale-poses True
   --train-split-fraction 0.95
   # --use-all-train-images True
 )
