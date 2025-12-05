@@ -219,13 +219,19 @@ Then open `http://localhost:6006` in your browser.
 
 **Wandb:**
 ```bash
-# Interactive authentication (prompts for API key)
+# Recommended: set your API key once in your shell
+export WANDB_API_KEY=your_api_key  # e.g. in ~/.zshrc or ~/.bashrc
+
+# Then just run the pipeline with wandb visualization
 docker/run.sh video.mp4 train --vis wandb
 
-# Set API key to avoid prompts
+# Or pass it inline for a single run
 WANDB_API_KEY=your_api_key docker/run.sh video.mp4 train --vis wandb
 ```
-Uploads metrics to Weights & Biases for cloud-based tracking and collaboration.
+The Docker wrappers forward `WANDB_API_KEY` (and `WANDB_MODE`, if set) into the
+container and set a writable `HOME` so wandb can create its `.netrc` without
+permission issues. Uploads metrics to Weights & Biases for cloud-based tracking
+and collaboration.
 
 **Web Viewer:**
 The viewer is automatically configured with `--viewer.ip-address "0.0.0.0"` and `--viewer.websocket-host "0.0.0.0"` to enable nerfstudio's built-in web viewer. This provides a real-time 3D visualization of training progress that you can access in your browser during training.
@@ -440,7 +446,11 @@ and currently run as a single step.
    To avoid entering your wandb API key every time when using `--vis wandb`, set it as an environment variable:
 
    ```bash
-   WANDB_API_KEY=your_api_key docker/run.sh your_video.mp4 train --vis wandb
+   # One-time setup in your shell (recommended)
+   export WANDB_API_KEY=your_api_key  # e.g. in ~/.zshrc or ~/.bashrc
+
+   # Docker wrappers automatically forward this into the container
+   docker/run.sh your_video.mp4 train --vis wandb
    ```
 
    Get your key from https://wandb.ai/authorize.
