@@ -203,3 +203,48 @@ class TestExportScriptNerfGuards:
         )
         assert result.returncode != 0
         assert "only supported for SDF experiments" in result.stdout
+
+
+class TestExportScriptNeus2:
+    """Tests for NeuS2 export behaviour."""
+
+    def test_neus2_export_is_noop_when_mesh_exists(self, tmp_path: Path) -> None:
+        """NeuS2 export should succeed without calling SDF/NeRF exporters."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "neus2"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "mesh.obj").write_text("obj\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8") if log_path.is_file() else ""
+        # No external export tools should be invoked for NeuS2.
+        assert log == ""
+
+    def test_neus2_export_errors_when_mesh_missing(self, tmp_path: Path) -> None:
+        """NeuS2 export should fail if the expected mesh is missing."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "neus2"
+        exp_path.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode != 0

@@ -130,6 +130,7 @@ ARG INSTALL_OPTIONAL_DEPS=ON
 
 ENV MAX_JOBS=${MAX_JOBS}
 ENV WITH_GUI=${WITH_GUI}
+ENV NEUS2_ROOT=/opt/git/NeuS2
 
 # Make PyTorch's vendored CUDA runtime visible to non-Python binaries (COLMAP, etc.)
 ENV LD_LIBRARY_PATH=/opt/conda/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
@@ -225,6 +226,18 @@ RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834; \
+    fi
+
+# NeuS2 (Instant-NGP-based fast NeuS implementation)
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    mkdir -p /opt/git && \
+    cd /opt/git && \
+    git clone --recursive https://github.com/hummat/NeuS2.git && \
+    cd NeuS2 && \
+    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+      commentjson imageio scipy tqdm opencv-python trimesh tensorboard && \
+    cmake . -B build && \
+    cmake --build build --config RelWithDebInfo -j ${MAX_JOBS}; \
     fi
 
 CMD ["bash"]

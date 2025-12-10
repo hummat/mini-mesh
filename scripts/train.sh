@@ -74,7 +74,32 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$MODEL_NAME" == *nerf* ]] || [[ "$MODEL_NAME" == *splat* ]] || [[ "$MODEL_NAME" == *ngp* ]]; then
+if [[ "$MODEL_NAME" == neus2* ]]; then
+  NEUS2_ROOT="${NEUS2_ROOT:-/opt/git/NeuS2}"
+  if [ ! -d "$NEUS2_ROOT" ]; then
+    echo "[ERROR] NeuS2 root not found. Set NEUS2_ROOT to your NeuS2 checkout or build the Docker image with NeuS2 support."
+    exit 1
+  fi
+
+  CONVERTER="$SCRIPT_DIR/convert_studio_to_ngp.py"
+  if [ ! -f "$CONVERTER" ]; then
+    echo "[ERROR] NeuS2 converter not found at $CONVERTER"
+    exit 1
+  fi
+
+  NEUS2_SCENE_JSON="$DATA_DIR/transform_neus2.json"
+  echo "[INFO] Converting transforms.json for NeuS2 at $NEUS2_SCENE_JSON"
+  python "$CONVERTER" --data-dir "$DATA_DIR" --output "$NEUS2_SCENE_JSON"
+
+  COMMAND=(
+    python
+    "$NEUS2_ROOT/scripts/run.py"
+    --scene "$NEUS2_SCENE_JSON"
+    --name "$EXP_NAME"
+    "${CONFIG[@]}"
+    "${ARGS[@]}"
+  )
+elif [[ "$MODEL_NAME" == *nerf* ]] || [[ "$MODEL_NAME" == *splat* ]] || [[ "$MODEL_NAME" == *ngp* ]]; then
   if [[ "$MODEL_NAME" == *splat* ]]; then
     NS_DEFAULTS=("${SPLAT_DEFAULTS[@]}")
   else
@@ -130,6 +155,24 @@ else
   else
     echo "[INFO] Running on SLURM with COMMAND: srun" "${COMMAND[@]}"
     srun "${COMMAND[@]}"
+  fi
+fi
+
+if [[ "$MODEL_NAME" == neus2* ]]; then
+  EXP_DIR="$DATA_DIR/train/$EXP_NAME/$MODEL_NAME"
+  NEUS2_MESH_DIR="$(pwd)/output/$EXP_NAME/mesh"
+  mkdir -p "$EXP_DIR"
+  if [ -d "$NEUS2_MESH_DIR" ]; then
+    last_mesh=$(ls -1 "$NEUS2_MESH_DIR"/*.obj 2>/dev/null | sort | tail -n 1 || true)
+    if [ -n "$last_mesh" ]; then
+      cp "$last_mesh" "$EXP_DIR/mesh.obj"
+    else
+      echo "[ERROR] NeuS2 mesh .obj not found in $NEUS2_MESH_DIR"
+      exit 1
+    fi
+  else
+    echo "[ERROR] NeuS2 output directory not found: $NEUS2_MESH_DIR"
+    exit 1
   fi
 fi
 

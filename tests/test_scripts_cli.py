@@ -312,6 +312,95 @@ class TestTrainScript:
         assert "nerfstudio-data" in log
         assert f"--data {data_dir}" in log
 
+    def test_train_neus2_uses_neus2_backend_and_writes_mesh(self, tmp_path: Path) -> None:
+        """NeuS2 models should call NeuS2 run.py and produce a mesh in the exp dir."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        # Minimal transforms.json for converter.
+        transforms = {
+            "w": 512,
+            "h": 512,
+            "fl_x": 1000.0,
+            "fl_y": 1000.0,
+            "cx": 256.0,
+            "cy": 256.0,
+            "frames": [
+                {
+                    "file_path": "images/0000.png",
+                    "transform_matrix": [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ],
+                }
+            ],
+        }
+        (data_dir / "transforms.json").write_text(
+            __import__("json").dumps(transforms), encoding="utf-8"
+        )
+
+        log_path = tmp_path / "stub_train_neus2.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        # Stub NeuS2 run.py
+        neus2_root = tmp_path / "neus2"
+        scripts_dir = neus2_root / "scripts"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        run_py = scripts_dir / "run.py"
+        run_py.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import argparse, os, pathlib, sys",
+                    "p = argparse.ArgumentParser()",
+                    "p.add_argument('--name', required=True)",
+                    "p.add_argument('--scene')",
+                    "p.add_argument('--network')",
+                    "p.add_argument('--n_steps', type=int, default=100000)",
+                    "args, _ = p.parse_known_args()",
+                    "log_path = os.environ.get('NEUS2_TRAIN_LOG')",
+                    "if log_path:",
+                    "  with open(log_path, 'a', encoding='utf-8') as f:",
+                    "    f.write(f\"run.py --name {args.name} --scene {args.scene}\\n\")",
+                    "out_dir = pathlib.Path('output') / args.name / 'mesh'",
+                    "out_dir.mkdir(parents=True, exist_ok=True)",
+                    "mesh_path = out_dir / f\"{args.n_steps}.obj\"",
+                    "mesh_path.write_text('obj', encoding='utf-8')",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "NEUS2_ROOT": str(neus2_root),
+            "NEUS2_TRAIN_LOG": str(log_path),
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "neus2",
+                "my_exp",
+                str(data_dir),
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        # NeuS2 stub should have been invoked with a scene pointing to transform_neus2.json.
+        log = log_path.read_text(encoding="utf-8")
+        assert "run.py --name my_exp" in log
+        assert "transform_neus2.json" in log
+
+        exp_mesh = data_dir / "train" / "my_exp" / "neus2" / "mesh.obj"
+        assert exp_mesh.is_file()
+
 
 class TestRunScript:
     """Tests for scripts/run.sh with stubbed pipeline tools."""

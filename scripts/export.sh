@@ -100,11 +100,24 @@ while [ $i -lt ${#export_args[@]} ]; do
   esac
 done
 
+model_name=$(basename "$exp_path")
+
+if [[ "$model_name" == neus2* ]]; then
+  mesh_path="$exp_path/mesh.obj"
+  if [ ! -f "$mesh_path" ]; then
+    echo "[ERROR]: NeuS2 mesh file not found at $mesh_path"
+    exit 1
+  fi
+  if [[ ${#export_args[@]} -gt 0 ]]; then
+    echo "[INFO]: Ignoring export-specific arguments for NeuS2; mesh is already generated at $mesh_path"
+  fi
+  exit 0
+fi
+
 if [ -f "$exp_path/config.yml" ]; then
   if [[ ${#export_args[@]} -gt 0 ]]; then
     echo "[INFO]: Export args: ${export_args[*]}"
   fi
-  model_name=$(basename "$exp_path")
   if [[ "$model_name" == *nerf* ]] || [[ "$model_name" == *splat* ]] || [[ "$model_name" == *ngp* ]]; then
     if [ "$mesh_only" = true ] || [ "$texture_only" = true ] || [ -n "$input_mesh_filename" ]; then
       echo "[ERROR]: --mesh-only/--texture-only/--input-mesh-filename are only supported for SDF experiments."
