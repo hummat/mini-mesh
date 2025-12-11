@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NeuS2 dev: short run, hash grid SDF with analytic curvature (tcnn double backward).
+# NeuS2 dev: short run corresponding to neus2-fast (hash SDF + analytic curvature).
 CONFIG=(
   --trainer.max-num-iterations 20001
   --trainer.steps-per-eval-batch 500
@@ -11,20 +11,28 @@ CONFIG=(
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --pipeline.model.eval-num-rays-per-chunk 2048
 
-  # Hash SDF heads (match neuralangelo-dev depth/width)
-  --pipeline.model.sdf-field.num-layers 1
-  --pipeline.model.sdf-field.num-layers-color 4
+  # Match neus2-fast model shape (2/2 MLP) and hash SDF usage
+  --pipeline.model.sdf-field.num-layers 2
+  --pipeline.model.sdf-field.num-layers-color 2
   --pipeline.model.sdf-field.use-grid-feature True
   --pipeline.model.sdf-field.use-numerical-gradients False  # rely on analytic grads
 
-  # Optimizers / schedulers
-  --optimizers.fields.optimizer.lr 0.005
-  --optimizers.fields.scheduler.warm-up-end 1000
-  --optimizers.fields.scheduler.milestones 12000 16000
+  # Progressive hash encoding (dev-scale schedule)
+  --pipeline.model.level-init 4
+  --pipeline.model.steps-per-level 500
 
-  --optimizers.field-background.optimizer.lr 0.005
-  --optimizers.field-background.scheduler.warm-up-end 1000
-  --optimizers.field-background.scheduler.milestones 12000 16000
+  # Loss / optimization closer to neus-grid-dev
+  --pipeline.model.rgb-loss-type L1            # match neus-grid
+  --pipeline.model.eikonal-loss-mult 0.1       # match SurfaceModel default / neus-grid
+
+  # Optimizers / schedulers (copy from neus-grid-dev)
+  --optimizers.fields.optimizer.lr 0.01
+  --optimizers.fields.scheduler.max-steps 20000
+  --optimizers.fields.scheduler.warm-up-end 200
+
+  --optimizers.field-background.optimizer.lr 0.01
+  --optimizers.field-background.scheduler.max-steps 20000
+  --optimizers.field-background.scheduler.warm-up-end 200
 
   # Camera refinement similar to neus-grid-dev
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
