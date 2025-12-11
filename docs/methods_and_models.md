@@ -43,7 +43,7 @@ Notes:
 | Method             | Code                             | Paper / project                                                                 |
 |--------------------|----------------------------------|----------------------------------------------------------------------------------|
 | `volsdf`           | `sdfstudio/models/volsdf.py`    | VolSDF – `https://arxiv.org/abs/2106.12052`                                      |
-| `monosdf`          | `sdfstudio/models/monosdf.py`   | MonoSDF – `https://arxiv.org/abs/2302.12276`                                     |
+| `monosdf`          | `sdfstudio/models/monosdf.py`   | MonoSDF – `https://arxiv.org/abs/2206.00665`                                     |
 | `neus`             | `sdfstudio/models/neus.py`      | NeuS – `https://arxiv.org/abs/2106.10689`                                        |
 | `mono-neus`        | `sdfstudio/models/neus.py`      | MonoSDF-style monocular cues on NeuS                                             |
 | `geo-neus`         | `sdfstudio/models/neus.py`      | Geo-NeuS – `https://arxiv.org/abs/2205.15848`                                    |
@@ -51,7 +51,7 @@ Notes:
 | `neus-facto`       | `sdfstudio/models/neus_facto.py`| NeuS + Nerfacto / mip-NeRF-style proposal sampling (no dedicated paper)          |
 | `neus-facto-bigmlp`| `sdfstudio/models/neus_facto.py`| Large-MLP NeuS-facto variant (no dedicated paper)                                |
 | `neus-facto-angelo`| `sdfstudio/models/neus_facto.py`| NeuS-facto with Neuralangelo-style schedules (no dedicated paper)                |
-| `unisurf`          | `sdfstudio/models/unisurf.py`   | UniSurf – `https://arxiv.org/abs/2104.00400`                                     |
+| `unisurf`          | `sdfstudio/models/unisurf.py`   | UniSurf – `https://arxiv.org/abs/2104.10078`                                     |
 | `mono-unisurf`     | `sdfstudio/models/unisurf.py`   | MonoSDF-style cues on UniSurf (no separate paper)                                |
 | `geo-unisurf`      | `sdfstudio/models/unisurf.py`   | Geo-NeuS-style patch warping on UniSurf (no separate paper)                      |
 | `geo-volsdf`       | `sdfstudio/models/volsdf.py`    | VolSDF + Geo-NeuS patch warping (2106.12052 + 2205.15848)                        |
