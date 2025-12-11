@@ -31,6 +31,7 @@ selected config is SDF-style.
 | `bakedsdf-mlp`  | `sdfstudio/models/bakedsdf.py`          | BakedSDF large-MLP variant (no separate paper)                                   |
 | `neuralangelo`  | `sdfstudio/models/neuralangelo.py`      | Neuralangelo – `https://arxiv.org/abs/2306.03092`                                |
 | `bakedangelo`   | `sdfstudio/models/bakedangelo.py`       | BakedSDF + Neuralangelo schedules (2302.14859 + 2306.03092)                      |
+| `neus2`         | `sdfstudio/models/neus2.py`             | NeuS2-style: NeuS + hash grids + analytic 2nd-order curvature via tcnn double backward |
 
 Notes:
 
@@ -167,4 +168,3 @@ Notes:
 In all cases, mini-mesh’s `config/*.sh` files already map high-level “configs” (e.g. `neus-facto-fast`,
 `nerfacto-dev`, splat configs) onto these method names. This document is primarily a lookup table so you know **what**
 you are training when you see `--model <NAME>` in a config.
-
