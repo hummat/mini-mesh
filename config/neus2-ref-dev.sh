@@ -34,11 +34,13 @@ CONFIG=(
   # Optimizers / schedulers (same as neus2-ref)
   --optimizers.fields.optimizer.lr 0.005
   --optimizers.fields.scheduler.warm-up-end 1000
-  --optimizers.fields.scheduler.milestones 20000 30000 40000
+  # Scale NeuS2 reference milestones (20k, 30k, 40k over 80k iters)
+  # down to a 20k dev run ~= 5k, 7.5k, 10k.
+  --optimizers.fields.scheduler.milestones 5000 7500 10000
 
   --optimizers.field-background.optimizer.lr 0.005
   --optimizers.field-background.scheduler.warm-up-end 1000
-  --optimizers.field-background.scheduler.milestones 20000 30000 40000
+  --optimizers.field-background.scheduler.milestones 5000 7500 10000
 
   # Camera refinement similar to neus-grid-dev
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
