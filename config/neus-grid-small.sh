@@ -6,6 +6,5 @@ CONFIG=(
   --pipeline.model.sdf-field.num-levels 12
   --pipeline.model.sdf-field.max-res 1024
   --pipeline.model.sdf-field.log2-hashmap-size 18
-  --pipeline.model.sdf-field.use-position-encoding False
+  --pipeline.model.sdf-field.use-position-encoding True
 )
-

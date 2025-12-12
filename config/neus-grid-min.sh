@@ -10,6 +10,7 @@ CONFIG=(
   --pipeline.datamanager.train-num-rays-per-batch 2048
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --pipeline.model.eval-num-rays-per-chunk 2048
+  --pipeline.model.sdf-field.use-position-encoding True
 
   # Moderately cheaper NeuS sampling
   --pipeline.model.num-samples 48
@@ -20,4 +21,3 @@ CONFIG=(
   --optimizers.fields.scheduler.max-steps 7000
   --optimizers.field-background.scheduler.max-steps 7000
 )
-

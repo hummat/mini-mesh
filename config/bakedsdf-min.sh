@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+CONFIG=(
+  --trainer.max-num-iterations 7001
+  --trainer.steps-per-eval-batch 2000
+  --trainer.steps-per-eval-image 2000
+  --trainer.steps-per-save 7001
+  --pipeline.datamanager.train-num-rays-per-batch 1024
+  --pipeline.datamanager.eval-num-rays-per-batch 1024
+  --pipeline.model.eval-num-rays-per-chunk 1024
+  # BakedSDF paper/configs use no separate background model; keep that behavior here.
+  --pipeline.model.background-model none
+)

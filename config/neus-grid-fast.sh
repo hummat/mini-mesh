@@ -6,6 +6,7 @@ CONFIG=(
   # --pipeline.model.sdf-field.hidden-dim 512
   # --pipeline.model.sdf-field.hidden-dim-color 512
   --pipeline.model.sdf-field.use-grid-feature True
+  --pipeline.model.sdf-field.use-position-encoding True
   --pipeline.model.eval-num-rays-per-chunk 4096
   --pipeline.datamanager.train-num-rays-per-batch 6144
   --pipeline.datamanager.eval-num-rays-per-batch 4096

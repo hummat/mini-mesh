@@ -11,6 +11,7 @@ CONFIG=(
   --pipeline.datamanager.train-num-rays-per-batch 2048
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --pipeline.model.eval-num-rays-per-chunk 2048
+  --pipeline.model.sdf-field.use-position-encoding True
 
   # Cheaper NeuS sampling
   --pipeline.model.num-samples 32
@@ -27,4 +28,3 @@ CONFIG=(
   # Downscale images for faster preview (can be overridden)
   --downscale-factor 2
 )
-

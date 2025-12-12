@@ -395,6 +395,20 @@ and currently run as a single step.
      this usually helps, because it lets the model soak up per-frame exposure / white-balance / noise differences
      without twisting geometry. For very clean, studio-lit photo sets, advanced users may prefer to disable it to push
      more supervision into geometry instead of appearance.
+   - Foreground vs background modelling:
+     - For **SDF models** (`neus*`, `neuralangelo*`, `bakedsdf*`), `--pipeline.model.background-model` controls whether a
+       separate NeRF-style background field is trained in addition to the foreground SDF:
+       - `mlp` (mini-mesh default via `config/defaults.sh`) learns a simple MLP background behind the SDF foreground.
+         This is robust for unmasked, cluttered captures but will happily reconstruct walls and room clutter as real
+         geometry.
+       - `grid` uses a hash-grid `nerfacto`-style background (heavier but more expressive), used by some SDFStudio
+         large-scale configs (e.g. Neuralangelo/BakedSDF).
+       - `none` disables the background field; the SDF must then explain all pixels. This is ideal when you have good
+         foreground masks (as in `scripts/run.sh process --mask …`), but on unmasked data it will cause the SDF to
+         reconstruct background slabs as geometry.
+     - For **NeRF / splat / ngp models**, there is no SDF/background split; instead, mini-mesh toggles
+       `--pipeline.model.background-color random` when masks are used so they do not overfit to a fixed solid
+       background.
    - The NeuS sharpness parameters interact with scene scale:
      - ``bias`` (in the SDF field config) sets the radius of the initial geometric SDF sphere. For small tabletop
        objects, values around ``0.3–0.5`` generally give a more stable start than an extremely tight sphere; if you
@@ -405,6 +419,15 @@ and currently run as a single step.
        band around the surface is (thickness ≈ ``1 / s_val`` in SDF units). You should see it rise from its initial
        value and then plateau. Treat it as a diagnostic (is training doing something?) rather than a target — higher is
        only better if the rendered images and meshes also improve.
+     - ``near-plane`` / ``far-plane`` (in the surface model config) define the ray segment where NeuS samples and where
+       the SDF field is expected to live after the dataparser’s auto-scaling. For typical object-centric captures, you
+       want this interval to tightly bracket the object shell reported by the dataparser logs (``Estimated object
+       scale``, ``Near plane``, ``Far plane``), with a modest safety margin—not orders of magnitude larger. Extremely
+       wide bounds (e.g. ``0.01–1000`` in normalized units) make proposal-based methods like ``neus-facto`` much more
+       brittle, because their proposal networks waste most samples in empty space before ever seeing the surface.
+     - For a more detailed discussion of these parameters, their metrics (e.g. ``s_val``), and schedules in upstream
+       SDFStudio, see `sdfstudio/docs/sdfstudio-methods.md`. This README is meant as a practical tuning cheat sheet; the
+       `docs/methods_and_models.md` file explains how the different NeuS-style methods build on each other conceptually.
    - `use-n-dot-v` is cheap and generally safe to keep **on** whenever you care about good geometry.
    - Do **not** treat the full Ref-NeRF bundle as an “always on” preset. A practical ablation order is:
      1) turn on `use-n-dot-v`, 2) add `use-reflections` for glossy scenes, 3) add `use-diffuse-color` if you care
@@ -416,7 +439,7 @@ and currently run as a single step.
    - **Orientation loss (Ref-NeRF-style)** – encourages visible normals to face the camera:
 
      ```bash
-     --pipeline.model.orientation-loss-mult 1e-4
+      --pipeline.model.orientation-loss-mult 1e-4
      ```
 
      Works for SDF-based models (`neus`, `neus-facto`, `neuralangelo` variants) and is most useful when normals are
@@ -433,6 +456,20 @@ and currently run as a single step.
      ```
 
      Start with small values; this is a soft regularizer to tighten geometry, not a replacement for good data.
+
+   - **Interlevel loss (Mip-NeRF 360-style, proposal-based)** – encourages consistency between proposal-network
+     samples and the final NeuS / VolSDF samples along each ray:
+
+     ```bash
+     # neus-facto / bakedsdf / bakedangelo (proposal-based)
+     --pipeline.model.interlevel-loss-mult 1.0
+     ```
+
+     This loss only does something for methods that use proposal networks (e.g. ``neus-facto*``, ``bakedsdf*``,
+     ``bakedangelo*``). It helps keep coarse proposal distributions aligned with the final SDF-induced density, which
+     in turn stabilizes proposal sampling. If you see very noisy depth distributions or proposal samples that never
+     focus near the surface, increasing this multiplier slightly is often more robust than trying to fix geometry by
+     further shrinking ``beta-init`` or widening near/far.
 
    In practice, apply changes roughly in this order:
 
