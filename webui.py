@@ -796,15 +796,15 @@ def create_ui() -> gr.Blocks:
                     train_config = gr.Dropdown(
                         label="Config",
                         choices=[
-                            "neus-facto-dev",
-                            "neus-facto-fast",
-                            "neus-grid-dev",
-                            "nerfacto-dev",
+                            "neus-facto-short",
+                            "neus-facto",
+                            "neus-grid-short",
+                            "nerfacto-short",
                             "nerfacto",
                             "nerfacto-big",
                             "nerfacto-huge",
                         ],
-                        value="neus-grid-dev",
+                        value="neus-grid-short",
                         info="Training configuration",
                     )
                     train_name = gr.Textbox(
@@ -1175,7 +1175,7 @@ def create_ui() -> gr.Blocks:
                 sfm_camera_model_val = None
             if train_model_val == "neus":
                 train_model_val = None
-            if train_config_val == "neus-grid-dev":
+            if train_config_val == "neus-grid-short":
                 train_config_val = None
             if train_vis_val == "tensorboard":
                 train_vis_val = None

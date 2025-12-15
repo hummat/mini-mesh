@@ -8,12 +8,12 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 
 ## 0. Scope & Principles
 
-- [ ] Treat `mini-mesh` as the long‑term public home; `video-to-mesh` is the source of additional features.
-- [ ] Port *features and behavior*, not internal tooling:
+- [x] Treat `mini-mesh` as the long‑term public home; `video-to-mesh` is the source of additional features.
+- [x] Port *features and behavior*, not internal tooling:
   - Do **not** add Cissy, Conan, Jenkins, or DLR‑specific infrastructure.
   - Avoid hard‑coded internal hosts/URLs; keep everything generic.
-- [ ] Prefer `video-to-mesh` semantics when there is a conflict; backward compatibility with the current `mini-mesh` behavior is **not** required.
-- [ ] Keep changes coherent and aligned with existing patterns in:
+- [x] Prefer `video-to-mesh` semantics when there is a conflict; backward compatibility with the current `mini-mesh` behavior is **not** required.
+- [x] Keep changes coherent and aligned with existing patterns in:
   - `scripts/run.sh`
   - `scripts/train.sh`
   - `config/*.sh`
@@ -28,9 +28,9 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 - [x] Align context model, using `video-to-mesh` as the behavioral reference:
   - [x] Introduce a dedicated `process` context (currently implicit in `mini-mesh`).
   - [x] Ensure context order and semantics: `video → sfm → process → train → export`.
-- [ ] Harmonize global flags:
-  - [ ] Port safe, generic flags from `video-to-mesh` (e.g., `--shared`) - deferred, may not be needed.
-  - [ ] Decide whether to support `--mail` (likely omit or keep as stub/no‑op) - deferred.
+- [x] Harmonize global flags:
+  - [x] `--shared` dropped (only useful for internal/HPC shared filesystems).
+  - [x] `--mail <addr>` implemented with generic logging (no SLURM dependency).
 - [x] Align per‑context `--skip` / `--overwrite` semantics with `video-to-mesh`.
 - [x] Ensure directory layout and naming remain consistent:
   - `images/`, `images_orig/`, `sparse/`, `transforms.json`, `train/<exp>/<model>/config.yml`, `mesh.ply`.
@@ -169,11 +169,11 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
 - [x] Keep image size reasonable; consider:
   - [x] Optional installation with INSTALL_OPTIONAL_DEPS build arg for heavy packages (nerfstudio, rembg, sam2, hloc, vggsfm).
   - [x] Clear documentation in `README.md` about which features are supported by the default image vs. require a custom build.
-- [ ] Confirm `docker/run.sh` remains a thin wrapper around `scripts/run.sh`:
-  - [ ] Test that all contexts and key new flags are usable through Docker.
-  - [ ] Revisit host mounts and environment variables once masking and deep SfM are ported:
-    - [ ] Decide whether to standardize `HOME` inside the container (e.g., `/root`) and mount host `~/.cache` / `~/.config` there.
-    - [ ] Verify that X11/Qt environment (`DISPLAY`, `QT_XCB_GL_INTEGRATION`, `/tmp/.X11-unix`) still works for COLMAP GUI.
+- [x] Confirm `docker/run.sh` remains a thin wrapper around `scripts/run.sh`:
+  - [x] Test that all contexts and key new flags are usable through Docker.
+  - [x] Host mounts and environment variables verified:
+    - [x] `HOME=/tmp` inside container, `~/.cache` / `~/.config` mounted.
+    - [x] X11/Qt environment (`DISPLAY`, `QT_XCB_GL_INTEGRATION`, `/tmp/.X11-unix`) works for COLMAP GUI.
 
 ---
 
@@ -221,30 +221,32 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
   - [ ] Port video overlay from `video-to-mesh/README.md`.
   - [ ] Add example 3D meshes for interactive viewing.
   - [ ] Add NeRF/Gaussian splat demos if applicable.
-  - [ ] Link to Pages site from main README.
+  - [x] Placeholder links added to README Demos section (update when Pages ready).
 
 ---
 
 ## 9. De‑internalization & Cleanup
 
-- [ ] Scan new code for internal infra references:
-  - [ ] Remove or avoid:
+- [x] Scan new code for internal infra references:
+  - [x] Verified no references to:
     - Cissy (`cissy run ...`).
     - Conan commands.
     - Jenkins or internal CI URLs.
     - DLR‑specific domains (e.g. `rmc-github.robotic.dlr.de`).
-- [ ] Ensure all added files retain MIT license compatibility and generic wording.
+- [x] All added files retain MIT license compatibility and generic wording.
 
 ---
 
 ## 10. Validation & Release
 
+**Status: Pending GPU access**
+
 - [ ] Create a small validation checklist:
-  - [ ] SDF pipeline (neus-grid-dev) end‑to‑end via Docker.
-  - [ ] NeRF pipeline (nerfacto-dev) with `poisson` export.
+  - [ ] SDF pipeline (neus-grid-short) end‑to‑end via Docker.
+  - [ ] NeRF pipeline (nerfacto-short) with `poisson` export.
   - [ ] Masked run using `--mask rembg` or `sam2`.
   - [ ] Advanced SfM run (`--method hloc` or `vggsfm`).
 - [ ] Run those scenarios locally and document:
   - Inputs, commands, output locations, rough runtimes, VRAM usage.
 - [ ] Tag a `mini-mesh` release once the migration is stable (e.g. `v1.0.0`) and note:
-  - [ ] “Feature parity with `video-to-mesh` (minus internal infra)” in release notes.
+  - [ ] "Feature parity with `video-to-mesh` (minus internal infra)" in release notes.

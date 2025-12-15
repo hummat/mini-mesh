@@ -146,7 +146,7 @@ Add `--help` to see all available options. The pipeline performs the following 5
 The keywords `video`, `sfm`, `process`, `train` and `export` are sub-commands that can be used to pass arguments to a specific step, e.g.:
 
 ```bash
-docker/run.sh /path/to/your/video/or/images video --fps 1 sfm --method glomap process --mask rembg train --config neus-facto-fast --vis wandb
+docker/run.sh /path/to/your/video/or/images video --fps 1 sfm --method glomap process --mask rembg train --config neus-facto --vis wandb
 ```
 
 Steps that have already been completed are skipped by default unless `--overwrite` is specified.
@@ -162,11 +162,29 @@ The pipeline supports multiple model families:
 - `neus-facto`: NeuS with factorized features (faster, more memory efficient)
 - `neuralangelo`: High-quality reconstruction with hierarchical hash grids
 
-**Available configs** (use with `train --config <name>`):
+**Config naming convention** (use with `train --config <name>`):
 
-- `neus-grid-dev`: Fast development config (20k steps)
-- `neus-facto-fast`: Fast neus-facto (100k steps)
-- `neus-facto-dev`: Development neus-facto (20k steps)
+Duration tiers:
+- `-test`: Ultra-short (~3K iters + downscaling) for quick visual checks
+- `-min`: Minimal (~7K iters) for fast validation
+- `-short`: Short (~10-30K iters) for development
+- (no suffix): Standard (~100K iters) for production
+- `-long`: Extended (~200K+ iters) for maximum quality
+
+Capacity tiers:
+- `-small`: Reduced model capacity (faster, lower VRAM)
+- (no suffix): Standard capacity
+- `-large`: Increased capacity (higher quality potential)
+
+Combined: capacity-first, e.g. `neus-facto-small-short`
+
+**Example SDF configs:**
+- `neus-grid-test`: Quick validation (~3K steps)
+- `neus-grid-min`: Minimal training (~7K steps)
+- `neus-grid-short`: Short training (~20K steps)
+- `neus-grid`: Standard training (~100K steps)
+- `neus-grid-long`: Full training (~200K steps)
+- `neus-grid-small`: Small capacity modifier (stackable)
 
 **NeRF Models** (requires nerfstudio, use with `train --model <name>`):
 
@@ -174,11 +192,10 @@ The pipeline supports multiple model families:
 - `splatfacto`: 3D Gaussian Splatting for real-time rendering
 
 **NeRF configs**:
-
-- `nerfacto-dev`: Fast config (10k steps)
+- `nerfacto-short`: Short training (10k steps)
 - `nerfacto`: Standard config (30k steps)
-- `nerfacto-big`: Minimal config with normal prediction
-- `nerfacto-huge`: Minimal config with normal prediction
+- `nerfacto-big`: Higher capacity
+- `nerfacto-huge`: Maximum capacity
 
 ### Export Methods
 
@@ -247,7 +264,7 @@ For optimal results, you can further improve the final mesh by using a 3D modeli
    ```bash
    scripts/run.sh /path/to/video_or_images \
      video --fps 2 sfm --method glomap process --mask rembg \
-     train --model neus-facto --config neus-facto-fast \
+     train --model neus-facto --config neus-facto \
      export --mesh-only
    ```
 
@@ -309,7 +326,7 @@ and currently run as a single step.
 4. **Training does not converge:**
    Try setting the following arguments of the `train` sub-command:
    1. `--pipeline.model.far-plane 0.1` and/or `--pipeline.model.far-plane 10`: Increases reconstruction volume.
-   2. `--model neus-facto --config neus-facto-dev`: Use the `neus-facto` instead of the `neus` model.
+   2. `--model neus-facto --config neus-facto-short`: Use the `neus-facto` instead of the `neus` model.
 5. **The final mesh is incomplete or too small/not detailed enough:**
    Your object of interest (OOI) should fill a bounding box of +/-1. If it your were too close during capture (the OOI isn't fully visible in each frame), is very small or you are far away during the image/video capture, you need to adjust `--scale-factor` of the `train` sub-command. The default is 2.5.
 6. **Weakly textured, reflective and/or transparent surfaces are not well reconstructed:**
@@ -491,6 +508,13 @@ and currently run as a single step.
    ```
 
    Get your key from https://wandb.ai/authorize.
+
+## Demos
+
+<!-- TODO: Create GitHub Pages branch with interactive content -->
+- Interactive 3D meshes: *coming soon* <!-- https://hummat.github.io/mini-mesh/meshes -->
+- NeRF/Gaussian splat demos: *coming soon* <!-- https://hummat.github.io/mini-mesh/nerfs -->
+- Video overlay examples: *coming soon* <!-- https://hummat.github.io/mini-mesh/videos -->
 
 ## References
 

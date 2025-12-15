@@ -15,7 +15,7 @@ DEFAULTS=(
   --pipeline.model.eval-num-rays-per-chunk 1024
   --pipeline.model.sdf-field.inside-outside False
   --pipeline.model.sdf-field.hash-smoothstep True
-  --pipeline.model.sdf-field.bias 0.3
+  --pipeline.model.sdf-field.bias 0.1
   --pipeline.model.sdf-field.beta-init 0.2
   --pipeline.model.sdf-field.use-appearance-embedding True
   --pipeline.model.sdf-field.appearance-embedding-dim 16

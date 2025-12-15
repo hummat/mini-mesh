@@ -19,7 +19,7 @@ CONFIG=(
 
   # Progressive hash encoding (dev-scale schedule)
   --pipeline.model.level-init 4
-  --pipeline.model.steps-per-level 500
+  --pipeline.model.steps-per-level 200
 
   # Loss / optimization closer to neus-grid-dev
   --pipeline.model.rgb-loss-type L1            # match neus-grid
@@ -27,12 +27,12 @@ CONFIG=(
 
   # Optimizers / schedulers (copy from neus-grid-dev)
   --optimizers.fields.optimizer.lr 0.01
-  --optimizers.fields.scheduler.max-steps 20000
   --optimizers.fields.scheduler.warm-up-end 200
+  --optimizers.fields.scheduler.milestones 12000 16000
 
   --optimizers.field-background.optimizer.lr 0.01
-  --optimizers.field-background.scheduler.max-steps 20000
   --optimizers.field-background.scheduler.warm-up-end 200
+  --optimizers.field-background.scheduler.milestones 12000 16000
 
   # Camera refinement similar to neus-grid-dev
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4

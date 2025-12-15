@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 CONFIG=(
-  # Slightly more conservative than nerfacto-dev for 12 GB GPUs
+  # Slightly more conservative than nerfacto-short for 12 GB GPUs
   --pipeline.datamanager.train-num-rays-per-batch 8192
   --pipeline.datamanager.eval-num-rays-per-batch 8192
   --pipeline.model.predict-normals True

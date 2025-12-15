@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 CONFIG=(
   --trainer.max-num-iterations 100001
-  --pipeline.model.proposal-warmup 1000
-  --pipeline.model.eval-num-rays-per-chunk 8192
   --pipeline.datamanager.train-num-rays-per-batch 8192
   --pipeline.datamanager.eval-num-rays-per-batch 8192
-  --optimizers.fields.optimizer.lr 0.005
+  --pipeline.model.eval-num-rays-per-chunk 8192
+  # BakedSDF/BakedAngelo paper/configs use no separate background model; keep that behavior here.
+  --pipeline.model.background-model none
+
+  --pipeline.model.steps-per-level 1000
+  --pipeline.model.curvature-loss-warmup-steps 1000
+
   --optimizers.fields.scheduler.max-steps 100000
   --optimizers.fields.scheduler.warm-up-end 1000
-  --optimizers.field-background.optimizer.lr 0.005
   --optimizers.field-background.scheduler.max-steps 100000
   --optimizers.field-background.scheduler.warm-up-end 1000
-  --optimizers.proposal-networks.scheduler.max-steps 100000
 )
