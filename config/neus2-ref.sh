@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # NeuS2 reference-ish config: NeuS2-style hash grid + MLP sizes and loss/schedules, longer training budget.
 CONFIG=(
-  # Use a longer training budget than neus-grid-dev, closer to NeuS2's per-scene training
+  # Use a longer training budget than neus-grid-short, closer to NeuS2's per-scene training
   --trainer.max-num-iterations 80001
   --trainer.steps-per-eval-batch 2000
   --trainer.steps-per-eval-image 2000
   --trainer.steps-per-save 10000
 
-  # Slightly larger per-step ray budget (like neuralangelo-opt-dev)
+  # Slightly larger per-step ray budget (like neuralangelo-opt-short)
   --pipeline.datamanager.train-num-rays-per-batch 6144
   --pipeline.datamanager.eval-num-rays-per-batch 4096
   --pipeline.model.eval-num-rays-per-chunk 4096
@@ -41,7 +41,7 @@ CONFIG=(
   --optimizers.field-background.scheduler.warm-up-end 1000
   --optimizers.field-background.scheduler.milestones 20000 30000 40000
 
-  # Camera refinement similar to other dev configs
+  # Camera refinement similar to other short configs
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
   --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
   --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000

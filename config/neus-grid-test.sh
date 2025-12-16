@@ -2,7 +2,7 @@
 CONFIG=(
   # Target: ~10–15 minute preview on ~12 GB GPUs
 
-  # Fewer iterations, same per-step ray budget as neus-grid-dev (2048)
+  # Fewer iterations, same per-step ray budget as neus-grid-short (2048)
   --trainer.max-num-iterations 3001
   --trainer.steps-per-eval-batch 2000
   --trainer.steps-per-eval-image 2000

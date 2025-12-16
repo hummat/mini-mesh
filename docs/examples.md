@@ -50,7 +50,7 @@ Notes:
 
 ---
 
-## 3. Fast NeRF-style reconstruction (Nerfacto-dev)
+## 3. Fast NeRF-style reconstruction (Nerfacto-short)
 
 For quick NeRF-style view synthesis from an image set (no heavy SDF surface).
 

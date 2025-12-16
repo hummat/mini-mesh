@@ -74,7 +74,7 @@ RUN cd /workspace/git && git clone --recursive https://github.com/PoseLib/PoseLi
     ninja -C build install -j ${MAX_JOBS} && \
     cd /workspace/git && rm -rf PoseLib
 
-# COLMAP 3.12.6 (but actually 3.13.0.dev0?)
+# COLMAP 3.12.6 (but actually 3.13.0?)
 RUN cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd colmap && \
     git checkout c5f9cefc87e5dd596b638e4cee0ff543c7d14755 && \
     cmake . -B build -GNinja \

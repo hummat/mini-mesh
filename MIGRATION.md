@@ -119,7 +119,7 @@ Goal: **Port all user‑facing features** (CLI pipeline, models, configs, SfM mo
     - [x] Already uses `sdf-train` (updated from `ns-train`).
 - [x] Port additional configs from `video-to-mesh/config/`:
   - [x] `nerfacto.sh`
-  - [x] `nerfacto-dev.sh`
+  - [x] `nerfacto-short.sh`
   - [x] `nerfacto-big.sh`
   - [x] `nerfacto-huge.sh`
 - [x] Update or replace existing `mini-mesh` configs (`neus*`, `neus-grid-*`, `neus-facto-*`, `neuralangelo-*`) to match `video-to-mesh` behavior exactly.

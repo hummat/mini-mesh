@@ -63,7 +63,7 @@ function show_help {
   echo "  train [...args]    Additional arguments for train.sh:"
   echo "                       --model <model>                   Model name (default: neus)"
   echo "                       --name <name>                     Experiment name (default: input directory name)"
-  echo "                       --config <config>                 Configuration file or name (default: neus-grid-dev)"
+  echo "                       --config <config>                 Configuration file or name (default: neus-grid-short)"
   echo "                     Data processing flags (passed to nerfstudio-data):"
   echo "                       --downscale-factor <int>          Downscale factor for images"
   echo "                       --scale-factor <float>            Scale factor for scene"
@@ -86,7 +86,7 @@ function show_help {
   echo "Examples:"
   echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL --matcher exhaustive"
   echo "  $0 /path/to/video.mp4 video --fps 1 sfm --method glomap train --model neus-facto --config neus-facto-fast"
-  echo "  $0 /path/to/images sfm --method hloc process --mask rembg train --config neus-grid-dev export --resolution 2048"
+  echo "  $0 /path/to/images sfm --method hloc process --mask rembg train --config neus-grid-short export --resolution 2048"
   exit 0
 }
 
@@ -126,7 +126,7 @@ sfm_method=colmap
 mask=none
 model=neus
 name=$(basename "$input_dir")
-config=neus-grid-dev
+config=neus-grid-short
 
 video_skip=false
 sfm_skip=false

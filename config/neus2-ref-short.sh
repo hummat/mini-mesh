@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# NeuS2 reference-ish dev: same capacity/loss as neus2-ref but with a short training budget like neus-grid-dev.
+# NeuS2 reference-ish short: same capacity/loss as neus2-ref but with a short training budget like neus-grid-short.
 CONFIG=(
   --trainer.max-num-iterations 20001
   --trainer.steps-per-eval-batch 500
   --trainer.steps-per-eval-image 500
   --trainer.steps-per-save 2000
 
-  # Match neus-grid-dev ray budget
+  # Match neus-grid-short ray budget
   --pipeline.datamanager.train-num-rays-per-batch 2048
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --pipeline.model.eval-num-rays-per-chunk 2048
@@ -35,14 +35,14 @@ CONFIG=(
   --optimizers.fields.optimizer.lr 0.005
   --optimizers.fields.scheduler.warm-up-end 1000
   # Scale NeuS2 reference milestones (20k, 30k, 40k over 80k iters)
-  # down to a 20k dev run ~= 5k, 7.5k, 10k.
+  # down to a 20k short run ~= 5k, 7.5k, 10k.
   --optimizers.fields.scheduler.milestones 5000 7500 10000
 
   --optimizers.field-background.optimizer.lr 0.005
   --optimizers.field-background.scheduler.warm-up-end 1000
   --optimizers.field-background.scheduler.milestones 5000 7500 10000
 
-  # Camera refinement similar to neus-grid-dev
+  # Camera refinement similar to neus-grid-short
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
   --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
   --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
