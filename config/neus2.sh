@@ -23,11 +23,11 @@ CONFIG=(
   --pipeline.model.eikonal-loss-mult 0.1       # match SurfaceModel default / neus-grid
 
   # Optimizers / schedulers (copy from neus-grid-fast)
-  --optimizers.fields.optimizer.lr 0.005
-  --optimizers.fields.scheduler.max-steps 100000
+  --optimizers.fields.optimizer.lr 0.01
   --optimizers.fields.scheduler.warm-up-end 1000
+  --optimizers.fields.scheduler.milestones 60000 80000
 
-  --optimizers.field-background.optimizer.lr 0.005
-  --optimizers.field-background.scheduler.max-steps 100000
+  --optimizers.field-background.optimizer.lr 0.01
   --optimizers.field-background.scheduler.warm-up-end 1000
+  --optimizers.field-background.scheduler.milestones 60000 80000
 )

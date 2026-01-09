@@ -320,7 +320,7 @@ class TestTrainContextValidation:
 
         valid_commands = [
             "scripts/run.sh /path/to/video.mp4 train --model neus-facto",
-            "scripts/run.sh /path/to/video.mp4 train --config neus-facto-dev",
+            "scripts/run.sh /path/to/video.mp4 train --config neus-facto-short",
             "scripts/run.sh /path/to/video.mp4 train --name my-experiment",
             "scripts/run.sh /path/to/video.mp4 train --vis tensorboard",
             "scripts/run.sh /path/to/video.mp4 train --downscale-factor 2",
@@ -346,7 +346,7 @@ class TestTrainContextValidation:
             ("scripts/run.sh /path/to/video.mp4 train --viewer.quit-on-train-completion True"),
             (
                 "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
-                "--config neus-facto-dev --vis tensorboard"
+                "--config neus-facto-short --vis tensorboard"
             ),
             (
                 "scripts/run.sh /path/to/video.mp4 train "
@@ -404,7 +404,7 @@ class TestTrainContextValidation:
         cmd = (
             "scripts/run.sh /path/to/video.mp4 video --fps 2 "
             "sfm --method glomap process --mask rembg "
-            "train --model neus-facto --config neus-facto-dev export"
+            "train --model neus-facto --config neus-facto-short export"
         )
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
@@ -732,9 +732,9 @@ class TestRunPipelineTrainContext:
         cmd = run_pipeline(
             input_path="/path/to/video.mp4",
             train_enable=True,
-            train_config="neus-facto-dev",
+            train_config="neus-facto-short",
         )
-        assert cmd == "scripts/run.sh /path/to/video.mp4 train --config neus-facto-dev"
+        assert cmd == "scripts/run.sh /path/to/video.mp4 train --config neus-facto-short"
 
     def test_train_multiple_args(self):
         """Test train context with multiple arguments."""
@@ -744,13 +744,13 @@ class TestRunPipelineTrainContext:
             input_path="/path/to/video.mp4",
             train_enable=True,
             train_model="neus-facto",
-            train_config="neus-facto-dev",
+            train_config="neus-facto-short",
             train_vis="tensorboard",
             train_skip=True,
         )
         assert cmd == (
             "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
-            "--config neus-facto-dev --vis tensorboard --skip"
+            "--config neus-facto-short --vis tensorboard --skip"
         )
 
     def test_train_data_args(self):
@@ -820,7 +820,7 @@ class TestRunPipelineTrainContext:
             input_path="/path/to/video.mp4",
             train_enable=True,
             train_model="neus-facto",
-            train_config="neus-facto-fast",
+            train_config="neus-facto",
             train_use_reflections=True,
             train_use_diffuse_specular=True,
             train_enable_pred_roughness=True,
@@ -829,7 +829,7 @@ class TestRunPipelineTrainContext:
         )
         assert cmd == (
             "scripts/run.sh /path/to/video.mp4 train --model neus-facto "
-            "--config neus-facto-fast "
+            "--config neus-facto "
             "--pipeline.model.sdf-field.use-reflections True "
             "--pipeline.model.sdf-field.use-n-dot-v True "
             "--pipeline.model.sdf-field.use-diffuse-color True "
@@ -1048,7 +1048,7 @@ class TestIntegration:
             process_crop_factor=1.2,
             train_enable=True,
             train_model="neus-facto",
-            train_config="neus-facto-dev",
+            train_config="neus-facto-short",
             train_vis="tensorboard",
             export_enable=True,
             export_resolution=2048,

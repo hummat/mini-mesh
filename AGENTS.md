@@ -17,9 +17,9 @@
 - Manual run (local toolchain): `scripts/run.sh /path/to/video_or_images [global_opts] [video|sfm|process|train|export …]`.
 - Docker run (recommended for contributors): `docker/run.sh /path/to/video_or_images [same options]`.
 - Web UI: `python web.py` then point a browser to the reported Gradio URL.
-- Example with contexts: `scripts/run.sh scene.mp4 video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto --config neus-facto-fast export --resolution 2048`.
-- For very fast smoke tests, downscale work: `train --config neus-grid-dev export --resolution 512`.
-- NeRF workflow example: `scripts/run.sh scene.mp4 video --fps 1 sfm --method glomap process train --model nerfacto --config nerfacto-dev export --method poisson`.
+- Example with contexts: `scripts/run.sh scene.mp4 video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto --config neus-facto export --resolution 2048`.
+- For very fast smoke tests, downscale work: `train --config neus-grid-short export --resolution 512`.
+- NeRF workflow example: `scripts/run.sh scene.mp4 video --fps 1 sfm --method glomap process train --model nerfacto --config nerfacto-short export --method poisson`.
 
 ## Coding Style & Naming Conventions
 - Bash: `#!/usr/bin/env bash`, `set -e`, 2‑space indentation, lowercase names with `_`; extend existing case/flag patterns in `scripts/run.sh` rather than inventing new ones.

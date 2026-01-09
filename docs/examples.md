@@ -19,7 +19,7 @@ scripts/run.sh /path/to/scene.mp4 \
   video --fps 2 \
   sfm --method glomap \
   process --mask rembg \
-  train --model neus-facto --config neus-facto-fast \
+  train --model neus-facto --config neus-facto \
   export --resolution 2048
 ```
 
@@ -39,18 +39,18 @@ scripts/run.sh /path/to/scene.mp4 \
   video --fps 2 \
   sfm --method glomap \
   process --mask rembg \
-  train --model neuralangelo --config neuralangelo-opt \
+  train --model neuralangelo --config neuralangelo-small \
   export --resolution 4096
 ```
 
 Notes:
 
-- Hits SDFStudio `sdf-train neuralangelo` with `config/neuralangelo-opt.sh`.
+- Hits SDFStudio `sdf-train neuralangelo` with `config/neuralangelo-small.sh`.
 - Use when you care more about quality than speed.
 
 ---
 
-## 3. Fast NeRF-style reconstruction (Nerfacto-dev)
+## 3. Fast NeRF-style reconstruction (Nerfacto-short)
 
 For quick NeRF-style view synthesis from an image set (no heavy SDF surface).
 
@@ -58,13 +58,13 @@ For quick NeRF-style view synthesis from an image set (no heavy SDF surface).
 scripts/run.sh /path/to/images \
   sfm --method glomap \
   process --mask none \
-  train --model nerfacto --config nerfacto-dev \
+  train --model nerfacto --config nerfacto-short \
   export --method poisson --resolution 1024
 ```
 
 Notes:
 
-- Routes to `ns-train nerfacto` using `NERF_DEFAULTS` and `config/nerfacto-dev.sh`.
+- Routes to `ns-train nerfacto` using `NERF_DEFAULTS` and `config/nerfacto-short.sh`.
 - `export --method poisson` calls `ns-export` to produce a mesh from the NeRF.
 
 ---
@@ -112,7 +112,7 @@ Notes:
 
 ---
 
-## 6. Minimal SDF smoke test (Neus-grid-dev)
+## 6. Minimal SDF smoke test (Neus-grid-short)
 
 Very small setup to check the pipeline end-to-end on a tiny example.
 
@@ -120,11 +120,11 @@ Very small setup to check the pipeline end-to-end on a tiny example.
 scripts/run.sh /path/to/small_dataset \
   sfm \
   process \
-  train --model neus --config neus-grid-dev \
+  train --model neus --config neus-grid-short \
   export --resolution 512
 ```
 
 Notes:
 
-- Uses `config/neus-grid-dev.sh`, which is tuned for quick tests rather than ultimate quality.
+- Uses `config/neus-grid-short.sh`, which is tuned for quick tests rather than ultimate quality.
 - Good for verifying your environment and SfM/toolchain before running heavier configs.

@@ -422,7 +422,7 @@ class TestRunScript:
                 "--model",
                 "neus-facto",
                 "--config",
-                "neus-facto-dev",
+                "neus-facto-short",
                 "export",
                 "--mesh-only",
             ],

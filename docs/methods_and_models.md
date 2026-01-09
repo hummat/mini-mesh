@@ -22,21 +22,21 @@ The `<NAME>` values are exactly the model identifiers referenced below.
 
 ### Quick model selection (mini-mesh TL;DR)
 
-- If you want a **clean, watertight mesh** from a typical handheld capture:  
-  Prefer SDFStudio **NeuS-style** models. Start with `--model neus-facto` and a fast config such as
-  `neus-facto-fast`. If you can afford more time and VRAM, step up to `neus-facto-angelo` or `neus2` with their
-  `*-fast` / `*-dev` configs.
+- If you want a **clean, watertight mesh** from a typical handheld capture:
+  Prefer SDFStudio **NeuS-style** models. Start with `--model neus-facto` and a standard config such as
+  `neus-facto`. If you can afford more time and VRAM, step up to `neus-facto-angelo` or `neus2` with their
+  default or `-short` configs.
 
 - If you care more about **novel-view rendering / videos** than meshes:  
-  Use Nerfstudio **Nerfacto-style** models: `--model nerfacto` with `nerfacto-dev` for development, or
+  Use Nerfstudio **Nerfacto-style** models: `--model nerfacto` with `nerfacto-short` for development, or
   `nerfacto-big` / `nerfacto-huge` for higher quality. Avoid classic `vanilla-nerf` unless you’re reproducing
   baselines.
 
 - If you need **real-time-ish inspection** and are OK with splats / point clouds:  
   Use `--model splatfacto` with the `splatfacto` config, then export splats or a mesh once you’re happy.
 
-- If your scene is **large-scale outdoors / architecture** and you want maximum surface detail:  
-  Try `--model neuralangelo` or `neus-facto-angelo` with their `*-fast` / `*-opt` configs. These are slower and
+- If your scene is **large-scale outdoors / architecture** and you want maximum surface detail:
+  Try `--model neuralangelo` or `neus-facto-angelo` with their default or `-small` configs. These are slower and
   more finicky, but give best detail when SfM + masks are solid.
 
 - If your views are **sparse or indoor** and you have good depth/normal predictions:  
@@ -126,7 +126,7 @@ sampling, and supervision.
 In mini-mesh, use these when you want **good NeRF-style view synthesis** and interactive tools rather than pure
 surface quality. Roughly:
 
-- default NeRF-ish choice: `nerfacto` / `nerfacto-big` with `nerfacto-dev`-like configs;  
+- default NeRF-ish choice: `nerfacto` / `nerfacto-big` with `nerfacto-short`-like configs;  
 - depth sensors / dense depth priors: `depth-nerfacto`;  
 - “quick & dirty” previews: `instant-ngp` / `instant-ngp-bounded`;  
 - generative text-to-3D: `generfacto`.
@@ -351,7 +351,7 @@ Interaction with progressive hash:
   enabled, the network still sees full high-frequency PE features from step 0, which partly defeats the coarse-to-fine
   behavior and makes it easier to overfit noise.
 - With PE disabled, capacity really grows as new hash levels are activated, which is why configs like
-  `neuralangelo-opt-dev` often reach slightly higher `s_val` and finer detail than a comparable `neus-grid-dev`
+  `neuralangelo-small-short` often reach slightly higher `s_val` and finer detail than a comparable `neus-grid-short`
   run, even with similar hash capacity.
 
 Rule of thumb for mini-mesh:
@@ -414,12 +414,12 @@ Choose splats when:
 
 ## 7. Practical mini-mesh guidance
 
-- For **default “good mesh” from a real capture (static object / room)**:  
-  Use `--model neus-facto` with `neus-facto-fast` (or `neus-facto-dev` for quicker iterations). If you need more detail
-  and can spend more time, move to `neus2` with its `*-fast` configs or `neus-facto-bigmlp`.
+- For **default "good mesh" from a real capture (static object / room)**:
+  Use `--model neus-facto` with `neus-facto` (or `neus-facto-short` for quicker iterations). If you need more detail
+  and can spend more time, move to `neus2` with its default config or `neus-facto-bigmlp`.
 
-- For **large outdoor scenes / facades / cultural heritage**:  
-  Use `neuralangelo` or `neus-facto-angelo` with the corresponding `*-fast` / `*-opt` configs, and make sure your SfM,
+- For **large outdoor scenes / facades / cultural heritage**:
+  Use `neuralangelo` or `neus-facto-angelo` with the corresponding default or `-small` configs, and make sure your SfM,
   masks, and exposure are clean. If you have heritage-style COLMAP point clouds and occupancy masks, `neusW` is the
   most faithful replication of the NeuralRecon-W setting.
 
@@ -428,19 +428,19 @@ Choose splats when:
   when you also have good multi-view coverage and want sharper, more consistent textures.
 
 - For **NeRF-style view synthesis or turning videos into flythroughs**:  
-  Use `nerfacto` with `nerfacto-dev` as your main workhorse. Scale up to `nerfacto-big` / `nerfacto-huge` when GPU
+  Use `nerfacto` with `nerfacto-short` as your main workhorse. Scale up to `nerfacto-big` / `nerfacto-huge` when GPU
   memory allows. Fall back to `instant-ngp` if you mainly care about fast previews.
 
 - For **fast experimentation / smoke tests**:  
-  Downscale data and use lighter configs such as `neus-grid-dev` / `neus2-dev` for SDF or `nerfacto-dev` for NeRF. Aim
+  Downscale data and use lighter configs such as `neus-grid-short` / `neus2-short` for SDF or `nerfacto-short` for NeRF. Aim
   for a few thousand iterations to check masks, SfM, and basic scene framing before committing to long runs.
 
   - For **fast splat-style outputs and real-time-ish inspection**:  
     Use `splatfacto` (or `splatfacto-big` / `splatfacto-mcmc` when you care about quality). Keep in mind that you’ll get
     Gaussians first; meshes are an extra step and may lose some of the splat fidelity.
 
-  As always, mini-mesh’s `config/*.sh` files map friendly config names (e.g. `neus-facto-fast`, `neus2-fast`,
-  `neuralangelo-fast`, `nerfacto-dev`, `splatfacto`) onto these model identifiers. This document is meant as a
+  As always, mini-mesh's `config/*.sh` files map friendly config names (e.g. `neus-facto`, `neus2`,
+  `neuralangelo`, `nerfacto-short`, `splatfacto`) onto these model identifiers. This document is meant as a
   **conceptual and practical map** so you can quickly decide **which model to run and why** given your data and goals.
 
 ### 7.1 SDF tuning workflow (object-centric scenes)
@@ -448,7 +448,7 @@ Choose splats when:
 This is a concrete “what to try first” workflow for SDF models, assuming a typical tabletop / room capture with
 reasonable SfM and no ground-truth masks.
 
-1. **Baseline run with `neus-grid-dev`**
+1. **Baseline run with `neus-grid-short`**
 
    - Start with a robust, proposal-free NeuS baseline:
 
@@ -457,7 +457,7 @@ reasonable SfM and no ground-truth masks.
        video --fps 1 \
        sfm --method glomap \
        process \
-       train --model neus --config neus-grid-dev \
+       train --model neus --config neus-grid-short \
        export --resolution 1024
      ```
 
@@ -483,12 +483,12 @@ reasonable SfM and no ground-truth masks.
      - Keep it in `0.1–0.3`. Smaller makes surfaces razor-thin and brittle; larger makes them mushy.  
      - For plain `neus` / `neus-grid` you very rarely need to leave this range.
 
-   Once `neus-grid-dev` looks good under these knobs, you have a solid reference: method switches should *improve* on it,
+   Once `neus-grid-short` looks good under these knobs, you have a solid reference: method switches should *improve* on it,
    not rescue bad data.
 
 3. **Add regularizers and BRDF flags**
 
-   Still on `neus-grid-dev`, add light regularization if needed:
+   Still on `neus-grid-short`, add light regularization if needed:
 
    - Orientation loss: `--pipeline.model.orientation-loss-mult 1e-4` for wobbly or flipped normals.  
    - Distortion loss: `--pipeline.model.distortion-loss-mult 0.001–0.003` if you see double walls / smeared depth.  
@@ -497,14 +497,14 @@ reasonable SfM and no ground-truth masks.
 
 4. **When to switch methods**
 
-   - If `neus-grid-dev` converges but you need **more detail / smoother curvature** at similar scene scale:  
-     move to `neus2` with `neus2-dev` / `neus2-fast`, keeping the same near/far/bias/beta-init as your working NeuS
+   - If `neus-grid-short` converges but you need **more detail / smoother curvature** at similar scene scale:  
+     move to `neus2` with `neus2-short` / `neus2`, keeping the same near/far/bias/beta-init as your working NeuS
      setup.
-   - If the scene is **large-scale / outdoor / architectural** and NeuS2 still leaves facades noisy:  
-     switch to `neuralangelo` or `neus-facto-angelo` (`*-fast` configs), but only after you trust your bounds and
+   - If the scene is **large-scale / outdoor / architectural** and NeuS2 still leaves facades noisy:
+     switch to `neuralangelo` or `neus-facto-angelo` (default configs), but only after you trust your bounds and
      masks—these models are less forgiving.
-   - If you want **faster convergence / better use of samples** on real scenes and are willing to tune more:  
-     try `neus-facto` (`neus-facto-dev` / `neus-facto-fast`) once a plain NeuS config works.
+   - If you want **faster convergence / better use of samples** on real scenes and are willing to tune more:
+     try `neus-facto` (`neus-facto-short` / `neus-facto`) once a plain NeuS config works.
 
 5. **Method-specific tweaks (proposal-based models)**
 
@@ -512,7 +512,7 @@ reasonable SfM and no ground-truth masks.
 
    - Keep `near-plane` / `far-plane` **tight**. Proposal nets hate huge empty intervals; background slabs almost always
      mean bounds are too wide rather than that `beta-init` is “wrong”.  
-   - Start with the same `bias` and `beta-init` that worked for `neus-grid-dev`. Only then:
+   - Start with the same `bias` and `beta-init` that worked for `neus-grid-short`. Only then:
      - Adjust `beta-init` modestly (e.g. `0.1 → 0.2–0.3`) if surfaces remain overly thick or noisy even with good
        bounds.
      - Increase `--pipeline.model.interlevel-loss-mult` (e.g. `1.0 → 1.5–2.0`) if proposal depth maps never focus on

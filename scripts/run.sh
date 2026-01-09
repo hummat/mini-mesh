@@ -1,6 +1,40 @@
 #!/usr/bin/env bash
 set -e
+
+NUM_THREADS=$(nproc --all)
+export NUM_THREADS OPENBLAS_NUM_THREADS="$NUM_THREADS" MKL_NUM_THREADS="$NUM_THREADS" \
+       OMP_NUM_THREADS="$NUM_THREADS" TBB_NUM_THREADS="$NUM_THREADS"
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+input_dir=""
+name="unknown"
+mail_addr=""
+logfile=""
+
+finish_script() {
+  local exit_code=$?
+  echo "============================="
+  echo "          FINISHED           "
+  echo "============================="
+  local status; status=$([ "$exit_code" -eq 0 ] && echo "SUCCESS" || echo "FAILED")
+  echo "Job '$name': $status"
+  if [ -n "$mail_addr" ] && [ -n "$logfile" ]; then
+    if command -v mail >/dev/null; then
+      mail -s "[mini-mesh] Job '$name': $status" "$mail_addr" < "$logfile"
+    else
+      echo "Warning: 'mail' command not found, cannot send notification"
+    fi
+  fi
+  exit "$exit_code"
+}
+
+trap finish_script EXIT
+
+verbose_echo() {
+  if [ "$verbose" = true ]; then
+    echo "[VERBOSE]:" "$@"
+  fi
+}
 
 function show_help {
   echo "Usage: $0 <input_path> [options] [contexts] [args...]"
@@ -13,9 +47,10 @@ function show_help {
   echo "5. Mesh export using export.sh (export context)"
   echo
   echo "Options:"
-  echo "  --show      Show COLMAP GUI after SfM completes"
-  echo "  --verbose   Enable verbose output"
-  echo "  --help      Show this help message and exit"
+  echo "  --show          Show COLMAP GUI after SfM completes"
+  echo "  --verbose       Enable verbose output"
+  echo "  --mail <addr>   Send notification email on completion"
+  echo "  --help          Show this help message and exit"
   echo
   echo "Contexts:"
   echo "  video [...args]    Additional arguments for ffmpeg.sh. Call ffmpeg.sh for more information."
@@ -28,7 +63,7 @@ function show_help {
   echo "  train [...args]    Additional arguments for train.sh:"
   echo "                       --model <model>                   Model name (default: neus)"
   echo "                       --name <name>                     Experiment name (default: input directory name)"
-  echo "                       --config <config>                 Configuration file or name (default: neus-grid-dev)"
+  echo "                       --config <config>                 Configuration file or name (default: neus-grid-short)"
   echo "                     Data processing flags (passed to nerfstudio-data):"
   echo "                       --downscale-factor <int>          Downscale factor for images"
   echo "                       --scale-factor <float>            Scale factor for scene"
@@ -51,7 +86,7 @@ function show_help {
   echo "Examples:"
   echo "  $0 /path/to/images --show sfm --camera_model SIMPLE_RADIAL --matcher exhaustive"
   echo "  $0 /path/to/video.mp4 video --fps 1 sfm --method glomap train --model neus-facto --config neus-facto-fast"
-  echo "  $0 /path/to/images sfm --method hloc process --mask rembg train --config neus-grid-dev export --resolution 2048"
+  echo "  $0 /path/to/images sfm --method hloc process --mask rembg train --config neus-grid-short export --resolution 2048"
   exit 0
 }
 
@@ -91,7 +126,7 @@ sfm_method=colmap
 mask=none
 model=neus
 name=$(basename "$input_dir")
-config=neus-grid-dev
+config=neus-grid-short
 
 video_skip=false
 sfm_skip=false
@@ -111,10 +146,12 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     --verbose)
-      # Reserved for future use (e.g., verbose logging).
-      # shellcheck disable=SC2034
       verbose=true
       shift
+      ;;
+    --mail)
+      mail_addr="$2"
+      shift 2
       ;;
     --help)
       show_help
@@ -227,6 +264,13 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+# Set up logging if --mail is specified
+if [ -n "$mail_addr" ]; then
+  logfile="$input_dir/run.log"
+  exec > >(tee -a "$logfile") 2>&1
+  verbose_echo "Logging to $logfile, will email $mail_addr on completion"
+fi
 
 echo "Global args: ${global_args[*]}"
 echo "============================="
