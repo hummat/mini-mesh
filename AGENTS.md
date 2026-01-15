@@ -28,19 +28,19 @@
 
 ## Testing Guidelines
 - **Single entry point (preferred)**: Run `scripts/lint.sh` to execute shellcheck, ruff, pyright, and pytest in one go. This is what CI runs and must pass before merging.
-- **Unit tests**: Run `pytest tests/` to execute the full test suite (≈100 tests covering `webui.py`)
-  - `pytest tests/ --cov=webui --cov-report=term-missing` for coverage report (target: ≥80%)
-  - `pytest tests/ -v` for verbose output showing all test names
-  - `pytest tests/ -k test_name` to run specific tests
-- **Linting**: Run `ruff check webui.py tests/` to check code style (must pass)
-- **Type checking**: Run `pyright webui.py` to verify types (must pass, 0 errors)
+- **Unit tests**: Run `uv run pytest tests/` to execute the full test suite (≈100 tests covering `webui.py`)
+  - `uv run pytest tests/ --cov=webui --cov-report=term-missing` for coverage report (target: ≥80%)
+  - `uv run pytest tests/ -v` for verbose output showing all test names
+  - `uv run pytest tests/ -k test_name` to run specific tests
+- **Linting**: Run `uv run ruff check webui.py tests/` to check code style (must pass)
+- **Type checking**: Run `uv run pyright` to verify types (must pass, 0 errors)
 - **Integration tests**: Validate end-to-end pipeline by running a small example and checking that:
   - `images/`, `sparse/`, `transforms.json`, and `train/<exp>/<model>/config.yml` are created.
   - `mesh.ply` and textures are written in the experiment directory.
 - When changing Docker or CLI behavior, test both `scripts/run.sh` and `docker/run.sh` where relevant.
 - If you touch `webui.py`, you MUST:
   - Add tests for new functionality in `tests/test_webui.py`.
-  - Run `scripts/lint.sh` locally (or, at minimum, `pytest`, `ruff check webui.py tests/`, and `pyright webui.py`) and ensure all pass.
+  - Run `scripts/lint.sh` locally (or, at minimum, `uv run pytest`, `uv run ruff check webui.py tests/`, and `uv run pyright`) and ensure all pass.
   - Verify that its arguments still line up with `scripts/run.sh` (contexts, defaults, and flags).
 
 ## Commit & Pull Request Guidelines
