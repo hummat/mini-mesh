@@ -1,0 +1,96 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug
+      placeholder: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Run `scripts/run.sh ...`
+        2. ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command Used
+      description: The exact command you ran (if applicable)
+      render: bash
+      placeholder: |
+        docker/run.sh /path/to/video.mp4 train --model neus-facto --config neus-facto-short
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation Method
+      options:
+        - Docker (recommended)
+        - Manual installation
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pipeline-stage
+    attributes:
+      label: Pipeline Stage
+      description: Which stage of the pipeline failed?
+      options:
+        - Video extraction (ffmpeg)
+        - SfM (COLMAP/GLOMAP/HLoc/VGGSfM)
+        - Data processing
+        - Training
+        - Export/texturing
+        - Web UI
+        - Other
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      description: Your GPU model and VRAM
+      placeholder: "e.g., RTX 4090 24GB, RTX 3080 10GB"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: "e.g., Ubuntu 22.04, Windows 11 WSL2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs
+      description: Paste relevant error messages or logs
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this bug hasn't been reported
+          required: true
+        - label: I have read the [Troubleshooting section](https://github.com/hummat/mini-mesh#troubleshooting) in the README
+          required: true

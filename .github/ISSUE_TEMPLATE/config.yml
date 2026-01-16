@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / Help
+    url: https://github.com/hummat/mini-mesh/discussions
+    about: Ask questions and get help in Discussions
+  - name: Troubleshooting Guide
+    url: https://github.com/hummat/mini-mesh#troubleshooting
+    about: Check the README troubleshooting section first

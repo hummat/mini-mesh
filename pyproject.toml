@@ -6,10 +6,44 @@ build-backend = "hatchling.build"
 name = "mini-mesh"
 version = "0.2.0"
 description = "Video to 3D mesh reconstruction pipeline"
+readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-authors = [{ name = "Matthias Humt" }]
+authors = [{ name = "Matthias Humt", email = "github.gizzard320@passmail.net" }]
+keywords = [
+    "3d-reconstruction",
+    "3d-modeling",
+    "colmap",
+    "computer-vision",
+    "gaussian-splatting",
+    "mesh-generation",
+    "neural-rendering",
+    "nerf",
+    "neus",
+    "photogrammetry",
+    "structure-from-motion",
+    "surface-reconstruction",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Multimedia :: Graphics :: 3D Rendering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
 dependencies = ["gradio>=4.0.0"]
+
+[project.urls]
+Homepage = "https://hummat.com"
+Repository = "https://github.com/hummat/mini-mesh"
+Documentation = "https://hummat.github.io/mini-mesh"
+Issues = "https://github.com/hummat/mini-mesh/issues"
 
 [dependency-groups]
 dev = [
