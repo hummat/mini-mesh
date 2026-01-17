@@ -2,6 +2,7 @@
 
 Read relevant `docs/agent/` files before proceeding:
 
+- `workflow.md` — **read before starting any feature** (issues, branching, PRs)
 - `architecture.md` — **read before modifying pipeline or structure**
 - `code_conventions.md` — **read before writing code**
 - `testing_patterns.md` — **read before writing tests**
