@@ -69,3 +69,5 @@ QWEN.md
 tmp*/
 runtime/
 .aider*
+.gemini/
+.mcp.json

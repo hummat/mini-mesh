@@ -36,6 +36,14 @@ verbose_echo() {
   fi
 }
 
+# Run a command, logging it first if verbose mode is enabled
+run_cmd() {
+  if [ "$verbose" = true ]; then
+    echo "[CMD]: $*"
+  fi
+  "$@"
+}
+
 function show_help {
   echo "Usage: $0 <input_path> [options] [contexts] [args...]"
   echo
@@ -147,6 +155,7 @@ while [ $# -gt 0 ]; do
       ;;
     --verbose)
       verbose=true
+      export VERBOSE=true
       shift
       ;;
     --mail)
@@ -277,13 +286,24 @@ echo "============================="
 echo "          1. VIDEO           "
 echo "============================="
 
-if [ "$video_skip" != true ]; then
-  if { [ -f "$input_path" ] && ! [ -d "$input_dir/images" ]; } || [ "$overwrite" = true ] || [ "$video_overwrite" = true ]; then
+# Warn if video-related flags are set but input is not a video file
+if ! [ -f "$input_path" ]; then
+  if [ "$video_overwrite" = true ]; then
+    echo "[WARN]: --overwrite in video context ignored: input is not a video file"
+  fi
+  if [ ${#video_args[@]} -gt 0 ]; then
+    echo "[WARN]: video arguments ignored: input is not a video file"
+  fi
+fi
+
+if [ "$video_skip" != true ] && [ -f "$input_path" ]; then
+  if ! [ -d "$input_dir/images" ] || [ "$overwrite" = true ] || [ "$video_overwrite" = true ]; then
     echo "Video args: ${video_args[*]}"
-    if [ -d "$input_dir/images" ] && { [ "$overwrite" = true ] || [ "$video_overwrite" = true ]; }; then
-      rm -rf "$input_dir/images"
+    if [ -d "$input_dir/images" ]; then
+      verbose_echo "Removing: $input_dir/images $input_dir/images_orig"
+      rm -rf "$input_dir/images" "$input_dir/images_orig"
     fi
-    "$script_dir"/ffmpeg.sh "$input_path" "${video_args[@]}"
+    run_cmd "$script_dir"/ffmpeg.sh "$input_path" "${video_args[@]}"
   fi
 fi
 
@@ -295,17 +315,18 @@ if [ "$sfm_skip" != true ]; then
   if ! [ -d "$input_dir/sparse" ] || [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; then
     echo "SFM args: ${sfm_args[*]}"
     if [ -d "$input_dir/sparse" ] && { [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; }; then
-      rm -rf "$input_dir/sparse"
+      verbose_echo "Removing: $input_dir/sparse $input_dir/database.db $input_dir/colmap $input_dir/hloc"
+      rm -rf "$input_dir/sparse" "$input_dir/database.db" "$input_dir/colmap" "$input_dir/hloc"
     fi
     case "$sfm_method" in
       colmap|glomap)
         if [ "$sfm_method" = glomap ]; then
           sfm_args+=("--use_glomap")
         fi
-        "$script_dir"/sfm.sh "$input_dir/images" "${sfm_args[@]}"
+        run_cmd "$script_dir"/sfm.sh "$input_dir/images" "${sfm_args[@]}"
         ;;
       hloc|vggsfm)
-        "$script_dir"/dl_sfm.sh "$input_dir/images" --method "$sfm_method" "${sfm_args[@]}"
+        run_cmd "$script_dir"/dl_sfm.sh "$input_dir/images" --method "$sfm_method" "${sfm_args[@]}"
         ;;
       *)
         echo "Unsupported SfM method: $sfm_method. Supported methods: colmap, glomap, hloc, vggsfm"
@@ -331,9 +352,12 @@ if [ "$process_skip" != true ]; then
       echo "Process args: ${process_args[*]}"
     fi
     if [ "$process_overwrite" = true ]; then
+      verbose_echo "Removing: $input_dir/images_2 $input_dir/images_4 $input_dir/images_8 $input_dir/masks"
       rm -rf "$input_dir/images_2" "$input_dir/images_4" "$input_dir/images_8" "$input_dir/masks"
+      verbose_echo "Removing: $input_dir/transforms.json $input_dir/sparse_pc.ply"
       rm -f "$input_dir/transforms.json" "$input_dir/sparse_pc.ply"
       if [ -d "$input_dir/images_orig" ]; then
+        verbose_echo "Removing: $input_dir/images (will be restored from images_orig)"
         rm -rf "$input_dir/images"
       fi
     fi
@@ -345,9 +369,9 @@ if [ "$process_skip" != true ]; then
     if [ "$mask" != none ]; then
       echo "Masking images using $mask"
       if [ "$mask" = rembg ]; then
-        rembg p "$input_dir/images_orig" "$input_dir/masks"
+        run_cmd rembg p "$input_dir/images_orig" "$input_dir/masks"
       elif [ "$mask" = sam2 ]; then
-        sam2 --data "$input_dir/images_orig" --output_dir "$input_dir/masks" --model.huggingface
+        run_cmd sam2 --data "$input_dir/images_orig" --output_dir "$input_dir/masks" --model.huggingface
       elif [ "$mask" != true ]; then
         echo "[ERROR]: Unsupported mask method '$mask'"
         exit 1
@@ -355,7 +379,7 @@ if [ "$process_skip" != true ]; then
       process_data="$input_dir/masks"
     fi
 
-    sdf-process-data images \
+    run_cmd sdf-process-data images \
       --data "$process_data" \
       --output_dir "$input_dir" \
       --skip-colmap \
@@ -380,6 +404,7 @@ if [ "$train_skip" != true ]; then
       echo "Train args: ${train_args[*]}"
     fi
     if [ -d "$exp_path" ] && { [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; }; then
+      verbose_echo "Removing: $exp_path"
       rm -rf "$exp_path"
     fi
     if [ "$mask" != none ]; then
@@ -389,7 +414,7 @@ if [ "$train_skip" != true ]; then
         train_args+=("--pipeline.model.background-color" "random")
       fi
     fi
-    "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" \
+    run_cmd "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" \
       "${train_args[@]}" --timestamp ""
   fi
 fi
@@ -403,5 +428,5 @@ if [ "$export_skip" != true ]; then
   if [ "$overwrite" = true ] || [ "$export_overwrite" = true ]; then
     export_cmd_args+=("--overwrite")
   fi
-  "$script_dir"/export.sh "$exp_path" "${export_cmd_args[@]}"
+  run_cmd "$script_dir"/export.sh "$exp_path" "${export_cmd_args[@]}"
 fi

@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
+verbose=false
+
+# Run a command, logging it first if verbose mode is enabled
+run_cmd() {
+  if [ "$verbose" = true ] || [ "${VERBOSE:-}" = true ]; then
+    echo "[CMD]: $*"
+  fi
+  "$@"
+}
+
 function show_help {
   echo "Usage: export.sh <exp_path> [export_args...]"
   echo
@@ -25,6 +35,7 @@ function show_help {
   echo "                           --texture-only                           SDF only: texture an existing mesh, skip extraction"
   echo "                           --input-mesh-filename <path>             SDF only: custom mesh file for texturing (requires --texture-only)"
   echo "                           --overwrite                              Overwrite existing files"
+  echo "                           --verbose                                Enable verbose output"
   echo "                           --help                                   Show this help message"
   echo
   exit 0
@@ -93,6 +104,10 @@ while [ $i -lt ${#export_args[@]} ]; do
       overwrite=true
       i=$((i+1))
       ;;
+    --verbose)
+      verbose=true
+      i=$((i+1))
+      ;;
     *)
       echo "[ERROR]: Unknown argument ${export_args[$i]}"
       show_help
@@ -111,7 +126,7 @@ if [ -f "$exp_path/config.yml" ]; then
       exit 1
     fi
     if [[ "$model_name" == *splat* ]]; then
-      ns-export gaussian-splat \
+      run_cmd ns-export gaussian-splat \
         --load-config "$exp_path/config.yml" \
         --output-dir "$exp_path" \
         --obb-center 0 0 0 \
@@ -119,7 +134,7 @@ if [ -f "$exp_path/config.yml" ]; then
         --obb-scale 1 1 1 \
         "${nerf_args[@]}"
     elif [ "$method" = pointcloud ]; then
-      ns-export pointcloud \
+      run_cmd ns-export pointcloud \
         --load-config "$exp_path/config.yml" \
         --output-dir "$exp_path" \
         --obb-center 0 0 0 \
@@ -128,14 +143,14 @@ if [ -f "$exp_path/config.yml" ]; then
         --std-ratio 1 \
         "${nerf_args[@]}"
     elif [ "$method" = tsdf ]; then
-      ns-export tsdf \
+      run_cmd ns-export tsdf \
         --load-config "$exp_path/config.yml" \
         --output-dir "$exp_path" \
         --batch-size 1 \
         --resolution 256 256 256 \
         "${nerf_args[@]}"
     else
-      ns-export poisson \
+      run_cmd ns-export poisson \
         --load-config "$exp_path/config.yml" \
         --output-dir "$exp_path" \
         --save-point-cloud True \
@@ -165,7 +180,7 @@ if [ -f "$exp_path/config.yml" ]; then
         exit 1
       fi
       if [ ! -f "$exp_path/mesh.obj" ] || [ "${overwrite:-false}" = true ]; then
-        sdf-texture-mesh \
+        run_cmd sdf-texture-mesh \
           --load-config "$exp_path/config.yml" \
           --output-dir "$exp_path" \
           --input-mesh-filename "$mesh_path" \
@@ -173,7 +188,7 @@ if [ -f "$exp_path/config.yml" ]; then
       fi
     else
       if [ ! -f "$default_mesh_path" ] || [ "${overwrite:-false}" = true ]; then
-        sdf-extract-mesh \
+        run_cmd sdf-extract-mesh \
           --load-config "$exp_path/config.yml" \
           --output-path "$default_mesh_path" \
           "${extract_mesh_args[@]}"
@@ -181,7 +196,7 @@ if [ -f "$exp_path/config.yml" ]; then
       if [ "$mesh_only" != true ]; then
         if [ -f "$default_mesh_path" ]; then
           if [ ! -f "$exp_path/mesh.obj" ] || [ "${overwrite:-false}" = true ]; then
-            sdf-texture-mesh \
+            run_cmd sdf-texture-mesh \
               --load-config "$exp_path/config.yml" \
               --output-dir "$exp_path" \
               --input-mesh-filename "$default_mesh_path" \

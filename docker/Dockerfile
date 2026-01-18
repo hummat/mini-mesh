@@ -187,7 +187,7 @@ RUN pip install --no-cache-dir -c /tmp/constraints.txt \
     scikit-build-core>=0.11 \
     pybind11>=2.6 \
     "numpy<2" \
-    git+https://github.com/hummat/sdfstudio.git@242414fcce2039ad03c6be9137324827e3c2c62e
+    git+https://github.com/hummat/sdfstudio.git@fdbca7f91187a9d70cdad96b40a9575e630d8a8e
 
 # rembg for background removal
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \

@@ -1,0 +1,236 @@
+# Troubleshooting
+
+This guide covers common issues and advanced tuning for mini-mesh.
+
+## Common Issues
+
+### 1. Results are rubbish
+
+Most likely, your input data is not as good as it could be. Tips to improve:
+
+- Record a 30-120 second video or capture 50-200 images
+- Prevent motion blur (avoid fast motion or low light)
+- Use bright, even, diffuse lighting (e.g. outside on a cloudy day)
+- Cover all details of the object from all sides
+- Ensure sufficient contrast between object and background
+- Avoid overly cluttered backgrounds
+- Treat reflective and transparent surfaces if possible (see [section 6](#6-reflective-glossy-and-transparent-surfaces))
+
+### 2. CUDA out of memory
+
+If you have significantly less than 24 GB of VRAM (e.g. 6–8 GB), add the following to the `train` sub-command:
+
+```bash
+--pipeline.model.eval-num-rays-per-chunk 1024
+--pipeline.datamanager.train-num-rays-per-batch 1024
+--pipeline.datamanager.eval-num-rays-per-batch 1024
+```
+
+Decrease these values based on your available VRAM. For images larger than 1080p, try `--downscale-factor 2`.
+
+### 3. Few or no camera poses estimated during SfM
+
+Try these arguments to the `sfm` sub-command (in order):
+
+1. `--matcher exhaustive` — Use exhaustive matcher instead of sequential
+2. `--method glomap` — Use GLOMAP instead of COLMAP
+3. `--extra` — Extra flags for difficult cases (no GPU support)
+4. `--method hloc` — HLoc toolbox with deep learning features
+5. `--method vggsfm` — VGGSfM for learning-based SfM
+
+### 4. Training does not converge
+
+Try these `train` sub-command arguments:
+
+1. `--pipeline.model.near-plane 0.1` and/or `--pipeline.model.far-plane 10` — Adjust reconstruction volume
+2. `--model neus-facto --config neus-facto-short` — Use neus-facto instead of neus
+
+### 5. Mesh is incomplete or wrong scale
+
+Your object of interest should fill a bounding box of ±1. If you were too close during capture, the object is very small, or you were far away, adjust `--scale-factor` (default: 2.5) in the `train` sub-command.
+
+### 6. Reflective, glossy, and transparent surfaces
+
+These are challenging cases for any reconstruction pipeline.
+
+#### Weakly textured surfaces (pose/alignment issues)
+
+Weak texture often means poor feature matches and noisy SfM poses. Try learning improved poses during training:
+
+```bash
+--pipeline.datamanager.camera-optimizer.mode SO3xR3
+--pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
+--pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
+--pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
+```
+
+#### Reflective/glossy surfaces (view-dependent appearance)
+
+Specular highlights move with the camera and can confuse geometry learning. Enable Ref-NeRF-style BRDF flags:
+
+```bash
+--pipeline.model.sdf-field.use-diffuse-color True
+--pipeline.model.sdf-field.use-specular-tint True
+--pipeline.model.sdf-field.use-reflections True
+--pipeline.model.sdf-field.use-n-dot-v True
+```
+
+**Recommended usage by material type:**
+
+<details>
+<summary><strong>Mostly diffuse/matte scenes with some view dependence</strong></summary>
+
+```bash
+--pipeline.model.sdf-field.use-diffuse-color True
+--pipeline.model.sdf-field.use-n-dot-v True
+```
+
+`use-diffuse-color` splits view-independent albedo from view-dependent effects. `use-n-dot-v` provides angle of incidence for Fresnel-like ramps.
+
+</details>
+
+<details>
+<summary><strong>Strong specular highlights / moderately reflective materials</strong></summary>
+
+(Glossy plastics, varnished wood, ceramics)
+
+```bash
+--pipeline.model.sdf-field.use-diffuse-color True
+--pipeline.model.sdf-field.use-specular-tint True
+--pipeline.model.sdf-field.use-reflections True
+--pipeline.model.sdf-field.use-n-dot-v True
+```
+
+`use-reflections` feeds reflection directions into the color MLP. `use-specular-tint` allows colored specular (metals/coated surfaces).
+
+</details>
+
+<details>
+<summary><strong>Very shiny/metallic objects (mirror-like reflections)</strong></summary>
+
+In addition to the above, enable roughness prediction:
+
+```bash
+--pipeline.model.sdf-field.enable-pred-roughness True
+```
+
+This predicts roughness in [0, 1] and mixes view-direction features (rough) with reflection-direction features (smooth).
+
+</details>
+
+#### Practical ablation order
+
+1. Turn on `use-n-dot-v`
+2. Add `use-reflections` for glossy scenes
+3. Add `use-diffuse-color` if you care about albedo/specular separation
+4. Only then add `use-specular-tint`/`enable-pred-roughness` for very shiny/metallic objects
+
+Check that geometry does not regress at each step.
+
+#### Transparency
+
+Largely out of reach. Consider applying washable paint to make the object opaque.
+
+For more details on BRDF and shading effects, see [brdf_and_shading_effects.md](brdf_and_shading_effects.md).
+
+### 7. Wandb authentication prompts in Docker
+
+Set your API key as an environment variable:
+
+```bash
+# One-time setup (add to ~/.zshrc or ~/.bashrc)
+export WANDB_API_KEY=your_api_key
+
+# Docker wrappers automatically forward this
+docker/run.sh your_video.mp4 train --vis wandb
+```
+
+Get your key from https://wandb.ai/authorize.
+
+---
+
+## Advanced Tuning
+
+### Geometry regularizers
+
+<details>
+<summary><strong>Orientation loss (Ref-NeRF-style)</strong></summary>
+
+Encourages visible normals to face the camera:
+
+```bash
+--pipeline.model.orientation-loss-mult 1e-4
+```
+
+Works for SDF-based models (`neus`, `neus-facto`, `neuralangelo`). Most useful when normals are noisy or flipped in low-texture regions.
+
+</details>
+
+<details>
+<summary><strong>Distortion loss (Mip-NeRF 360-style)</strong></summary>
+
+Discourages stretched or double-peaked depth distributions:
+
+```bash
+# neus (single-level)
+--pipeline.model.distortion-loss-mult 0.002
+
+# neus-facto / bakedsdf / bakedangelo (proposal-based)
+--pipeline.model.distortion-loss-mult 0.002
+```
+
+Start with small values; this is a soft regularizer, not a replacement for good data.
+
+</details>
+
+<details>
+<summary><strong>Interlevel loss (Mip-NeRF 360-style, proposal-based)</strong></summary>
+
+Encourages consistency between proposal-network samples and final NeuS/VolSDF samples:
+
+```bash
+# neus-facto / bakedsdf / bakedangelo
+--pipeline.model.interlevel-loss-mult 1.0
+```
+
+Only for methods with proposal networks. Helps stabilize proposal sampling when depth distributions are noisy.
+
+</details>
+
+### NeuS sharpness parameters
+
+These parameters interact with scene scale:
+
+| Parameter | Description | Typical values |
+|-----------|-------------|----------------|
+| `bias` | Initial geometric SDF sphere radius | 0.3–0.5 |
+| `beta-init` | Seeds VolSDF Laplace density scale and NeuS variance | 0.1–0.3 |
+| `s_val` | Learned NeuS sharpness (diagnostic metric) | Rises then plateaus |
+| `near-plane`/`far-plane` | Ray segment bounds | Tightly bracket object shell |
+
+For proposal-based methods (`neus-facto*`, `bakedsdf*`, `bakedangelo*`), extremely wide bounds make sampling brittle.
+
+### Foreground vs background modeling
+
+**SDF models** (`neus*`, `neuralangelo*`, `bakedsdf*`):
+
+| `--pipeline.model.background-model` | Description |
+|-------------------------------------|-------------|
+| `mlp` (default) | Simple MLP background. Robust for unmasked captures but reconstructs room clutter. |
+| `grid` | Hash-grid nerfacto-style background (heavier, more expressive) |
+| `none` | No background field. Ideal with good masks; without masks, SDF reconstructs background as geometry. |
+
+**NeRF/splat/ngp models**: No SDF/background split. With masks, mini-mesh uses `--pipeline.model.background-color random`.
+
+### Appearance embedding
+
+`use-appearance-embedding` adds a per-image latent code to the color network. For typical mini-mesh use (smartphone videos with imperfect lighting), this helps absorb per-frame exposure/white-balance differences without twisting geometry. For clean, studio-lit photos, advanced users may disable it.
+
+### Practical tuning order
+
+1. Fix SfM and poses (stronger `sfm` settings, then camera-optimizer in `train`)
+2. Enable robust BRDF flags (`use-diffuse-color`, `use-n-dot-v`, plus `use-reflections`/`use-specular-tint` for glossy)
+3. Turn up geometry priors (patch warping, mono priors, sparse SfM point losses) via SDFStudio config
+4. Only then consider capture changes (matte spray, textured backgrounds, polarization) or research-level models
+
+For detailed method explanations, see [methods_and_models.md](methods_and_models.md).

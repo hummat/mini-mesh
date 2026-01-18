@@ -8,6 +8,7 @@ docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=671
   -e HOME=/tmp \
   -e WANDB_API_KEY \
   -e WANDB_MODE \
+  -e WANDB_PROJECT \
   -e DISPLAY="$DISPLAY" \
   -e XDG_RUNTIME_DIR=/tmp/runtime \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
