@@ -142,7 +142,7 @@ The pipeline runs 5 steps: **video** → **sfm** → **process** → **train** �
 Pass arguments to specific steps using sub-commands:
 
 ```bash
-docker/run.sh /path/to/input video --fps 1 sfm --method glomap process --mask rembg train --config neus-facto
+docker/run.sh /path/to/input video --fps 1 sfm --method glomap process --mask rembg train --model neus-facto
 ```
 
 The final mesh appears next to your input. Steps already completed are skipped (use `--overwrite` to re-run).
