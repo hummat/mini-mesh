@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Target: ~50–60 minute run on ~12 GB GPUs
 CONFIG=(
   --trainer.max-num-iterations 10001
   --trainer.steps-per-eval-batch 500

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Neuralangelo dev: same architecture as neuralangelo-fast, but shorter run/schedules.
+# Target: ~50–60 minute run on ~12 GB GPUs
 CONFIG=(
   --trainer.max-num-iterations 30001
   --trainer.steps-per-eval-batch 1000

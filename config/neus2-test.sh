@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
+# Target: ~5-6 minute run on ~12 GB GPUs
 CONFIG=(
-  # Target: ~10–15 minute preview on ~12 GB GPUs
-
-  --trainer.max-num-iterations 3001
-  --trainer.steps-per-eval-batch 2000
-  --trainer.steps-per-eval-image 2000
+  --trainer.max-num-iterations 5001
+  --trainer.steps-per-eval-batch 1000
+  --trainer.steps-per-eval-image 1000
   --trainer.steps-per-save 5000
 
   --pipeline.datamanager.train-num-rays-per-batch 2048
@@ -12,11 +11,13 @@ CONFIG=(
   --pipeline.model.eval-num-rays-per-chunk 2048
   --pipeline.model.sdf-field.use-grid-feature True
 
-  # Match schedulers to shorter training
-  --optimizers.fields.scheduler.max-steps 3000
-  --optimizers.field-background.scheduler.max-steps 3000
-  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 2000
+  # Optimizers / schedulers
+  --optimizers.fields.optimizer.lr 0.01
+  --optimizers.fields.scheduler.max-steps 5000
+  --optimizers.field-background.optimizer.lr 0.01
+  --optimizers.field-background.scheduler.max-steps 5000
+  --pipeline.datamanager.camera-optimizer.scheduler.max-steps 3000
 
-  # Downscale images for faster preview (can be overridden)
+  # Downscale images for faster preview (routed to dataparser)
   --downscale-factor 2
 )

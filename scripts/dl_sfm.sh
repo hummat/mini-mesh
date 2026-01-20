@@ -6,7 +6,7 @@ function show_help {
   echo
   echo "Options:"
   echo "  --method <str>                    Deep Learning SfM method: hloc, vggsfm (default: hloc)"
-  echo "  --matcher <str>                   Matching method: exhaustive, sequential (default: sequential)"
+  echo "  --matcher <str>                   Matching method: exhaustive, sequential (default: exhaustive)"
   echo "  --hloc_feature <str>              HLoc feature extractor config. See hloc --help for available options (default: superpoint_aachen)"
   echo "  --hloc_matcher <str>              HLoc matcher config. See hloc --help for available options (default: superglue)"
   echo "  --hloc_weights <str>              HLoc matcher weights type: indoor, outdoor (default: outdoor)"
@@ -37,7 +37,7 @@ if [ ! -d "$IMAGES" ]; then
 fi
 DIR=$(dirname "$IMAGES")
 METHOD="hloc"
-MATCHER="sequential"
+MATCHER="exhaustive"
 HLOC_FEATURE="superpoint_aachen"
 HLOC_MATCHER="superglue"
 HLOC_WEIGHTS="outdoor"

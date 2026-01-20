@@ -7,7 +7,7 @@ if ! command -v colmap &> /dev/null; then
 fi
 
 CAMERA_MODEL="OPENCV"
-MATCHER="sequential"
+MATCHER="exhaustive"
 EXTRA=false
 REFINE_PRINCIPAL_POINT=true
 CONVERT_TXT=false
@@ -27,7 +27,7 @@ function show_help {
   echo "Options:"
   echo "  --database_path <str>             Path to the COLMAP database file (default: <path-to-images>/../database.db)"
   echo "  --camera_model <str>              Camera model: SIMPLE_PINHOLE, PINHOLE, SIMPLE_RADIAL, RADIAL, OPENCV, FISHEYE (default: OPENCV)"
-  echo "  --matcher <str>                   Matching method: exhaustive, sequential, vocab_tree (default: sequential)"
+  echo "  --matcher <str>                   Matching method: exhaustive, sequential, vocab_tree (default: exhaustive)"
   echo "  --extra                           Set additional arguments for improved feature extraction and matching. No GPU support (slow)."
   echo "  --refine_principal_point <bool>   Run bundle adjustment with principal point refinement (default: true)"
   echo "  --convert_txt                     Convert the model to TXT format after reconstruction"

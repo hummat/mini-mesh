@@ -10,6 +10,7 @@ docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=671
   -p 7007:7007 \
   -e QT_XCB_GL_INTEGRATION=xcb_egl \
   -e HOME=/tmp \
+  -e TORCH_HOME=/.cache/torch \
   -e WANDB_API_KEY \
   -e WANDB_MODE \
   -e WANDB_PROJECT \

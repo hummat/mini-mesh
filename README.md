@@ -214,14 +214,14 @@ docker/run.sh video.mp4 train --vis wandb
      export --mesh-only
    ```
 
-2. Edit `train/<name>/<model>/mesh.ply` in Blender (don't change global transform)
+2. Edit `train/<name>/<model>/run/mesh.ply` in Blender (don't change global transform)
 
 3. Run texturing only:
 
    ```bash
-   scripts/export.sh /path/to/data/train/<name>/<model> --texture-only
+   scripts/export.sh /path/to/data/train/<name>/<model>/run --texture-only
    # Or with edited mesh:
-   scripts/export.sh /path/to/data/train/<name>/<model> \
+   scripts/export.sh /path/to/data/train/<name>/<model>/run \
      --texture-only --input-mesh-filename mesh_edited.ply
    ```
 

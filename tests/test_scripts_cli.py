@@ -379,7 +379,7 @@ class TestRunScript:
                         "  esac",
                         "done",
                         'if [ -n "$out_dir" ] && [ -n "$exp_name" ] && [ -n "$model" ]; then',
-                        '  exp_path="$out_dir/$exp_name/$model"',
+                        '  exp_path="$out_dir/$exp_name/$model/run"',
                         '  mkdir -p "$exp_path"',
                         '  echo "dummy: true" > "$exp_path/config.yml"',
                         "fi",

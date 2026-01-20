@@ -45,7 +45,7 @@ uv run <command>            # run in uv environment
 To validate the end-to-end pipeline:
 1. Run a small example: `scripts/run.sh scene.mp4 video --fps 2 sfm --method glomap process train --model neus-facto --config neus-facto-short export --resolution 512`
 2. Verify outputs:
-   - `images/`, `sparse/`, `transforms.json`, `train/<exp>/<model>/config.yml` created
+   - `images/`, `sparse/`, `transforms.json`, `train/<exp>/<model>/run/config.yml` created
    - `mesh.ply` and textures written in experiment directory
 
 ## When You Touch `webui.py`

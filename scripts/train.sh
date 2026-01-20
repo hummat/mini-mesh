@@ -55,24 +55,46 @@ fi
 # shellcheck disable=SC1091
 source "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
 
+# Route arguments to trainer (ARGS/CONFIG_ARGS) or dataparser (DATA_ARGS/DATA_CONFIG_ARGS)
+route_args() {
+  local -n _trainer_out=$1
+  local -n _data_out=$2
+  shift 2
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --downscale-factor|--scale-factor|--center-method|--auto-scale-poses|--orientation-method|--train-split-fraction)
+        _data_out+=("$1")
+        shift
+        if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
+            _data_out+=("$1")
+            shift
+        fi
+        ;;
+      --*scale*|--*center*|--*orientation*|--*split*)
+        echo "[WARNING] '$1' looks like a data argument but doesn't match known patterns. Routing to trainer." >&2
+        _trainer_out+=("$1")
+        shift
+        ;;
+      *)
+        _trainer_out+=("$1")
+        shift
+        ;;
+    esac
+  done
+}
+
 ARGS=()
 DATA_ARGS=()
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --downscale-factor|--scale-factor|--center-method|--auto-scale-poses|--orientation-method|--train-split-fraction)
-      DATA_ARGS+=("$1")
-      shift
-      if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
-          DATA_ARGS+=("$1")
-          shift
-      fi
-      ;;
-    *)
-      ARGS+=("$1")
-      shift
-      ;;
-  esac
-done
+route_args ARGS DATA_ARGS "$@"
+
+# Also route CONFIG array (from config file) through the same logic
+CONFIG_ARGS=()
+DATA_CONFIG_ARGS=()
+route_args CONFIG_ARGS DATA_CONFIG_ARGS "${CONFIG[@]}"
+
+# Debug: show argument routing
+[[ ${#DATA_ARGS[@]} -gt 0 ]] && echo "[DEBUG] Data args (CLI): ${DATA_ARGS[*]}"
+[[ ${#DATA_CONFIG_ARGS[@]} -gt 0 ]] && echo "[DEBUG] Data args (config): ${DATA_CONFIG_ARGS[*]}"
 
 if [[ "$MODEL_NAME" == *nerf* ]] || [[ "$MODEL_NAME" == *splat* ]] || [[ "$MODEL_NAME" == *ngp* ]]; then
   if [[ "$MODEL_NAME" == *splat* ]]; then
@@ -86,11 +108,12 @@ if [[ "$MODEL_NAME" == *nerf* ]] || [[ "$MODEL_NAME" == *splat* ]] || [[ "$MODEL
     --output-dir "$DATA_DIR/train"
     --experiment-name "$EXP_NAME"
     "${NS_DEFAULTS[@]}"
-    "${CONFIG[@]}"
+    "${CONFIG_ARGS[@]}"
     "${ARGS[@]}"
     nerfstudio-data
     --data "$DATA_DIR"
     "${NS_DATA_DEFAULTS[@]}"
+    "${DATA_CONFIG_ARGS[@]}"
     "${DATA_ARGS[@]}"
   )
 else
@@ -100,11 +123,12 @@ else
     --output-dir "$DATA_DIR/train"
     --experiment-name "$EXP_NAME"
     "${DEFAULTS[@]}"
-    "${CONFIG[@]}"
+    "${CONFIG_ARGS[@]}"
     "${ARGS[@]}"
     nerfstudio-data
     --data "$DATA_DIR"
     "${DATA_DEFAULTS[@]}"
+    "${DATA_CONFIG_ARGS[@]}"
     "${DATA_ARGS[@]}"
   )
 fi

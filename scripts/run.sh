@@ -397,7 +397,7 @@ echo "============================="
 echo "          4. TRAIN           "
 echo "============================="
 
-exp_path="$input_dir/train/$name/$model"
+exp_path="$input_dir/train/$name/$model/run"
 if [ "$train_skip" != true ]; then
   if ! [ -d "$exp_path" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
     if [[ ${#train_args[@]} -gt 0 ]]; then
@@ -415,7 +415,7 @@ if [ "$train_skip" != true ]; then
       fi
     fi
     run_cmd "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" \
-      "${train_args[@]}" --timestamp ""
+      "${train_args[@]}" --timestamp run
   fi
 fi
 

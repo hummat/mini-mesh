@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # NeuS2 short: short run corresponding to neus2-fast (hash SDF + analytic curvature).
+# Target: ~50–60 minute run on ~12 GB GPUs
 CONFIG=(
   --trainer.max-num-iterations 20001
   --trainer.steps-per-eval-batch 500

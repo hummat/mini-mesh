@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
+# Target: ~15 minute run on ~12 GB GPUs
 CONFIG=(
-  # Target: ~25–35 minute run with usable meshes on ~12 GB GPUs
-
-  --trainer.max-num-iterations 7001
-  --trainer.steps-per-eval-batch 2000
-  --trainer.steps-per-eval-image 2000
+  --trainer.max-num-iterations 10001
+  --trainer.steps-per-eval-batch 1000
+  --trainer.steps-per-eval-image 1000
   --trainer.steps-per-save 5000
 
   --pipeline.datamanager.train-num-rays-per-batch 2048
@@ -17,7 +16,11 @@ CONFIG=(
   --pipeline.model.num-samples-importance 48
   --pipeline.model.num-up-sample-steps 3
 
-  # Match schedulers to shorter training
-  --optimizers.fields.scheduler.max-steps 7000
-  --optimizers.field-background.scheduler.max-steps 7000
+  # Optimizers / schedulers
+  --optimizers.fields.optimizer.lr 0.01
+  --optimizers.fields.scheduler.max-steps 10000
+  --optimizers.fields.scheduler.warm-up-end 500
+  --optimizers.field-background.optimizer.lr 0.01
+  --optimizers.field-background.scheduler.max-steps 10000
+  --optimizers.field-background.scheduler.warm-up-end 500
 )

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Target: ~50–60 minute run on ~12 GB GPUs
 CONFIG=(
   --trainer.max-num-iterations 20001
   --trainer.steps-per-eval-batch 500
@@ -14,10 +15,10 @@ CONFIG=(
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --optimizers.fields.optimizer.lr 0.01
   --optimizers.fields.scheduler.max-steps 20000
-  --optimizers.fields.scheduler.warm-up-end 200
+  --optimizers.fields.scheduler.warm-up-end 500
   --optimizers.field-background.optimizer.lr 0.01
   --optimizers.field-background.scheduler.max-steps 20000
-  --optimizers.field-background.scheduler.warm-up-end 200
+  --optimizers.field-background.scheduler.warm-up-end 500
 
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
   --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-7
