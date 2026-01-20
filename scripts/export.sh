@@ -174,7 +174,16 @@ if [ -f "$exp_path/config.yml" ]; then
     default_mesh_path="$exp_path/mesh.ply"
 
     if [ "$texture_only" = true ]; then
-      mesh_path="${input_mesh_filename:-$default_mesh_path}"
+      if [ -n "$input_mesh_filename" ]; then
+        # Resolve relative paths against exp_path
+        if [[ "$input_mesh_filename" = /* ]]; then
+          mesh_path="$input_mesh_filename"
+        else
+          mesh_path="$exp_path/$input_mesh_filename"
+        fi
+      else
+        mesh_path="$default_mesh_path"
+      fi
       if [ ! -f "$mesh_path" ]; then
         echo "[ERROR]: Mesh file $mesh_path not found"
         exit 1

@@ -214,10 +214,7 @@ docker/run.sh video.mp4 train --vis wandb
 1. Run pipeline up to mesh extraction only:
 
    ```bash
-   scripts/run.sh /path/to/input \
-     video --fps 2 sfm --method glomap process --mask rembg \
-     train --model neus-facto --config neus-facto \
-     export --mesh-only
+   docker/run.sh /path/to/input video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto --config neus-facto export --mesh-only
    ```
 
 2. Edit `train/<name>/<model>/run/mesh.ply` in Blender (don't change global transform)
@@ -225,11 +222,26 @@ docker/run.sh video.mp4 train --vis wandb
 3. Run texturing only:
 
    ```bash
-   scripts/export.sh /path/to/data/train/<name>/<model>/run --texture-only
+   docker/run.sh /path/to/input export --texture-only
    # Or with edited mesh:
-   scripts/export.sh /path/to/data/train/<name>/<model>/run \
-     --texture-only --input-mesh-filename mesh_edited.ply
+   docker/run.sh /path/to/input export --texture-only --input-mesh-filename mesh_edited.ply
    ```
+
+<details markdown="1">
+<summary>Without Docker</summary>
+
+```bash
+# Step 1: Extract mesh only
+scripts/run.sh /path/to/input \
+  video --fps 2 sfm --method glomap process --mask rembg train --model neus-facto --config neus-facto export --mesh-only
+
+# Step 3: Texture only (after editing mesh)
+scripts/export.sh /path/to/data/train/<name>/<model>/run --texture-only
+# Or with edited mesh:
+scripts/export.sh /path/to/data/train/<name>/<model>/run --texture-only --input-mesh-filename mesh_edited.ply
+```
+
+</details>
 
 </details>
 
