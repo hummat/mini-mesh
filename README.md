@@ -23,7 +23,7 @@ This downloads the pre-built Docker image and runs the full pipeline. Add `--hel
 
 ### Docker (recommended)
 
-<details>
+<details markdown="1">
 <summary><strong>Setup instructions</strong></summary>
 
 1. Install [Docker](https://docs.docker.com/get-docker)
@@ -44,7 +44,7 @@ This downloads the pre-built Docker image and runs the full pipeline. Add `--hel
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><strong>Building custom images</strong></summary>
 
 The pre-built image supports NVIDIA CC 6.1 (GTX 10XX) to 8.9 (RTX 40XX). For other GPUs (e.g. RTX 50XX with CC 12.0):
@@ -63,7 +63,7 @@ Optional build flags:
 
 ### Manual Installation
 
-<details>
+<details markdown="1">
 <summary><strong>Full manual setup</strong></summary>
 
 Requirements: Python 3.11, PyTorch 2.5.1, CUDA 12.4.1, COLMAP, GLOMAP, PoseLib, SDFStudio
@@ -104,7 +104,7 @@ Requirements: Python 3.11, PyTorch 2.5.1, CUDA 12.4.1, COLMAP, GLOMAP, PoseLib, 
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><strong>Optional dependencies</strong></summary>
 
 ```bash
@@ -161,7 +161,7 @@ The final mesh appears next to your input. Steps already completed are skipped (
 
 **Capacity:** `-small`, (none), `-large` — e.g. `neus-facto-small-short`
 
-<details>
+<details markdown="1">
 <summary><strong>Export methods</strong></summary>
 
 **SDF models** (automatic): Marching cubes → UV unwrap → texture bake → simplify
@@ -174,7 +174,7 @@ The final mesh appears next to your input. Steps already completed are skipped (
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><strong>Process options</strong></summary>
 
 - `--mask <method>` — Background masking: `rembg`, `sam2`, `true`, `none`
@@ -183,7 +183,7 @@ The final mesh appears next to your input. Steps already completed are skipped (
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><strong>Visualization</strong></summary>
 
 **TensorBoard (default):**
@@ -202,7 +202,7 @@ docker/run.sh video.mp4 train --vis wandb
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><strong>Artist-in-the-loop workflow</strong></summary>
 
 1. Run pipeline up to mesh extraction only:
