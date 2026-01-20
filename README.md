@@ -2,7 +2,13 @@
 
 Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video.
 
-![banner](assets/banner.png)
+<div style="position: relative; display: inline-block;">
+  <img src="assets/banner.png" alt="banner" style="width: 100%;">
+  <video style="position: absolute; bottom: 7px; left: 0; width: 180px;"
+    autoplay loop muted playsinline>
+    <source src="assets/demo.mp4" type="video/mp4">
+  </video>
+</div>
 
 |                                   |                               |                                       |
 |:---------------------------------:|:-----------------------------:|:-------------------------------------:|
