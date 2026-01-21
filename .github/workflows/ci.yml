@@ -30,8 +30,8 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Sync dependencies
-        # Only install base deps + dev tools; CUDA extras not needed for webui tests
-        run: uv sync
+        # Skip lockfile (contains CUDA extras); install only base deps + dev tools for tests
+        run: uv sync --no-lock
 
       - name: Run linting, type checking, and tests
         run: scripts/lint.sh
