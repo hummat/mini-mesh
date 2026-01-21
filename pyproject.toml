@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "Video to 3D mesh reconstruction pipeline"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 authors = [{ name = "Matthias Humt", email = "github.gizzard320@passmail.net" }]
 keywords = [
     "3d-reconstruction",
@@ -39,6 +39,37 @@ classifiers = [
 ]
 dependencies = ["gradio>=4.0.0"]
 
+[project.optional-dependencies]
+# Core pipeline deps (sdfstudio for NeuS/VolSDF methods)
+core = [
+    "numpy<2",
+    "scikit-build-core>=0.11",
+    "pybind11>=2.6",
+    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@c692255c5b3b156e3d12842bd2b51cfddb56ddd7",
+]
+# Background removal
+rembg = ["rembg[gpu,cli]"]
+# NeRF/Gaussian splatting methods
+nerf = [
+    "nerfstudio @ git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4",
+]
+# SAM2 segmentation
+sam = [
+    "sam2 @ git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c",
+]
+# VGGSfM for visual-geometry-grounded SfM
+vggsfm = [
+    "vggsfm @ git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834",
+]
+# hloc-cli requires manual hloc install first:
+#   git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
+#   pip install -e Hierarchical-Localization
+#   pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
+# All optional deps for local install (excludes tinycudann, hloc which require manual steps)
+local = [
+    "mini-mesh[core,rembg,nerf,sam,vggsfm]",
+]
+
 [project.urls]
 Homepage = "https://hummat.com"
 Repository = "https://github.com/hummat/mini-mesh"
@@ -53,6 +84,10 @@ dev = [
     "ruff>=0.14.0",
     "pyright>=1.1.0",
 ]
+
+[tool.uv]
+# Limit resolution to x86_64 Linux (CUDA-only project)
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -82,6 +117,9 @@ exclude_lines = [
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["webui.py"]

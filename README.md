@@ -102,16 +102,22 @@ Requirements: Python 3.11, PyTorch 2.5.1, CUDA 12.4.1, COLMAP, GLOMAP, PoseLib, 
    - COLMAP: `c5f9cefc87e5dd596b638e4cee0ff543c7d14755` (≈ 3.12.6)
    - GLOMAP: `0edb1b8435e0f9a594318908b81a31f078a51bf7` (≈ 1.2.0)
 
-7. Install [SDFStudio](https://github.com/hummat/sdfstudio):
+7. Install Python dependencies (choose one):
 
     ```bash
-    pip install git+https://github.com/hummat/sdfstudio.git@6289984bd3c3954e5052d02718d142e85e046f11
+    # Option A: Using UV (recommended)
+    uv sync --extra local
+
+    # Option B: Manual pip
+    pip install "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@c692255c5b3b156e3d12842bd2b51cfddb56ddd7"
     ```
 
 </details>
 
 <details markdown="1">
 <summary><strong>Optional dependencies</strong></summary>
+
+If you used `uv sync --extra local`, these are already installed (except HLoc).
 
 ```bash
 # NeRF/splat models
@@ -121,14 +127,17 @@ pip install git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760
 pip install "rembg[gpu,cli]"
 pip install git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
 
-# Advanced SfM (HLoc)
+# Advanced SfM (HLoc) - requires manual clone
 git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
 cd Hierarchical-Localization && git checkout 3bdf494c852f157db57a1cf2039a6c826d52e702
-git submodule update --init --recursive && pip install . && cd ..
+git submodule update --init --recursive && pip install -e . && cd ..
 pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
 
 # Advanced SfM (VGGSfM)
 pip install git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834
+
+# GPU texture baking (nvdiffrast) - requires CUDA toolkit
+uv pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast.git
 ```
 
 </details>

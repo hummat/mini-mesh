@@ -111,8 +111,8 @@ RUN cd /workspace/git && git clone --recursive https://github.com/nvlabs/tiny-cu
     git checkout 32507f059d7abc8c13f5df81ea9597b70923ee44 && \
     git submodule update --init --recursive && \
     cd bindings/torch && \
-    TCNN_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST} MAX_JOBS=${MAX_JOBS} python setup.py bdist_wheel && \
-    mv dist/tinycudann*.whl /workspace && cd /workspace && rm -rf git
+    TCNN_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST} MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
+    cd /workspace && rm -rf git
 
 
 ############################
@@ -187,7 +187,7 @@ RUN pip install --no-cache-dir -c /tmp/constraints.txt \
     scikit-build-core>=0.11 \
     pybind11>=2.6 \
     "numpy<2" \
-    git+https://github.com/hummat/sdfstudio.git@fdbca7f91187a9d70cdad96b40a9575e630d8a8e
+    sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@c692255c5b3b156e3d12842bd2b51cfddb56ddd7
 
 # rembg for background removal
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
