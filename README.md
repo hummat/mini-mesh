@@ -72,25 +72,13 @@ Optional build flags:
 <details markdown="1">
 <summary><strong>Full manual setup</strong></summary>
 
-Requirements: Python 3.11, PyTorch 2.5.1, CUDA 12.4.1, COLMAP, GLOMAP, PoseLib, SDFStudio
+Requirements: Python 3.11, CUDA 12.4.1, COLMAP, GLOMAP, uv
 
 1. Install [Python 3.11](https://www.python.org/downloads/release/python-3110)
 
-2. Install [PyTorch 2.5.1](https://pytorch.org/get-started/previous-versions/#v251) with CUDA 12.4:
+2. Install [CUDA Toolkit 12.4.1](https://developer.nvidia.com/cuda-toolkit)
 
-    ```bash
-    pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
-    ```
-
-3. Install [CUDA Toolkit 12.4.1](https://developer.nvidia.com/cuda-toolkit)
-
-4. Install [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn):
-
-   ```bash
-   pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@32507f059d7abc8c13f5df81ea9597b70923ee44#subdirectory=bindings/torch
-   ```
-
-5. Install [PoseLib](https://github.com/PoseLib/PoseLib) (optional but recommended):
+3. Install [PoseLib](https://github.com/PoseLib/PoseLib) (optional but recommended):
 
    ```bash
    git clone https://github.com/PoseLib/PoseLib.git && cd PoseLib
@@ -98,19 +86,21 @@ Requirements: Python 3.11, PyTorch 2.5.1, CUDA 12.4.1, COLMAP, GLOMAP, PoseLib, 
    # Build per PoseLib README
    ```
 
-6. Install [COLMAP](https://colmap.github.io/install.html) and [GLOMAP](https://github.com/colmap/glomap):
+4. Install [COLMAP](https://colmap.github.io/install.html) and [GLOMAP](https://github.com/colmap/glomap):
    - COLMAP: `c5f9cefc87e5dd596b638e4cee0ff543c7d14755` (≈ 3.12.6)
    - GLOMAP: `0edb1b8435e0f9a594318908b81a31f078a51bf7` (≈ 1.2.0)
 
-7. Install Python dependencies (choose one):
+5. Install Python dependencies:
 
-    ```bash
-    # Option A: Using UV (recommended)
-    uv sync --extra local
+   ```bash
+   uv sync --extra local
+   ```
 
-    # Option B: Manual pip
-    pip install "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
-    ```
+6. Activate the virtual environment:
+
+   ```bash
+   source .venv/bin/activate
+   ```
 
 </details>
 
@@ -121,20 +111,20 @@ If you used `uv sync --extra local`, these are already installed (except HLoc).
 
 ```bash
 # NeRF/splat models
-pip install git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
+uv pip install git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
 
 # Background masking
-pip install "rembg[gpu,cli]"
-pip install git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
+uv pip install "rembg[gpu,cli]"
+uv pip install git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
 
 # Advanced SfM (HLoc) - requires manual clone
 git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
 cd Hierarchical-Localization && git checkout 3bdf494c852f157db57a1cf2039a6c826d52e702
-git submodule update --init --recursive && pip install -e . && cd ..
-pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
+git submodule update --init --recursive && uv pip install -e . && cd ..
+uv pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
 
 # Advanced SfM (VGGSfM)
-pip install git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834
+uv pip install git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834
 
 # GPU texture baking (nvdiffrast) - requires CUDA toolkit
 uv pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast.git
@@ -148,7 +138,8 @@ uv pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast.git
 # Docker
 docker/run.sh /path/to/your/video/or/images
 
-# Manual (activate your Python environment first)
+# Manual
+source .venv/bin/activate  # if using uv
 scripts/run.sh /path/to/your/video/or/images
 ```
 
@@ -235,6 +226,21 @@ docker/run.sh video.mp4 train --vis wandb
    # Or with edited mesh:
    docker/run.sh /path/to/input export --texture-only --input-mesh-filename mesh_edited.ply
    ```
+
+4. **(Optional) Optimize for web delivery:**
+
+   The exported GLB files are ~10MB due to uncompressed geometry and PNG textures. For web use (e.g., `<model-viewer>`), compress with [gltf-transform](https://gltf-transform.dev/):
+
+   ```bash
+   npx @gltf-transform/cli optimize mesh.glb mesh_web.glb --compress draco --texture-compress webp
+   ```
+
+   This typically achieves **90-95% size reduction** (10MB → 500KB-1MB) by:
+   - **Welding vertices**: Blender's GLB export duplicates vertices at UV seams; `optimize` merges them back
+   - **Draco compression**: Quantizes geometry to 14-bit precision + entropy coding
+   - **WebP textures**: Lossy compression, visually identical to PNG at ~10% the size
+
+   The mesh quality is preserved—the bloat comes from export artifacts, not your edits.
 
 <details markdown="1">
 <summary>Without Docker</summary>

@@ -187,7 +187,7 @@ RUN pip install --no-cache-dir -c /tmp/constraints.txt \
     scikit-build-core>=0.11 \
     pybind11>=2.6 \
     "numpy<2" \
-    sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0
+    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
 
 # rembg for background removal
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
