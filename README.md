@@ -109,7 +109,7 @@ Requirements: Python 3.11, PyTorch 2.5.1, CUDA 12.4.1, COLMAP, GLOMAP, PoseLib, 
     uv sync --extra local
 
     # Option B: Manual pip
-    pip install "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@c692255c5b3b156e3d12842bd2b51cfddb56ddd7"
+    pip install "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
     ```
 
 </details>

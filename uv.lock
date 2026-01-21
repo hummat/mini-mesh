@@ -1667,7 +1667,7 @@ core = [
     { name = "numpy", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pybind11", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "scikit-build-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "sdfstudio", extra = ["cuda", "export"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sdfstudio", extra = ["cuda", "cuda-build", "export"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 local = [
     { name = "nerfstudio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1676,7 +1676,7 @@ local = [
     { name = "rembg", extra = ["cli", "gpu"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sam2", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "scikit-build-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "sdfstudio", extra = ["cuda", "export"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sdfstudio", extra = ["cuda", "cuda-build", "export"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "vggsfm", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 nerf = [
@@ -1711,7 +1711,7 @@ requires-dist = [
     { name = "rembg", extras = ["gpu", "cli"], marker = "extra == 'rembg'" },
     { name = "sam2", marker = "extra == 'sam'", git = "https://github.com/hummat/sam2.git?rev=98f488a540f87260b8e51146dc3ab15694dd174c" },
     { name = "scikit-build-core", marker = "extra == 'core'", specifier = ">=0.11" },
-    { name = "sdfstudio", extras = ["cuda", "export"], marker = "extra == 'core'", git = "https://github.com/hummat/sdfstudio.git?rev=c692255c5b3b156e3d12842bd2b51cfddb56ddd7" },
+    { name = "sdfstudio", extras = ["cuda", "cuda-build", "export"], marker = "extra == 'core'", git = "https://github.com/hummat/sdfstudio.git?rev=v0.8.0" },
     { name = "vggsfm", marker = "extra == 'vggsfm'", git = "https://github.com/hummat/vggsfm.git?rev=d597df629a312a662544006ac3bdbc2782b82834" },
 ]
 provides-extras = ["core", "rembg", "nerf", "sam", "vggsfm", "local"]
@@ -2038,6 +2038,14 @@ dependencies = [
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/13/e9124913743cd815fff25a3438072e4d184100e1d548ad926189e3e6988c/nuscenes_devkit-1.2.0-py3-none-any.whl", hash = "sha256:76cee0e7f96ec96d6269ee3acb4ff69e8ac2f9413e974d9eb542233ea7479bf1", size = 315983, upload-time = "2025-08-28T03:19:16.503Z" },
+]
+
+[[package]]
+name = "nvdiffrast"
+version = "0.4.0"
+source = { git = "https://github.com/NVlabs/nvdiffrast#253ac4fcea7de5f396371124af597e6cc957bfae" }
+dependencies = [
+    { name = "numpy", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [[package]]
@@ -3149,8 +3157,8 @@ wheels = [
 
 [[package]]
 name = "sdfstudio"
-version = "0.6.1"
-source = { git = "https://github.com/hummat/sdfstudio.git?rev=c692255c5b3b156e3d12842bd2b51cfddb56ddd7#c692255c5b3b156e3d12842bd2b51cfddb56ddd7" }
+version = "0.8.0"
+source = { git = "https://github.com/hummat/sdfstudio.git?rev=v0.8.0#655bd3c54c19804b9475aa207ee244060cd29e7f" }
 dependencies = [
     { name = "appdirs", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "imageio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -3173,6 +3181,11 @@ cuda = [
     { name = "torch", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "torchmetrics", extra = ["image"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "torchvision", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+cuda-build = [
+    { name = "nvdiffrast", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "tinycudann", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "torch", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 export = [
     { name = "open3d", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -3480,6 +3493,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/7a/fd/7a5ee21fd08ff70d3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/34/ebdc18bae6aa14fbee1a08b63c015c72b64868ff7dae68808ab500c492e2/tinycss2-1.4.0-py3-none-any.whl", hash = "sha256:3a49cf47b7675da0b15d0c6e1df8df4ebd96e9394bb905a5775adb0d884c5289", size = 26610, upload-time = "2024-10-24T14:58:28.029Z" },
 ]
+
+[[package]]
+name = "tinycudann"
+version = "2.0"
+source = { git = "https://github.com/NVlabs/tiny-cuda-nn?subdirectory=bindings%2Ftorch#2e757bbe781db59c4980d389d7dccbf5edc09669" }
 
 [[package]]
 name = "tomli"
