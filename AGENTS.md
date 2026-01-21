@@ -8,6 +8,7 @@ Read relevant `docs/agent/` files before proceeding:
 - `architecture.md` — **read before modifying pipeline or structure**
 - `code_conventions.md` — **read before writing code**
 - `testing_patterns.md` — **read before writing tests**
+- `releases.md` — **read before releasing** (conventional commits, git-cliff)
 
 **REQUIRED: Read `docs/agent/workflow.md` before implementing, updating, fixing, or changing anything.**
 
@@ -36,3 +37,4 @@ uv run pytest tests/ -k foo  # run specific test
 1. Read files before editing
 2. Run `scripts/lint.sh` after changes
 3. Update `README.md`, `webui.py`, Docker wrappers when changing flags
+4. Use conventional commits: `feat:`, `fix:`, `docs:`, `chore:`, `ci:`, `refactor:`
