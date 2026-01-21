@@ -246,7 +246,7 @@ echo
 if [ "${INSTALL_SDFSTUDIO}" = "ON" ]; then
   echo "=== Step 7: install sdfstudio (Dockerfile match, constraints approximated) ==="
   run_step 7 "pip install sdfstudio" pip install --no-cache-dir \
-    git+https://github.com/hummat/sdfstudio.git@6289984bd3c3954e5052d02718d142e85e046f11
+    git+https://github.com/hummat/sdfstudio.git@v0.8.0
 else
   echo "=== Step 7: SKIPPED (INSTALL_SDFSTUDIO=${INSTALL_SDFSTUDIO}) ==="
 fi

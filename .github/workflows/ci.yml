@@ -11,6 +11,8 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      UV_FROZEN: "1"  # Skip lockfile updates (contains CUDA deps that can't build)
 
     steps:
       - name: Checkout repository
@@ -30,7 +32,8 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Sync dependencies
-        run: uv sync --all-extras
+        # Use --frozen to skip lockfile updates (avoids fetching CUDA git deps)
+        run: uv sync --frozen
 
       - name: Run linting, type checking, and tests
         run: scripts/lint.sh

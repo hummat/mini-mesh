@@ -61,3 +61,7 @@ NS_DATA_DEFAULTS=(
   --train-split-fraction 0.95
   # --use-all-train-images True
 )
+
+EXPORT_DEFAULTS=(
+  --use-average-appearance-embedding True
+)

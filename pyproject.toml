@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mini-mesh"
-version = "0.2.0"
+version = "0.3.0"
 description = "Video to 3D mesh reconstruction pipeline"
 readme = "README.md"
 license = { text = "MIT" }
@@ -45,7 +45,7 @@ core = [
     "numpy<2",
     "scikit-build-core>=0.11",
     "pybind11>=2.6",
-    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@c692255c5b3b156e3d12842bd2b51cfddb56ddd7",
+    "sdfstudio[cuda,cuda-build,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0",
 ]
 # Background removal
 rembg = ["rembg[gpu,cli]"]

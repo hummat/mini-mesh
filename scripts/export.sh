@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
 set -e
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../config/defaults.sh
+if ! source "$script_dir/../config/defaults.sh"; then
+  echo "[ERROR]: Failed to source config/defaults.sh"
+  exit 1
+fi
+if [ -z "${EXPORT_DEFAULTS+x}" ]; then
+  echo "[ERROR]: EXPORT_DEFAULTS not defined in config/defaults.sh"
+  exit 1
+fi
+
 verbose=false
+
+# Helper to check if enough arguments remain for a flag
+require_args() {
+  local flag="$1"
+  local needed="$2"
+  local have="$3"
+  if [ "$have" -lt "$needed" ]; then
+    echo "[ERROR]: $flag requires $needed value(s)"
+    exit 1
+  fi
+}
 
 # Run a command, logging it first if verbose mode is enabled
 run_cmd() {
@@ -20,23 +42,30 @@ function show_help {
   echo "Arguments:"
   echo "  <exp_path>                Path to the experiment directory (must contain config.yml)"
   echo "  [export_args...]          Additional options for export:"
-  echo "                           --resolution <int>                       Marching cubes resolution (default: 1024)"
-  echo "                           --bounding-box-min <float float float>   Minimum bounding box (default: -1 -1 -1)"
-  echo "                           --bounding-box-max <float float float>   Maximum bounding box (default: 1 1 1)"
-  echo "                           --marching-cube-threshold <float>        Isosurface threshold (default: 0.0)"
-  echo "                           --px-per-uv-triangle <int>               Pixels per UV triangle (default: 4)"
-  echo "                           --num-pixels-per-side <int>              Pixels per side (default: 2048)"
-  echo "                           --target-num-faces <int>                 Target number of faces (default: 50000)"
-  echo "                           --method <string>                        NeRF export method: poisson, tsdf, pointcloud (default: poisson)"
-  echo "                           --obb-center <float float float>         Center of oriented bounding-box (default: 0 0 0)"
-  echo "                           --obb-scale <float float float>          Scale of oriented bounding-box (default: 1 1 1)"
-  echo "                           --downscale-factor <int>                 Image downscale factor for TSDF extraction (default: 2)"
-  echo "                           --mesh-only                              SDF only: extract mesh but skip texturing"
-  echo "                           --texture-only                           SDF only: texture an existing mesh, skip extraction"
-  echo "                           --input-mesh-filename <path>             SDF only: custom mesh file for texturing (requires --texture-only)"
-  echo "                           --overwrite                              Overwrite existing files"
-  echo "                           --verbose                                Enable verbose output"
-  echo "                           --help                                   Show this help message"
+  echo "                              --resolution <int>                        Marching cubes resolution (default: 1024)"
+  echo "                              --bounding-box-min <float float float>    Minimum bounding box (default: -1 -1 -1)"
+  echo "                              --bounding-box-max <float float float>    Maximum bounding box (default: 1 1 1)"
+  echo "                              --marching-cube-threshold <float>         Isosurface threshold (default: 0.0)"
+  echo "                              --px-per-uv-triangle <int>                Pixels per UV triangle (default: 4)"
+  echo "                              --num-pixels-per-side <int>               Pixels per side (default: 2048)"
+  echo "                              --target-num-faces <int>                  Target number of faces (default: 50000)"
+  echo "                              --use-average-appearance-embedding <bool> Use average appearance embedding (default: True)"
+  echo "                              --num-directions <int>                    Viewing directions for texturing (default: 1)"
+  echo "                              --texture-method <string>                 Texturing method: legacy, cpu, gpu, open3d (default: gpu)"
+  echo "                              --pad-px <int>                            Chart edge dilation pixels (default: 32)"
+  echo "                              --normal-map-convention <string>          Normal map convention: opengl, directx (default: opengl)"
+  echo "                              --appearance-idx <int>                    Camera index for appearance embedding"
+  echo "                              --method <string>                         NeRF export method: poisson, tsdf, pointcloud (default: poisson)"
+  echo "                              --obb-center <float float float>          Center of oriented bounding-box (default: 0 0 0)"
+  echo "                              --obb-scale <float float float>           Scale of oriented bounding-box (default: 1 1 1)"
+  echo "                              --downscale-factor <int>                  Image downscale factor for TSDF extraction (default: 2)"
+  echo "                              --mesh-only                               Extract mesh but skip texturing (SDF only)"
+  echo "                              --texture-only                            Texture existing mesh, skip extraction (SDF only)"
+  echo "                              --input-mesh-filename <path>              Custom mesh file for texturing (requires --texture-only)"
+  echo "                              --overwrite                               Overwrite existing files"
+  echo "                              --verbose                                 Enable verbose output"
+  echo "                              --data <path>                             Override data path (for Docker/local portability)"
+  echo "                              --help                                    Show this help message"
   echo
   exit 0
 }
@@ -55,7 +84,7 @@ exp_path="$1"
 shift
 export_args=("$@")
 extract_mesh_args=()
-texture_mesh_args=()
+texture_mesh_args=("${EXPORT_DEFAULTS[@]}")
 nerf_args=()
 method=poisson
 mesh_only=false
@@ -64,27 +93,77 @@ input_mesh_filename=""
 
 i=0
 while [ $i -lt ${#export_args[@]} ]; do
+  remaining=$((${#export_args[@]} - i - 1))
   case "${export_args[$i]}" in
     --resolution|--marching-cube-threshold)
+      require_args "${export_args[$i]}" 1 "$remaining"
       extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       i=$((i+2))
       ;;
     --bounding-box-min|--bounding-box-max)
+      require_args "${export_args[$i]}" 3 "$remaining"
       extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
       nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
       i=$((i+4))
       ;;
-    --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces)
+    --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces|--num-directions|--pad-px|--appearance-idx)
+      require_args "${export_args[$i]}" 1 "$remaining"
       texture_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       i=$((i+2))
       ;;
+    --normal-map-convention)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      val="${export_args[$((i+1))]}"
+      case "$val" in
+        opengl|directx) ;;
+        *) echo "[ERROR]: --normal-map-convention must be one of: opengl, directx"; exit 1 ;;
+      esac
+      texture_mesh_args+=("${export_args[$i]}" "$val")
+      i=$((i+2))
+      ;;
+    --use-average-appearance-embedding)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      val="${export_args[$((i+1))]}"
+      case "$val" in
+        True|False|true|false) ;;
+        *) echo "[ERROR]: --use-average-appearance-embedding must be True or False"; exit 1 ;;
+      esac
+      # Remove default value to avoid duplicate
+      local_texture_args=()
+      for ((j=0; j<${#texture_mesh_args[@]}; j++)); do
+        if [ "${texture_mesh_args[$j]}" = "--use-average-appearance-embedding" ]; then
+          j=$((j+1))  # Skip the value too
+        else
+          local_texture_args+=("${texture_mesh_args[$j]}")
+        fi
+      done
+      texture_mesh_args=("${local_texture_args[@]}" "${export_args[$i]}" "$val")
+      i=$((i+2))
+      ;;
+    --texture-method)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      val="${export_args[$((i+1))]}"
+      case "$val" in
+        legacy|cpu|gpu|open3d) ;;
+        *) echo "[ERROR]: --texture-method must be one of: legacy, cpu, gpu, open3d"; exit 1 ;;
+      esac
+      texture_mesh_args+=("--method" "$val")
+      i=$((i+2))
+      ;;
     --method)
-      method="${export_args[$((i+1))]}"
+      require_args "${export_args[$i]}" 1 "$remaining"
+      val="${export_args[$((i+1))]}"
+      case "$val" in
+        poisson|tsdf|pointcloud) ;;
+        *) echo "[ERROR]: --method must be one of: poisson, tsdf, pointcloud"; exit 1 ;;
+      esac
+      method="$val"
       i=$((i+2))
       ;;
     --obb-center|--obb-scale)
+      require_args "${export_args[$i]}" 3 "$remaining"
       nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
       i=$((i+4))
       ;;
@@ -97,6 +176,7 @@ while [ $i -lt ${#export_args[@]} ]; do
       i=$((i+1))
       ;;
     --input-mesh-filename)
+      require_args "${export_args[$i]}" 1 "$remaining"
       input_mesh_filename="${export_args[$((i+1))]}"
       i=$((i+2))
       ;;
@@ -107,6 +187,12 @@ while [ $i -lt ${#export_args[@]} ]; do
     --verbose)
       verbose=true
       i=$((i+1))
+      ;;
+    --data)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      texture_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      i=$((i+2))
       ;;
     *)
       echo "[ERROR]: Unknown argument ${export_args[$i]}"
