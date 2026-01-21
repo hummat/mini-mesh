@@ -8,12 +8,11 @@ status=0
 
 echo "== shellcheck =="
 # SC2034: noisy for intentionally-set but externally-used env vars
-# SC1091: can't follow sourced files (expected, not an error)
 # Note: shellcheck is not a Python package and must be system-installed
 if ! command -v shellcheck >/dev/null 2>&1; then
   echo "WARNING: shellcheck not found, skipping shell linting"
 else
-  shellcheck -e SC2034 -e SC1091 scripts/*.sh docker/*.sh || status=$?
+  shellcheck -x -P SCRIPTDIR -e SC2034 scripts/*.sh docker/*.sh || status=$?
 fi
 
 echo

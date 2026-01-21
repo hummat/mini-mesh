@@ -2,6 +2,7 @@
 set -e
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../config/defaults.sh
 if ! source "$script_dir/../config/defaults.sh"; then
   echo "[ERROR]: Failed to source config/defaults.sh"
   exit 1
