@@ -2,18 +2,15 @@
 
 Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video.
 
-<div style="position: relative; display: inline-block;">
-  <img src="assets/banner.png" alt="banner" style="width: 100%;">
-  <video style="position: absolute; bottom: 7px; left: 0; width: 180px;"
-    autoplay loop muted playsinline>
-    <source src="assets/demo.mp4" type="video/mp4">
-  </video>
-</div>
+![banner](assets/banner.png)
 
 |                                   |                               |                                       |
 |:---------------------------------:|:-----------------------------:|:-------------------------------------:|
 | ![mokka](assets/mokka_render.png) | ![dog](assets/dog_render.png) | ![mustard](assets/mustard_render.png) |
 | ![mokka](assets/mokka_normal.png) | ![dog](assets/dog_normal.png) | ![mustard](assets/mustard_normal.png) |
+
+_Head over to the repository's [**GitHub** Pages site](https://hummat.github.io/mini-mesh) for a prettier and more
+interactive version of this README!_
 
 ## Quick Start
 
