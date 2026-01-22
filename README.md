@@ -282,14 +282,14 @@ Common issues and solutions:
 | Training diverges | Adjust `near-plane`/`far-plane`, try `neus-facto` |
 | Wrong mesh scale | Adjust `--scale-factor` (default 2.5) |
 
-For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/troubleshooting.md](docs/troubleshooting.md)**.
+For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/troubleshooting.md](https://github.com/hummat/mini-mesh/blob/main/docs/troubleshooting.md)**.
 
 ## Documentation
 
-- **[Troubleshooting](docs/troubleshooting.md)** — Common issues and advanced tuning
-- **[Methods & Models](docs/methods_and_models.md)** — How NeuS, NeRF, and other methods work
-- **[BRDF & Shading](docs/brdf_and_shading_effects.md)** — Handling reflective and glossy surfaces
-- **[Examples](docs/examples.md)** — Additional usage examples
+- **[Troubleshooting](https://github.com/hummat/mini-mesh/blob/main/docs/troubleshooting.md)** — Common issues and advanced tuning
+- **[Methods & Models](https://github.com/hummat/mini-mesh/blob/main/docs/methods_and_models.md)** — How NeuS, NeRF, and other methods work
+- **[BRDF & Shading](https://github.com/hummat/mini-mesh/blob/main/docs/brdf_and_shading_effects.md)** — Handling reflective and glossy surfaces
+- **[Examples](https://github.com/hummat/mini-mesh/blob/main/docs/examples.md)** — Additional usage examples
 
 ## Demos
 
