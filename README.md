@@ -14,7 +14,7 @@ interactive version of this README!_
 
 ## Quick Start
 
-Requires Docker, an NVIDIA GPU with 24GB+ VRAM, and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+Requires Docker, an NVIDIA GPU with 12GB+ VRAM (6GB minimum), and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
 docker/run.sh /path/to/your/video/or/images

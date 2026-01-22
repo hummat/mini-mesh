@@ -18,7 +18,7 @@ Most likely, your input data is not as good as it could be. Tips to improve:
 
 ### 2. CUDA out of memory
 
-If you have significantly less than 24 GB of VRAM (e.g. 6–8 GB), add the following to the `train` sub-command:
+If you have less than 12 GB of VRAM (target) or are running on the 6 GB minimum, add the following to the `train` sub-command:
 
 ```bash
 --pipeline.model.eval-num-rays-per-chunk 1024
