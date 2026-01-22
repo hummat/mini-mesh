@@ -308,13 +308,9 @@ a {
     z-index: 1;
   }
 
-  // Hover: expand to full image
-  .img-color:hover {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-    z-index: 3;
-  }
-
-  .img-normal:hover {
+  // Expanded state (for tap-to-toggle on touch devices)
+  .img-color.expanded,
+  .img-normal.expanded {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
     z-index: 3;
   }
@@ -335,8 +331,28 @@ a {
     transition: opacity 0.3s ease;
   }
 
-  &:hover::after {
+  // Hide diagonal when any image is expanded
+  &.has-expanded::after {
     opacity: 0;
+  }
+}
+
+// Hover effects only for devices that support hover
+@media (hover: hover) {
+  .split-cell {
+    .img-color:hover {
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+      z-index: 3;
+    }
+
+    .img-normal:hover {
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+      z-index: 3;
+    }
+
+    &:hover::after {
+      opacity: 0;
+    }
   }
 }
 
