@@ -1,3 +1,6 @@
+<!-- Model viewer library for 3D gallery -->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js"></script>
+
 <!-- Theme toggle script -->
 <script>
   // Check for saved theme preference or system preference
@@ -73,4 +76,23 @@
       });
     });
   }
+
+  // Gallery mode toggle (3D/2D) - use setTimeout to ensure DOM is ready
+  setTimeout(function() {
+    var savedMode = localStorage.getItem('galleryMode') || '3d';
+    document.documentElement.setAttribute('data-gallery-mode', savedMode);
+
+    var galleryToggle = document.querySelector('.gallery-mode-toggle');
+    if (galleryToggle) {
+      galleryToggle.textContent = savedMode === '3d' ? '2D' : '3D';
+
+      galleryToggle.addEventListener('click', function() {
+        var current = document.documentElement.getAttribute('data-gallery-mode');
+        var newMode = current === '3d' ? '2d' : '3d';
+        document.documentElement.setAttribute('data-gallery-mode', newMode);
+        localStorage.setItem('galleryMode', newMode);
+        galleryToggle.textContent = newMode === '3d' ? '2D' : '3D';
+      });
+    }
+  }, 0);
 </script>

@@ -1,3 +1,9 @@
+---
+layout: default
+title: mini-mesh
+permalink: /
+---
+
 # mini-mesh
 
 Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video.
@@ -10,19 +16,27 @@ Create detailed, textured 3D meshes of objects like tabletop miniatures from a s
   </video>
 </div>
 
-<div class="split-gallery">
-  <div class="split-cell">
-    <img class="img-color" src="assets/mokka_render.png" alt="Mokka render">
-    <img class="img-normal" src="assets/mokka_normal.png" alt="Mokka normals">
+<div class="gallery-container">
+  <div class="gallery-3d">
+    <model-viewer src="assets/mokka.glb" camera-controls auto-rotate tone-mapping="neutral" shadow-intensity="1" ></model-viewer>
+    <model-viewer src="assets/dog.glb" camera-controls auto-rotate tone-mapping="neutral" shadow-intensity="1" ></model-viewer>
+    <model-viewer src="assets/mustard.glb" camera-controls auto-rotate tone-mapping="neutral" shadow-intensity="1" ></model-viewer>
   </div>
-  <div class="split-cell">
-    <img class="img-color" src="assets/dog_render.png" alt="Dog render">
-    <img class="img-normal" src="assets/dog_normal.png" alt="Dog normals">
+  <div class="split-gallery">
+    <div class="split-cell">
+      <img class="img-color" src="assets/mokka_render.png" alt="Mokka render">
+      <img class="img-normal" src="assets/mokka_normal.png" alt="Mokka normals">
+    </div>
+    <div class="split-cell">
+      <img class="img-color" src="assets/dog_render.png" alt="Dog render">
+      <img class="img-normal" src="assets/dog_normal.png" alt="Dog normals">
+    </div>
+    <div class="split-cell">
+      <img class="img-color" src="assets/mustard_render.png" alt="Mustard render">
+      <img class="img-normal" src="assets/mustard_normal.png" alt="Mustard normals">
+    </div>
   </div>
-  <div class="split-cell">
-    <img class="img-color" src="assets/mustard_render.png" alt="Mustard render">
-    <img class="img-normal" src="assets/mustard_normal.png" alt="Mustard normals">
-  </div>
+  <button class="gallery-mode-toggle">2D</button>
 </div>
 
 ## Quick Start
