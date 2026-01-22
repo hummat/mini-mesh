@@ -55,14 +55,27 @@ These are challenging cases for any reconstruction pipeline.
 
 #### Weakly textured surfaces (pose/alignment issues)
 
-Weak texture often means poor feature matches and noisy SfM poses. Try learning improved poses during training:
+Weak texture often means poor feature matches and noisy SfM poses. **Camera optimization is most beneficial when:**
+
+1. **Learning-based SfM** (VGGSfM) — poses are often noisier than classical methods
+2. **GLOMAP** — global optimization can sometimes produce locally suboptimal poses
+3. **Sequential COLMAP matcher** — fewer matches than exhaustive can lead to drift
+
+For classical exhaustive COLMAP, camera optimization is usually unnecessary and may even destabilize training—**provided SfM successfully registered most images** (see `--min-match-ratio`). If many images failed to get poses, the surviving poses may still benefit from refinement.
 
 ```bash
---pipeline.datamanager.camera-optimizer.mode SO3xR3
+--pipeline.datamanager.camera-optimizer.mode SO3xR3  # refine both rotation and position
 --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-4
 --pipeline.datamanager.camera-optimizer.scheduler.lr-final 1e-5
 --pipeline.datamanager.camera-optimizer.scheduler.max-steps 5000
 ```
+
+<details>
+<summary>What does <code>SO3xR3</code> mean?</summary>
+
+`SO3xR3` means the optimizer refines both camera rotation (SO3 = 3D rotations) and translation (R3 = 3D position). Alternative modes: `off` (no refinement), `SO3` (rotation only).
+
+</details>
 
 #### Reflective/glossy surfaces (view-dependent appearance)
 
@@ -74,6 +87,14 @@ Specular highlights move with the camera and can confuse geometry learning. Enab
 --pipeline.model.sdf-field.use-reflections True
 --pipeline.model.sdf-field.use-n-dot-v True
 ```
+
+**When using BRDF/PBR flags**, the color MLP must learn more complex view-dependent effects. Recommended adjustments:
+
+- **Larger color MLP** — increase from default 2 to 4 layers:
+  ```bash
+  --pipeline.model.sdf-field.num-layers-color 4
+  ```
+- **Longer training** — BRDF decomposition takes more iterations to converge; consider a `-long` config or 1.5–2× iterations
 
 **Recommended usage by material type:**
 
@@ -151,7 +172,11 @@ Get your key from https://wandb.ai/authorize.
 
 ## Advanced Tuning
 
+This section covers parameters for users comfortable with neural rendering internals. If you're new to this, start with the Common Issues section above—these settings rarely need adjustment.
+
 ### Geometry regularizers
+
+These losses encourage cleaner geometry by penalizing physically implausible solutions.
 
 <details>
 <summary><strong>Orientation loss (Ref-NeRF-style)</strong></summary>
@@ -169,7 +194,7 @@ Works for SDF-based models (`neus`, `neus-facto`, `neuralangelo`). Most useful w
 <details>
 <summary><strong>Distortion loss (Mip-NeRF 360-style)</strong></summary>
 
-Discourages stretched or double-peaked depth distributions:
+Encourages the model to concentrate density at a single surface rather than spreading it across multiple depths (which causes floaters and fog):
 
 ```bash
 # neus (single-level)
@@ -186,29 +211,29 @@ Start with small values; this is a soft regularizer, not a replacement for good 
 <details>
 <summary><strong>Interlevel loss (Mip-NeRF 360-style, proposal-based)</strong></summary>
 
-Encourages consistency between proposal-network samples and final NeuS/VolSDF samples:
+For faster models like `neus-facto`, a lightweight "proposal network" first guesses where surfaces are, then the main network refines those regions. This loss ensures the two networks agree:
 
 ```bash
 # neus-facto / bakedsdf / bakedangelo
 --pipeline.model.interlevel-loss-mult 1.0
 ```
 
-Only for methods with proposal networks. Helps stabilize proposal sampling when depth distributions are noisy.
+Only for `-facto` style methods. Helps when depth estimates are noisy.
 
 </details>
 
 ### NeuS sharpness parameters
 
-These parameters interact with scene scale:
+These control how "sharp" the surface boundary is during training. They interact with scene scale:
 
 | Parameter | Description | Typical values |
 |-----------|-------------|----------------|
-| `bias` | Initial geometric SDF sphere radius | 0.3–0.5 |
-| `beta-init` | Seeds VolSDF Laplace density scale and NeuS variance | 0.1–0.3 |
-| `s_val` | Learned NeuS sharpness (diagnostic metric) | Rises then plateaus |
-| `near-plane`/`far-plane` | Ray segment bounds | Tightly bracket object shell |
+| `bias` | Initial sphere size the model starts from | 0.3–0.5 |
+| `beta-init` | Initial surface "fuzziness" (lower = sharper start) | 0.1–0.3 |
+| `s_val` | Learned sharpness (diagnostic—watch it rise then plateau) | — |
+| `near-plane`/`far-plane` | How close/far the model looks for surfaces | Tightly bracket your object |
 
-For proposal-based methods (`neus-facto*`, `bakedsdf*`, `bakedangelo*`), extremely wide bounds make sampling brittle.
+For `-facto` methods, extremely wide near/far bounds make training unstable.
 
 ### Foreground vs background modeling
 
@@ -224,7 +249,7 @@ For proposal-based methods (`neus-facto*`, `bakedsdf*`, `bakedangelo*`), extreme
 
 ### Appearance embedding
 
-`use-appearance-embedding` adds a per-image latent code to the color network. For typical mini-mesh use (smartphone videos with imperfect lighting), this helps absorb per-frame exposure/white-balance differences without twisting geometry. For clean, studio-lit photos, advanced users may disable it.
+`use-appearance-embedding` lets each image have its own color/brightness adjustment. For smartphone videos where lighting or white balance varies frame-to-frame, this prevents the model from baking those variations into the geometry. For controlled studio lighting, you can disable it.
 
 ### Practical tuning order
 

@@ -53,7 +53,7 @@ This downloads the pre-built Docker image and runs the full pipeline. Add `--hel
 <details markdown="1">
 <summary><strong>Building custom images</strong></summary>
 
-The pre-built image supports NVIDIA CC 6.1 (GTX 10XX) to 8.9 (RTX 40XX). For other GPUs (e.g. RTX 50XX with CC 12.0):
+The pre-built image supports NVIDIA GPUs from GTX 10XX to RTX 40XX. For newer GPUs (e.g. RTX 50XX), rebuild with your GPU's [Compute Capability](https://developer.nvidia.com/cuda-gpus) code:
 
 ```bash
 docker build -t hummat/mini-mesh -f docker/Dockerfile \
@@ -157,11 +157,11 @@ The final mesh appears next to your input. Steps already completed are skipped (
 
 | Model | Description |
 |-------|-------------|
-| `neus` | Baseline NeuS |
-| `neus-facto` | NeuS with factorized features (faster, recommended) |
-| `neuralangelo` | High-quality with hierarchical hash grids |
-| `nerfacto` | General-purpose NeRF (requires nerfstudio) |
-| `splatfacto` | 3D Gaussian Splatting (requires nerfstudio) |
+| `neus` | Baseline surface reconstruction |
+| `neus-facto` | Faster surface reconstruction (recommended) |
+| `neuralangelo` | Higher quality via multi-resolution features, slower |
+| `nerfacto` | View synthesis, not watertight meshes (requires nerfstudio) |
+| `splatfacto` | Fast view synthesis via point clouds (requires nerfstudio) |
 
 **Config suffixes:** `-test` (3K iters), `-min` (7K), `-short` (10-30K), (none) (100K), `-long` (200K+)
 
@@ -170,12 +170,12 @@ The final mesh appears next to your input. Steps already completed are skipped (
 <details markdown="1">
 <summary><strong>Export methods</strong></summary>
 
-**SDF models** (automatic): Marching cubes → UV unwrap → texture bake → simplify
+**SDF models** (automatic): Extracts mesh → creates texture coordinates → bakes colors onto texture → simplifies geometry
 
 **NeRF models** (`export --method <name>`):
-- `poisson` — Poisson surface reconstruction (default)
-- `tsdf` — TSDF fusion
-- `pointcloud` — Export as point cloud
+- `poisson` — Reconstructs smooth surface from rendered point cloud (default)
+- `tsdf` — Fuses depth maps into a volume, then extracts mesh
+- `pointcloud` — Export as point cloud (no mesh)
 - `gaussian-splat` — For splatfacto
 
 </details>
@@ -184,7 +184,7 @@ The final mesh appears next to your input. Steps already completed are skipped (
 <summary><strong>Process options</strong></summary>
 
 - `--mask <method>` — Background masking: `rembg`, `sam2`, `true`, `none`
-- `--min-match-ratio <float>` — Minimum acceptable camera pose ratio
+- `--min-match-ratio <float>` — Fail if fewer than this fraction of images get poses (default: 0.5)
 - `--crop-factor <top bot left right>` — Crop images before processing
 
 </details>
