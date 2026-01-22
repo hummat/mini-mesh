@@ -10,10 +10,20 @@ Create detailed, textured 3D meshes of objects like tabletop miniatures from a s
   </video>
 </div>
 
-|                                   |                               |                                       |
-|:---------------------------------:|:-----------------------------:|:-------------------------------------:|
-| ![mokka](assets/mokka_render.png) | ![dog](assets/dog_render.png) | ![mustard](assets/mustard_render.png) |
-| ![mokka](assets/mokka_normal.png) | ![dog](assets/dog_normal.png) | ![mustard](assets/mustard_normal.png) |
+<div class="split-gallery">
+  <div class="split-cell">
+    <img class="img-color" src="assets/mokka_render.png" alt="Mokka render">
+    <img class="img-normal" src="assets/mokka_normal.png" alt="Mokka normals">
+  </div>
+  <div class="split-cell">
+    <img class="img-color" src="assets/dog_render.png" alt="Dog render">
+    <img class="img-normal" src="assets/dog_normal.png" alt="Dog normals">
+  </div>
+  <div class="split-cell">
+    <img class="img-color" src="assets/mustard_render.png" alt="Mustard render">
+    <img class="img-normal" src="assets/mustard_normal.png" alt="Mustard normals">
+  </div>
+</div>
 
 ## Quick Start
 
