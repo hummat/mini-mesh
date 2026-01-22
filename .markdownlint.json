@@ -1,0 +1,8 @@
+{
+  "MD033": {
+    "allowed_elements": ["details", "summary", "strong", "div", "img", "video", "source"]
+  },
+  "MD032": false,
+  "MD031": false,
+  "MD060": false
+}
