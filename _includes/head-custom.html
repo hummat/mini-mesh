@@ -63,12 +63,10 @@
         cell.querySelectorAll('img').forEach(function(i) {
           i.classList.remove('expanded');
         });
-        cell.classList.remove('has-expanded');
 
         // If this image wasn't expanded, expand it
         if (!wasExpanded) {
           this.classList.add('expanded');
-          cell.classList.add('has-expanded');
         }
       });
     });

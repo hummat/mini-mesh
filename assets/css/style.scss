@@ -314,27 +314,6 @@ a {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
     z-index: 3;
   }
-
-  // Diagonal line indicator
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 141.4%; // sqrt(2) * 100%
-    height: 1px;
-    background: rgba(255, 255, 255, 0.5);
-    transform-origin: top left;
-    transform: rotate(45deg);
-    z-index: 4;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-
-  // Hide diagonal when any image is expanded
-  &.has-expanded::after {
-    opacity: 0;
-  }
 }
 
 // Hover effects only for devices that support hover
@@ -349,17 +328,9 @@ a {
       clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
       z-index: 3;
     }
-
-    &:hover::after {
-      opacity: 0;
-    }
   }
 }
 
 [data-theme="dark"] .split-cell {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-
-  &::after {
-    background: rgba(255, 255, 255, 0.3);
-  }
 }
