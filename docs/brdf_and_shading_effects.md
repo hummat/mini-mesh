@@ -4,6 +4,8 @@ This document summarizes the main shading / BRDF effects we discussed and how th
 (`--pipeline.model.sdf-field.*`). It also lists representative papers for deeper reading, especially works that try to
 explicitly model some of these effects in neural fields.
 
+**See also**: [`pbr_learning_starter_pack.md`](pbr_learning_starter_pack.md) — curated video/reading list for learning PBR extraction
+
 ---
 
 ## 1. Core Shading and BRDF Concepts
