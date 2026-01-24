@@ -12,7 +12,7 @@ Create detailed, textured 3D meshes of objects like tabletop miniatures from a s
       <span class="banner-hint"></span>
     </div>
     <div class="banner-back">
-      <model-viewer src="assets/coffee.glb" camera-controls auto-rotate tone-mapping="neutral" shadow-intensity="1" interaction-prompt="none"></model-viewer>
+      <model-viewer src="assets/coffee.glb" camera-controls auto-rotate tone-mapping="neutral" shadow-intensity="1" interaction-prompt="none" orientation="90deg 0 0"></model-viewer>
     </div>
   </div>
 </div>
