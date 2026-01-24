@@ -88,16 +88,22 @@ ci: Fix shellcheck to follow sourced files
 
 ## Docker Image Publishing
 
-Docker images are built locally (due to long CUDA compile times) and distributed via CI.
+Docker images are built and pushed locally (CUDA compilation is slow and requires GPU).
+
+### When to Rebuild
+
+**Not every code release needs a new image.** The image provides the environment (CUDA, COLMAP, sdfstudio); your code is mounted at runtime.
+
+Rebuild when:
+- Dockerfile changes
+- Base dependencies change (COLMAP, GLOMAP, sdfstudio versions)
 
 ### Build Variants
-
-Use `docker/build.sh` for all builds:
 
 ```bash
 docker/build.sh full    # Multi-GPU, all deps (~11.6GB)
 docker/build.sh slim    # Multi-GPU, core only (~9GB)
-docker/build.sh local   # Single GPU, native optimizations (auto-detects GPU)
+docker/build.sh local   # Single GPU, native optimizations (don't publish!)
 ```
 
 | Variant | Tag | Size | GPU Support | Optional Deps |
@@ -113,54 +119,36 @@ docker/build.sh full --max-jobs 4      # Limit parallel jobs
 docker/build.sh slim --no-gui          # Headless COLMAP
 ```
 
-> **Note:** `local` uses `-march=native` for CPU-specific optimizations — don't publish these images!
-
 ### Publish Workflow
 
-```bash
-# 1. Build full and slim images (see above)
+All done locally — no CI needed:
 
-# 2. Test images
+```bash
+# 1. Build
+docker/build.sh full
+docker/build.sh slim
+
+# 2. Test
 docker run --rm hummat/mini-mesh:latest --help
 docker run --rm hummat/mini-mesh:slim --help
 
-# 3. Push to Docker Hub (manual)
+# 3. Tag with version
+VERSION=0.3.1
+docker tag hummat/mini-mesh:latest hummat/mini-mesh:${VERSION}
+docker tag hummat/mini-mesh:slim hummat/mini-mesh:${VERSION}-slim
+
+# 4. Login and push
 docker login
 docker push hummat/mini-mesh:latest
+docker push hummat/mini-mesh:${VERSION}
 docker push hummat/mini-mesh:slim
-
-# 4. Trigger CI to mirror and tag
-#    Actions → "Publish Docker image" → Run workflow → enter version (e.g., 0.3.0)
+docker push hummat/mini-mesh:${VERSION}-slim
 ```
 
-CI workflow (`.github/workflows/docker-publish.yml`):
-- Pulls `hummat/mini-mesh:latest` from Docker Hub
-- Tags with version on Docker Hub
-- Mirrors to GHCR with `latest` and version tags
-
-### Registries
-
-| Registry | URL |
-|----------|-----|
-| Docker Hub | `hummat/mini-mesh` (default in README) |
-| GHCR | `ghcr.io/hummat/mini-mesh` |
-
-### Required Secrets
-
-- `DOCKERHUB_USERNAME` — Docker Hub username
-- `DOCKERHUB_TOKEN` — Docker Hub access token (hub.docker.com → Account Settings → Security)
-
-### When to Publish
-
-Publish Docker images when:
-- Dockerfile changes
-- Base dependencies change (COLMAP, GLOMAP, sdfstudio versions)
-- Major releases that users should pull fresh
-
-Not every code release needs a new image — the image provides the environment, `scripts/run.sh` is mounted at runtime.
+Docker deduplicates layers — pushing multiple tags of the same image is fast after the first push.
 
 ## Troubleshooting
 
 - "Working tree is dirty" → commit or stash first
 - "Tag exists" → `git tag -d vX.Y.Z` then `git push --delete origin vX.Y.Z`
-- Docker push fails → check `DOCKERHUB_TOKEN` secret is set and not expired
+- Docker push fails → run `docker login` first
