@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
+- Add Makefile and release script
 - Add GitHub labels and sync workflow
 - Add markdownlint config to suppress HTML warnings
 ## [0.3.0] - 2026-01-21

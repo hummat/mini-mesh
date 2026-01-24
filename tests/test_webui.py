@@ -352,14 +352,8 @@ class TestTrainContextValidation:
                 "scripts/run.sh /path/to/video.mp4 train "
                 "--pipeline.model.sdf-field.enable-pred-roughness True"
             ),
-            (
-                "scripts/run.sh /path/to/video.mp4 train "
-                "--pipeline.model.orientation-loss-mult 0.01"
-            ),
-            (
-                "scripts/run.sh /path/to/video.mp4 train "
-                "--pipeline.model.distortion-loss-mult 0.001"
-            ),
+            ("scripts/run.sh /path/to/video.mp4 train --pipeline.model.orientation-loss-mult 0.01"),
+            ("scripts/run.sh /path/to/video.mp4 train --pipeline.model.distortion-loss-mult 0.001"),
             (
                 "scripts/run.sh /path/to/video.mp4 train "
                 "--pipeline.model.sdf-field.enable-pred-roughness True "

@@ -20,7 +20,7 @@ def _make_stub_binaries(bin_dir: Path, log_path: Path) -> None:
     script_body = "\n".join(
         [
             "#!/usr/bin/env bash",
-            'echo "$0 $@" >> \"$MINI_MESH_STUB_LOG\"',
+            'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
         ]
     )
     for name in ("sdf-extract-mesh", "sdf-texture-mesh", "ns-export"):
