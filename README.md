@@ -306,12 +306,6 @@ For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/tro
 - **[BRDF & Shading](https://github.com/hummat/mini-mesh/blob/main/docs/brdf_and_shading_effects.md)** — Handling reflective and glossy surfaces
 - **[Examples](https://github.com/hummat/mini-mesh/blob/main/docs/examples.md)** — Additional usage examples
 
-## Demos
-
-- Interactive 3D meshes: *coming soon*
-- NeRF/Gaussian splat demos: *coming soon*
-- Video overlay examples: *coming soon*
-
 ## References
 
 1. [NeuS: Learning Neural Implicit Surfaces by Volume Rendering](https://arxiv.org/abs/2106.10689)
