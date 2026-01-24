@@ -77,6 +77,18 @@
     });
   }
 
+  // Banner flip: tap-to-toggle for touch devices
+  if (!window.matchMedia('(hover: hover)').matches) {
+    setTimeout(function() {
+      var bannerFlip = document.querySelector('.banner-flip');
+      if (bannerFlip) {
+        bannerFlip.addEventListener('click', function() {
+          this.classList.toggle('flipped');
+        });
+      }
+    }, 0);
+  }
+
   // Gallery mode toggle (3D/2D) - use setTimeout to ensure DOM is ready
   setTimeout(function() {
     var savedMode = localStorage.getItem('galleryMode') || '3d';

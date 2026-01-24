@@ -2,12 +2,19 @@
 
 Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video.
 
-<div style="position: relative; display: inline-block;">
-  <img src="assets/banner.png" alt="banner" style="width: 100%;">
-  <video style="position: absolute; bottom: 7px; left: 0; width: 180px;"
-    autoplay loop muted playsinline>
-    <source src="assets/demo.mp4" type="video/mp4">
-  </video>
+<div class="banner-flip">
+  <div class="banner-flip-inner">
+    <div class="banner-front">
+      <img src="assets/banner.png" alt="banner">
+      <video autoplay loop muted playsinline>
+        <source src="assets/demo.mp4" type="video/mp4">
+      </video>
+      <span class="banner-hint"></span>
+    </div>
+    <div class="banner-back">
+      <model-viewer src="assets/coffee.glb" camera-controls auto-rotate tone-mapping="neutral" shadow-intensity="1" interaction-prompt="none"></model-viewer>
+    </div>
+  </div>
 </div>
 
 <div class="gallery-container">
