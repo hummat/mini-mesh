@@ -121,8 +121,6 @@ docker/build.sh slim --no-gui          # Headless COLMAP
 
 ### Publish Workflow
 
-All done locally — no CI needed:
-
 ```bash
 # 1. Build
 docker/build.sh full
@@ -132,20 +130,15 @@ docker/build.sh slim
 docker run --rm hummat/mini-mesh:latest --help
 docker run --rm hummat/mini-mesh:slim --help
 
-# 3. Tag with version
-VERSION=0.3.1
-docker tag hummat/mini-mesh:latest hummat/mini-mesh:${VERSION}
-docker tag hummat/mini-mesh:slim hummat/mini-mesh:${VERSION}-slim
+# 3. Login to registries (one-time setup)
+docker login                      # Docker Hub
+docker login ghcr.io -u USERNAME  # GHCR (use GitHub PAT with packages:write)
 
-# 4. Login and push
-docker login
-docker push hummat/mini-mesh:latest
-docker push hummat/mini-mesh:${VERSION}
-docker push hummat/mini-mesh:slim
-docker push hummat/mini-mesh:${VERSION}-slim
+# 4. Tag and push to both registries
+docker/publish.sh 0.3.1
 ```
 
-Docker deduplicates layers — pushing multiple tags of the same image is fast after the first push.
+The script tags and pushes `latest`, `VERSION`, `slim`, and `VERSION-slim` to both Docker Hub and GHCR.
 
 ## Troubleshooting
 
