@@ -7,28 +7,29 @@
 - **Lint**: ruff
 - **Shell**: shellcheck
 - **Package manager**: uv
-- **All-in-one**: `scripts/lint.sh` (runs all checks; CI uses this)
+- **All-in-one**: `make check` (runs all checks; CI uses `scripts/lint.sh`)
 
 ## Commands
 ```bash
-# Single entry point (preferred for CI)
-scripts/lint.sh
+# Makefile targets (preferred)
+make check       # fmt + lint + type + test (all-in-one)
+make fmt         # format code (ruff)
+make lint        # lint (shellcheck + ruff)
+make type        # type check (pyright)
+make test        # run tests (pytest)
 
-# Individual checks (with uv)
-uv run pytest tests/                  # run full test suite
-uv run pytest tests/ -v              # verbose output
+# Direct uv commands (when you need specific options)
+uv run pytest tests/ -v               # verbose output
 uv run pytest tests/ -k test_name     # run specific tests
 uv run pytest tests/ --cov=webui --cov-report=term-missing
-uv run ruff check webui.py tests/     # lint
-uv run pyright                       # type check
-shellcheck scripts/*.sh                # check shell scripts
 ```
 
 ## Package Management
 ```bash
-uv sync --group dev          # install dev deps (pytest, ruff, pyright, etc.)
+make deps                    # install dev deps (preferred)
+uv sync --group dev          # same as above, explicit
 uv add <package>             # add dependency
-uv run <command>            # run in uv environment
+uv run <command>             # run in uv environment
 ```
 
 ## Test Organization
@@ -50,7 +51,7 @@ To validate the end-to-end pipeline:
 
 ## When You Touch `webui.py`
 - MUST add tests for new functionality in `tests/test_webui.py`
-- Run `scripts/lint.sh` locally before commit
+- Run `make check` locally before commit
 - Verify arguments still line up with `scripts/run.sh`
 
 ## When You Touch Bash/Docker

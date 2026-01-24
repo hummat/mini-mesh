@@ -24,7 +24,7 @@ Closes: #<!-- issue number, if applicable -->
 
 <!-- How did you test these changes? -->
 
-- [ ] Ran `scripts/lint.sh` (required)
+- [ ] Ran `make check` (required)
 - [ ] Tested with Docker
 - [ ] Tested with manual installation
 - [ ] Added/updated tests

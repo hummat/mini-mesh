@@ -18,23 +18,25 @@ git clone https://github.com/hummat/mini-mesh.git
 cd mini-mesh
 
 # Install development dependencies
-uv sync --group dev
+make deps        # or: uv sync --group dev
 
-# Run all checks
-scripts/lint.sh
+# Run all checks (format, lint, type check, tests)
+make check       # or: scripts/lint.sh
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests with coverage
-uv run pytest
+make test        # or: uv run pytest
 
 # Run specific test
 uv run pytest tests/ -k test_name -v
 
-# Run only unit tests
-uv run pytest tests/ -m unit
+# Individual checks
+make fmt         # format code (ruff)
+make lint        # lint (shellcheck + ruff)
+make type        # type check (pyright)
 ```
 
 ## Code Style
@@ -81,7 +83,7 @@ Before making changes, read the architecture docs:
 1. **Create an issue first** for non-trivial changes
 2. **Fork and branch** from `main`
 3. **Make your changes** following the style guide
-4. **Run `scripts/lint.sh`** - all checks must pass
+4. **Run `make check`** - all checks must pass
 5. **Update documentation** if adding/changing features
 6. **Submit PR** using the template
 
