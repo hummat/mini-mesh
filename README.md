@@ -1,6 +1,6 @@
 # mini-mesh
 
-Create detailed, textured 3D meshes of objects like tabletop miniatures from a short smartphone video.
+Create detailed, textured 3D meshes of anything from a short smartphone video.
 
 <div class="banner-flip">
   <div class="banner-flip-inner">
