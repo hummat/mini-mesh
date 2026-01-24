@@ -171,26 +171,72 @@ explicitly model some of these effects in neural fields.
 
 In SDFStudio/mini-mesh, the following SDF field flags are loosely inspired by Ref-NeRF and related works:
 
-- `use_diffuse_color`  
+### Core flags
+
+- `use_diffuse_color`
   Approximates a diffuse/specular decomposition: diffuse color predicted from geometry features; specular learned in
-  the view-dependent MLP. Conceptually similar to Ref-NeRF’s “diffuse color” head.
+  the view-dependent MLP. Conceptually similar to Ref-NeRF's "diffuse color" head.
 
-- `use_specular_tint`  
-  Adds a learned RGB tint to the specular component, analogous to metallic/colored specular behavior in Disney/UE4
-  shading and Ref-NeRF’s specular tint.
-
-- `use_reflections`  
-  Uses reflection directions as part of the view encoding, following Ref-NeRF’s reflection-direction encoding. This
+- `use_reflections`
+  Uses reflection directions as part of the view encoding, following Ref-NeRF's reflection-direction encoding. This
   strongly couples specular highlight position to geometry and normals.
 
-- `use_n_dot_v`  
+- `use_n_dot_v`
   Supplies `n·v` directly to the color MLP, making Fresnel-like ramps and limb-darkening behavior much easier to learn.
   Ref-NeRF also uses such angular cues.
 
-- `enable_pred_roughness` (with `use_reflections=True`)  
+- `use_fresnel_term`
+  Appends a Schlick-style Fresnel scalar as an extra input to the color MLP. More explicit than `use_n_dot_v` for
+  Fresnel effects.
+
+- `enable_pred_roughness` (requires `use_reflections=True`)
   Predicts a roughness in `[0, 1]` and uses it to mix view-direction and reflection-direction encodings. This is a very
   lightweight proxy for roughness-dependent specular behavior; it is **not** a full analytic microfacet BRDF, but
   nudges the network toward roughness-consistent highlights and provides an interpretable roughness map.
+
+### Material-specific flags
+
+- `use_specular_tint` (**metals only**)
+  Adds a learned RGB tint to the specular component, analogous to metallic/colored specular behavior in Disney/UE4
+  shading. **Do not use for dielectric materials** (plastic, ceramics) which have white/neutral specular.
+
+- `specular_exclude_geo_features` (requires `use_diffuse_color=True`)
+  Excludes geometry features from the specular MLP, forcing the specular branch to be purely view-dependent. All
+  spatial color variation goes through diffuse. **Recommended for uniform plastic surfaces like lego.**
+
+- `use_roughness_gated_specular` (requires `enable_pred_roughness=True` + `use_diffuse_color=True`)
+  Gates the specular contribution by `(1 - roughness)`, so rough surfaces have minimal specular and smooth surfaces
+  have full specular. Enforces physical constraint: rough surfaces scatter diffusely.
+
+### Advanced flags
+
+- `use_roughness_in_color_mlp` (requires `enable_pred_roughness=True`)
+  Appends the predicted roughness scalar as an extra input to the color MLP, allowing view-dependent appearance to
+  condition on roughness.
+
+- `learned_specular_scale` (requires `use_diffuse_color=True`)
+  Replaces the fixed 0.5 specular multiplier with a learned per-point value in `[0, 1]`, allowing the network to
+  control specular intensity spatially.
+
+- `roughness_blend_space` (requires `enable_pred_roughness=True` + `use_reflections=True`)
+  Controls where to mix view/reflection signals: `"encoding"` (default) encodes separately then blends features;
+  `"direction"` blends raw directions first then encodes once.
+
+### Summary table
+
+| Flag | Purpose | Requires | Use for |
+|------|---------|----------|---------|
+| `use_diffuse_color` | Diffuse/specular split | — | Most scenes |
+| `use_reflections` | Reflection-direction encoding | — | Glossy scenes |
+| `use_n_dot_v` | Angle of incidence input | — | Most scenes |
+| `use_fresnel_term` | Explicit Schlick Fresnel | — | Shiny surfaces |
+| `enable_pred_roughness` | Predict roughness [0,1] | `use_reflections` | Gloss variation |
+| `use_specular_tint` | Colored specular | — | **Metals only** |
+| `specular_exclude_geo_features` | Purely view-dependent specular | `use_diffuse_color` | Uniform plastic |
+| `use_roughness_gated_specular` | Gate specular by (1-roughness) | `enable_pred_roughness` + `use_diffuse_color` | Plastic |
+| `use_roughness_in_color_mlp` | Feed roughness to color MLP | `enable_pred_roughness` | Complex appearance |
+| `learned_specular_scale` | Per-point specular intensity | `use_diffuse_color` | Variable specularity |
+| `roughness_blend_space` | "encoding" or "direction" | `enable_pred_roughness` + `use_reflections` | Tuning |
 
 These flags give you Ref-NeRF–style signals and biases inside an SDF-based model, but the underlying rendering is still
 fully learned by an MLP — there is no explicit microfacet BRDF, env lighting, or guaranteed physical correctness.

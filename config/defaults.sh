@@ -19,10 +19,25 @@ DEFAULTS=(
   --pipeline.model.sdf-field.beta-init 0.3
   --pipeline.model.sdf-field.use-appearance-embedding True
   --pipeline.model.sdf-field.appearance-embedding-dim 16
+  # === Ref-NeRF-style BRDF flags (uncomment based on material) ===
+  # Core flags (most scenes):
   # --pipeline.model.sdf-field.use-diffuse-color True
-  # --pipeline.model.sdf-field.use-specular-tint True
   # --pipeline.model.sdf-field.use-reflections True
   # --pipeline.model.sdf-field.use-n-dot-v True
+  # --pipeline.model.sdf-field.enable-pred-roughness True
+  #
+  # Plastic/dielectric (lego, toys, ceramics):
+  # --pipeline.model.sdf-field.specular-exclude-geo-features True
+  # --pipeline.model.sdf-field.use-roughness-gated-specular True
+  #
+  # Metals only (brass, gold, coated):
+  # --pipeline.model.sdf-field.use-specular-tint True
+  #
+  # Optional enhancements:
+  # --pipeline.model.sdf-field.use-fresnel-term True
+  # --pipeline.model.sdf-field.use-roughness-in-color-mlp True
+  # --pipeline.model.sdf-field.learned-specular-scale True
+  # --pipeline.model.sdf-field.roughness-blend-space direction
   # --pipeline.model.sdf-field.off-axis True
   --pipeline.datamanager.camera-optimizer.optimizer.weight-decay 0
   --pipeline.datamanager.camera-optimizer.optimizer.lr 1e-5

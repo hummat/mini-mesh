@@ -79,14 +79,7 @@ For classical exhaustive COLMAP, camera optimization is usually unnecessary and 
 
 #### Reflective/glossy surfaces (view-dependent appearance)
 
-Specular highlights move with the camera and can confuse geometry learning. Enable Ref-NeRF-style BRDF flags:
-
-```bash
---pipeline.model.sdf-field.use-diffuse-color True
---pipeline.model.sdf-field.use-specular-tint True
---pipeline.model.sdf-field.use-reflections True
---pipeline.model.sdf-field.use-n-dot-v True
-```
+Specular highlights move with the camera and can confuse geometry learning. Enable Ref-NeRF-style BRDF flags based on material type.
 
 **When using BRDF/PBR flags**, the color MLP must learn more complex view-dependent effects. Recommended adjustments:
 
@@ -111,40 +104,88 @@ Specular highlights move with the camera and can confuse geometry learning. Enab
 </details>
 
 <details>
-<summary><strong>Strong specular highlights / moderately reflective materials</strong></summary>
+<summary><strong>Glossy plastics (lego, toys, ceramics)</strong></summary>
 
-(Glossy plastics, varnished wood, ceramics)
+Dielectric materials have **white/neutral specular** highlights. Do NOT use `use-specular-tint` (that's for metals).
+
+```bash
+--pipeline.model.sdf-field.use-diffuse-color True
+--pipeline.model.sdf-field.use-reflections True
+--pipeline.model.sdf-field.use-n-dot-v True
+--pipeline.model.sdf-field.enable-pred-roughness True
+--pipeline.model.sdf-field.specular-exclude-geo-features True
+--pipeline.model.sdf-field.use-roughness-gated-specular True
+```
+
+- `use-reflections` feeds reflection directions into the color MLP for sharper highlights
+- `enable-pred-roughness` predicts roughness in [0, 1] for gloss variation
+- `specular-exclude-geo-features` forces spatial color into diffuse only (recommended for uniform plastic)
+- `use-roughness-gated-specular` gates specular by (1 - roughness) so rough areas have no specular
+
+Optional enhancements:
+```bash
+--pipeline.model.sdf-field.use-fresnel-term True        # Schlick Fresnel for edge brightening
+--pipeline.model.sdf-field.use-roughness-in-color-mlp True  # Feed roughness to color MLP
+```
+
+</details>
+
+<details>
+<summary><strong>Metals and colored specular (brass, gold, coated surfaces)</strong></summary>
+
+Metals have **colored specular** that matches or tints the base color. Enable `use-specular-tint`:
 
 ```bash
 --pipeline.model.sdf-field.use-diffuse-color True
 --pipeline.model.sdf-field.use-specular-tint True
 --pipeline.model.sdf-field.use-reflections True
 --pipeline.model.sdf-field.use-n-dot-v True
+--pipeline.model.sdf-field.enable-pred-roughness True
 ```
 
-`use-reflections` feeds reflection directions into the color MLP. `use-specular-tint` allows colored specular (metals/coated surfaces).
+`use-specular-tint` learns an RGB tint for the specular component.
 
 </details>
 
 <details>
-<summary><strong>Very shiny/metallic objects (mirror-like reflections)</strong></summary>
+<summary><strong>Very shiny/mirror-like objects</strong></summary>
 
-In addition to the above, enable roughness prediction:
+In addition to the above, consider:
 
 ```bash
---pipeline.model.sdf-field.enable-pred-roughness True
+--pipeline.model.sdf-field.learned-specular-scale True  # Per-point specular intensity
+--pipeline.model.sdf-field.roughness-blend-space direction  # Alternative mixing mode
 ```
 
-This predicts roughness in [0, 1] and mixes view-direction features (rough) with reflection-direction features (smooth).
+- `learned-specular-scale` replaces the fixed 0.5 specular multiplier with a learned per-point value
+- `roughness-blend-space direction` blends raw directions before encoding (vs default "encoding" which blends after)
 
 </details>
 
+#### Available BRDF flags reference
+
+| Flag | Purpose | Requires |
+|------|---------|----------|
+| `use-diffuse-color` | Diffuse/specular split | — |
+| `use-reflections` | Reflection-direction encoding | — |
+| `use-n-dot-v` | Angle of incidence input | — |
+| `use-fresnel-term` | Schlick Fresnel scalar input | — |
+| `use-specular-tint` | Colored specular (metals only) | — |
+| `enable-pred-roughness` | Predict roughness [0,1] | `use-reflections` |
+| `use-roughness-in-color-mlp` | Feed roughness to color MLP | `enable-pred-roughness` |
+| `specular-exclude-geo-features` | Purely view-dependent specular | `use-diffuse-color` |
+| `use-roughness-gated-specular` | Gate specular by (1-roughness) | `enable-pred-roughness` + `use-diffuse-color` |
+| `learned-specular-scale` | Per-point specular intensity | `use-diffuse-color` |
+| `roughness-blend-space` | "encoding" (default) or "direction" | `enable-pred-roughness` + `use-reflections` |
+
 #### Practical ablation order
 
-1. Turn on `use-n-dot-v`
+1. Start with `use-diffuse-color` + `use-n-dot-v` (minimal view dependence)
 2. Add `use-reflections` for glossy scenes
-3. Add `use-diffuse-color` if you care about albedo/specular separation
-4. Only then add `use-specular-tint`/`enable-pred-roughness` for very shiny/metallic objects
+3. Add `enable-pred-roughness` for roughness variation
+4. For plastic: add `specular-exclude-geo-features` + `use-roughness-gated-specular`
+5. For metals: add `use-specular-tint` instead
+6. Optional: `use-fresnel-term`, `learned-specular-scale`
 
 Check that geometry does not regress at each step.
 
