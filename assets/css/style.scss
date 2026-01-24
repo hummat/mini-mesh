@@ -448,7 +448,7 @@ a {
     position: absolute;
     bottom: 7px;
     left: 0;
-    width: 180px;
+    width: min(180px, 25%);
   }
 }
 

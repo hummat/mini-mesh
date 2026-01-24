@@ -56,25 +56,27 @@
 
   // Split gallery: tap-to-toggle for touch devices
   if (!window.matchMedia('(hover: hover)').matches) {
-    document.querySelectorAll('.split-cell img').forEach(function(img) {
-      img.addEventListener('click', function(e) {
-        e.preventDefault();
-        var cell = this.closest('.split-cell');
-        var wasExpanded = this.classList.contains('expanded');
+    setTimeout(function() {
+      document.querySelectorAll('.split-cell img').forEach(function(img) {
+        img.addEventListener('click', function(e) {
+          e.preventDefault();
+          var cell = this.closest('.split-cell');
+          var wasExpanded = this.classList.contains('expanded');
 
-        // Collapse all images in this cell
-        cell.querySelectorAll('img').forEach(function(i) {
-          i.classList.remove('expanded');
+          // Collapse all images in this cell
+          cell.querySelectorAll('img').forEach(function(i) {
+            i.classList.remove('expanded');
+          });
+          cell.classList.remove('has-expanded');
+
+          // If this image wasn't expanded, expand it
+          if (!wasExpanded) {
+            this.classList.add('expanded');
+            cell.classList.add('has-expanded');
+          }
         });
-        cell.classList.remove('has-expanded');
-
-        // If this image wasn't expanded, expand it
-        if (!wasExpanded) {
-          this.classList.add('expanded');
-          cell.classList.add('has-expanded');
-        }
       });
-    });
+    }, 0);
   }
 
   // Banner flip: tap-to-toggle for touch devices
