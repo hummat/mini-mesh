@@ -87,9 +87,23 @@ Before making changes, read the architecture docs:
 
 ### Commit Messages
 
-- Use present tense: "Add feature" not "Added feature"
-- Keep the first line under 72 characters
-- Reference issues: "Fix crash on export (#42)"
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+type(scope): description
+```
+
+**Types:** `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `chore`, `ci`
+
+**Examples:**
+```
+feat(export): Add glTF compression option
+fix(webui): Handle missing video file gracefully
+docs: Update installation instructions
+chore: Bump sdfstudio to v0.8.0
+```
+
+See [docs/agent/releases.md](../docs/agent/releases.md#conventional-commits) for full details.
 
 ## What to Contribute
 
