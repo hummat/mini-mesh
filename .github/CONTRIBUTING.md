@@ -109,6 +109,18 @@ Before making changes, read the architecture docs:
 
 Please open an issue first to discuss the approach. This helps avoid duplicate work and ensures the feature aligns with project goals.
 
+## Docker
+
+Build takes 1-2 hours (compiles COLMAP, GLOMAP, tiny-cuda-nn with CUDA support).
+
+```bash
+docker/build.sh local   # Recommended: auto-detects your GPU
+docker/build.sh full    # Multi-GPU support (~11.6GB)
+docker/build.sh slim    # Core only, no optional deps (~9GB)
+```
+
+Run `docker/build.sh --help` for all options.
+
 ## Questions?
 
 - Open a [Discussion](https://github.com/hummat/mini-mesh/discussions) for questions

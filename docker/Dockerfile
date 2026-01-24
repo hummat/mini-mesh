@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.description="COLMAP, GLOMAP, tiny-cuda-nn base im
 LABEL org.opencontainers.image.source="https://github.com/hummat/mini-mesh"
 
 ARG WORKDIR=/workspace
-ARG TORCH_CUDA_ARCH_LIST=61;70;75;80;86;89
+ARG TORCH_CUDA_ARCH_LIST=75;80;86;89
 ARG MAX_JOBS=8
 ARG CXXFLAGS="-O3 -DNDEBUG"
 ARG WITH_GUI=ON
@@ -156,9 +156,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     ffmpeg \
     libopengl0 \
     libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build tools only if optional deps enabled (SAM2 JIT-compiles CUDA extension at runtime)
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
     build-essential \
     cmake \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* ; \
+    fi
 
 # GUI runtime deps only if WITH_GUI=ON
 RUN if [ "$WITH_GUI" = "ON" ]; then \

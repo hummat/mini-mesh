@@ -1,0 +1,60 @@
+name: Publish Docker image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., 0.3.0)'
+        required: true
+
+env:
+  IMAGE_NAME: mini-mesh
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull from Docker Hub and push to both registries
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Pull both variants
+          docker pull "hummat/${IMAGE_NAME}:latest"
+          docker pull "hummat/${IMAGE_NAME}:slim"
+
+          # Tag latest with version
+          docker tag "hummat/${IMAGE_NAME}:latest" "hummat/${IMAGE_NAME}:${VERSION}"
+          docker tag "hummat/${IMAGE_NAME}:latest" "ghcr.io/hummat/${IMAGE_NAME}:latest"
+          docker tag "hummat/${IMAGE_NAME}:latest" "ghcr.io/hummat/${IMAGE_NAME}:${VERSION}"
+
+          # Tag slim with version
+          docker tag "hummat/${IMAGE_NAME}:slim" "hummat/${IMAGE_NAME}:${VERSION}-slim"
+          docker tag "hummat/${IMAGE_NAME}:slim" "ghcr.io/hummat/${IMAGE_NAME}:slim"
+          docker tag "hummat/${IMAGE_NAME}:slim" "ghcr.io/hummat/${IMAGE_NAME}:${VERSION}-slim"
+
+          # Push version tags to Docker Hub
+          docker push "hummat/${IMAGE_NAME}:${VERSION}"
+          docker push "hummat/${IMAGE_NAME}:${VERSION}-slim"
+
+          # Push all tags to GHCR
+          docker push "ghcr.io/hummat/${IMAGE_NAME}:latest"
+          docker push "ghcr.io/hummat/${IMAGE_NAME}:${VERSION}"
+          docker push "ghcr.io/hummat/${IMAGE_NAME}:slim"
+          docker push "ghcr.io/hummat/${IMAGE_NAME}:${VERSION}-slim"

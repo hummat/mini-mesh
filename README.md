@@ -48,19 +48,35 @@ This downloads the pre-built Docker image and runs the full pipeline. Add `--hel
 </details>
 
 <details markdown="1">
-<summary><strong>Building custom images</strong></summary>
+<summary><strong>Image variants</strong></summary>
 
-The pre-built image supports NVIDIA GPUs from GTX 10XX to RTX 40XX. For newer GPUs (e.g. RTX 50XX), rebuild with your GPU's [Compute Capability](https://developer.nvidia.com/cuda-gpus) code:
+| Image | Size | Use when |
+|-------|------|----------|
+| `hummat/mini-mesh:latest` | ~11.6GB | Default — includes all features |
+| `hummat/mini-mesh:slim` | ~9GB | Limited VRAM or disk space (no rembg, nerfstudio, sam2, hloc, vggsfm) |
 
+Also available on GitHub Container Registry: `ghcr.io/hummat/mini-mesh`
+
+To use slim:
 ```bash
-docker build -t hummat/mini-mesh -f docker/Dockerfile \
-  --build-arg TORCH_CUDA_ARCH_LIST=<YOUR-CC> \
-  --build-arg CXXFLAGS="-O3 -DNDEBUG -march=native" .
+docker pull hummat/mini-mesh:slim
+MINI_MESH_IMAGE=hummat/mini-mesh:slim docker/run.sh /path/to/input
 ```
 
-Optional build flags:
-- `INSTALL_OPTIONAL_DEPS=OFF` — Disables nerfstudio, rembg, sam2, hloc, vggsfm
-- `WITH_GUI=OFF` — Headless COLMAP build (no GUI)
+</details>
+
+<details markdown="1">
+<summary><strong>Building custom images</strong></summary>
+
+The pre-built image supports GPUs from GTX 16XX/RTX 20XX to RTX 40XX (compute capabilities 7.5–8.9).
+
+```bash
+docker/build.sh local  # Build optimized for your GPU
+```
+
+See [CONTRIBUTING.md](/.github/CONTRIBUTING.md#docker) for build variants and options.
+
+**RTX 50XX (Blackwell) not yet supported** — requires CUDA 12.8+ and PyTorch with sm_120 support. Track [PyTorch#159207](https://github.com/pytorch/pytorch/issues/159207) for updates.
 
 </details>
 
@@ -280,9 +296,11 @@ For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/tro
 
 ## Demos
 
-- Interactive 3D meshes: *coming soon*
-- NeRF/Gaussian splat demos: *coming soon*
-- Video overlay examples: *coming soon*
+Visit the [GitHub Pages site](https://hummat.github.io/mini-mesh) for:
+
+- **Interactive 3D meshes** — rotate, zoom, and inspect reconstructed models in your browser
+- **2D/3D gallery toggle** — compare rendered colors with normal maps
+- **Video overlay** — see the input capture process
 
 ## References
 

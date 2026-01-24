@@ -13,14 +13,14 @@ set -euo pipefail
 #
 # You can override these environment variables (must roughly match
 # docker/Dockerfile):
-#   TORCH_CUDA_ARCH_LIST (default: 61,70,75,80,86,89)
+#   TORCH_CUDA_ARCH_LIST (default: 75,80,86,89)
 #   MARCH_NATIVE         (default: ON)
 #   MAX_JOBS             (default: 8)
 #   WORKDIR              (default: current working directory)
 #   INSTALL_OPTIONAL_DEPS (default: ON)
 #   INSTALL_SYSTEM_DEPS   (default: ON)
 
-TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-61;70;75;80;86;89}"
+TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-75;80;86;89}"
 CXXFLAGS="${CXXFLAGS:--O3 -DNDEBUG}"
 MAX_JOBS="${MAX_JOBS:-8}"
 WORKDIR="${WORKDIR:-$PWD}"

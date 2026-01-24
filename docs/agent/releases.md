@@ -86,7 +86,81 @@ ci: Fix shellcheck to follow sourced files
 - `cliff.toml` — git-cliff changelog config
 - `pyproject.toml` — version source of truth
 
+## Docker Image Publishing
+
+Docker images are built locally (due to long CUDA compile times) and distributed via CI.
+
+### Build Variants
+
+Use `docker/build.sh` for all builds:
+
+```bash
+docker/build.sh full    # Multi-GPU, all deps (~11.6GB)
+docker/build.sh slim    # Multi-GPU, core only (~9GB)
+docker/build.sh local   # Single GPU, native optimizations (auto-detects GPU)
+```
+
+| Variant | Tag | Size | GPU Support | Optional Deps |
+|---------|-----|------|-------------|---------------|
+| `full` | `hummat/mini-mesh:latest` | ~11.6GB | GTX 16xx / RTX 20xx – RTX 40xx | Yes |
+| `slim` | `hummat/mini-mesh:slim` | ~9GB | GTX 16xx / RTX 20xx – RTX 40xx | No |
+| `local` | `hummat/mini-mesh:local` | ~8GB | Your GPU only | Yes |
+
+**Options:**
+```bash
+docker/build.sh local --cuda-arch 89   # Explicit compute capability
+docker/build.sh full --max-jobs 4      # Limit parallel jobs
+docker/build.sh slim --no-gui          # Headless COLMAP
+```
+
+> **Note:** `local` uses `-march=native` for CPU-specific optimizations — don't publish these images!
+
+### Publish Workflow
+
+```bash
+# 1. Build full and slim images (see above)
+
+# 2. Test images
+docker run --rm hummat/mini-mesh:latest --help
+docker run --rm hummat/mini-mesh:slim --help
+
+# 3. Push to Docker Hub (manual)
+docker login
+docker push hummat/mini-mesh:latest
+docker push hummat/mini-mesh:slim
+
+# 4. Trigger CI to mirror and tag
+#    Actions → "Publish Docker image" → Run workflow → enter version (e.g., 0.3.0)
+```
+
+CI workflow (`.github/workflows/docker-publish.yml`):
+- Pulls `hummat/mini-mesh:latest` from Docker Hub
+- Tags with version on Docker Hub
+- Mirrors to GHCR with `latest` and version tags
+
+### Registries
+
+| Registry | URL |
+|----------|-----|
+| Docker Hub | `hummat/mini-mesh` (default in README) |
+| GHCR | `ghcr.io/hummat/mini-mesh` |
+
+### Required Secrets
+
+- `DOCKERHUB_USERNAME` — Docker Hub username
+- `DOCKERHUB_TOKEN` — Docker Hub access token (hub.docker.com → Account Settings → Security)
+
+### When to Publish
+
+Publish Docker images when:
+- Dockerfile changes
+- Base dependencies change (COLMAP, GLOMAP, sdfstudio versions)
+- Major releases that users should pull fresh
+
+Not every code release needs a new image — the image provides the environment, `scripts/run.sh` is mounted at runtime.
+
 ## Troubleshooting
 
 - "Working tree is dirty" → commit or stash first
 - "Tag exists" → `git tag -d vX.Y.Z` then `git push --delete origin vX.Y.Z`
+- Docker push fails → check `DOCKERHUB_TOKEN` secret is set and not expired

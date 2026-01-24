@@ -5,6 +5,7 @@
 # 3. NVIDIA
 xhost +local:"$(id -un)"
 docker_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+image="${MINI_MESH_IMAGE:-hummat/mini-mesh}"
 docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
   -u "$(id -u):$(id -g)" \
   -p 7007:7007 \
@@ -21,4 +22,4 @@ docker run -it --rm --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=671
   -v ~/.config:/.config \
   -v "$(dirname "$1")":/data \
   -v "$(dirname "$docker_dir")":/app \
-  hummat/mini-mesh /app/scripts/run.sh /data/"$(basename "$1")" "${@:2}"
+  "$image" /app/scripts/run.sh /data/"$(basename "$1")" "${@:2}"
