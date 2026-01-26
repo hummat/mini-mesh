@@ -10,8 +10,8 @@ Usage:
 
 Notes:
   - VERSION is optional; if provided, it must match pyproject.toml.
-  - Requires: git, python, gh, git-cliff; and gh auth login.
-  - Runs: make check, generates changelog, creates/pushes tag, then gh release create.
+  - Requires: git, python.
+  - Runs: make check, creates/pushes tag. CI handles GitHub release with git-cliff.
 EOF
   exit 0
 fi
@@ -49,13 +49,6 @@ PY
 
 require_cmd git
 require_cmd python
-require_cmd gh
-require_cmd git-cliff
-
-if ! gh auth status >/dev/null 2>&1; then
-  echo "gh is not authenticated. Run: gh auth login" >&2
-  exit 2
-fi
 
 require_clean_git
 
@@ -81,7 +74,4 @@ echo "Pushing commit + tag..."
 git push
 git push origin "$TAG"
 
-echo "Creating GitHub release via gh + git-cliff..."
-git-cliff --latest --strip header | gh release create "$TAG" --notes-file -
-
-echo "Done."
+echo "Done. Tag push will trigger release.yml workflow."
