@@ -1,115 +1,115 @@
 # Issue type
 - name: bug
-  color: d73a4a
+  color: "d73a4a"
   description: Something isn't working
 
 - name: enhancement
-  color: a2eeef
+  color: "a2eeef"
   description: New feature or request
 
 - name: documentation
-  color: 0075ca
+  color: "0075ca"
   description: Improvements or additions to documentation
 
 - name: question
-  color: d876e3
+  color: "d876e3"
   description: Further information is requested
 
 # Triage
 - name: good first issue
-  color: 7057ff
+  color: "7057ff"
   description: Good for newcomers
 
 - name: help wanted
-  color: 008672
+  color: "008672"
   description: Extra attention is needed
 
 - name: wontfix
-  color: ffffff
+  color: "ffffff"
   description: This will not be worked on
 
 - name: duplicate
-  color: cfd3d7
+  color: "cfd3d7"
   description: This issue or pull request already exists
 
 - name: invalid
-  color: e4e669
+  color: "e4e669"
   description: This doesn't seem right
 
 # Pipeline area
 - name: pipeline
-  color: 1d76db
+  color: "1d76db"
   description: Pipeline (scripts/run.sh)
 
 - name: sfm
-  color: c5def5
+  color: "c5def5"
   description: SfM methods
 
 - name: training
-  color: 5319e7
+  color: "5319e7"
   description: Training models
 
 - name: export
-  color: fbca04
+  color: "fbca04"
   description: Export/texturing
 
 - name: webui
-  color: d4c5f9
+  color: "d4c5f9"
   description: Web UI
 
 - name: docker
-  color: ededed
+  color: "ededed"
   description: Docker
 
 # Topic
 - name: gaussian-splat
-  color: FF6B35
+  color: "FF6B35"
   description: Gaussian Splatting methods
 
 - name: nerf
-  color: 7B68EE
+  color: "7B68EE"
   description: Neural radiance fields
 
 - name: neural-surf-recon
-  color: 2E8B57
+  color: "2E8B57"
   description: Neural surface reconstruction (SDF/implicit)
 
 - name: pbr
-  color: E8A317
+  color: "E8A317"
   description: PBR/BRDF material properties
 
 - name: brdf
-  color: D4A017
+  color: "D4A017"
   description: BRDF estimation and material decomposition
 
 - name: blender
-  color: E87D0D
+  color: "E87D0D"
   description: Blender integration
 
 - name: research
-  color: FBCA04
+  color: "FBCA04"
   description: Requires literature review / experimental
 
 # Priority
 - name: "P0: critical"
-  color: B60205
+  color: "B60205"
   description: Must do now — blocks everything
 
 - name: "P1: next"
-  color: D93F0B
+  color: "D93F0B"
   description: Do next — high value, unblocked
 
 - name: "P2: later"
-  color: FBCA04
+  color: "FBCA04"
   description: Planned but not urgent
 
 - name: "P3: backlog"
-  color: C2E0C6
+  color: "C2E0C6"
   description: Nice to have, no timeline
 
 # CI
 - name: dependencies
-  color: 0366d6
+  color: "0366d6"
   description: Pull requests that update a dependency file
 
 - name: github_actions
