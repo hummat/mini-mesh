@@ -30,15 +30,57 @@ Skip issue for typos, small fixes, docs-only changes. Branch + PR is still recom
 ## Labels
 
 Defined in `.github/labels.yml`, synced automatically via `sync-labels.yml` workflow.
+Area labels are auto-applied by `issue-labeler.yml` based on issue form dropdowns.
 
+### Issue type
 | Label | Use for |
 |-------|---------|
 | `bug` | Bug reports (auto-applied by template) |
 | `enhancement` | Feature requests (auto-applied by template) |
 | `documentation` | Docs-only changes |
 | `question` | Questions needing clarification |
+
+### Pipeline area
+| Label | Use for |
+|-------|---------|
+| `pipeline` | Pipeline (scripts/run.sh) |
+| `sfm` | SfM methods |
+| `training` | Training models |
+| `export` | Export/texturing |
+| `webui` | Web UI |
+| `docker` | Docker |
+
+### Topic
+| Label | Use for |
+|-------|---------|
+| `gaussian-splat` | Gaussian Splatting methods |
+| `nerf` | Neural radiance fields |
+| `neural-surf-recon` | Neural surface reconstruction (SDF/implicit) |
+| `pbr` | PBR/BRDF material properties |
+| `brdf` | BRDF estimation and material decomposition |
+| `blender` | Blender integration |
+| `research` | Requires literature review / experimental |
+
+### Priority
+| Label | Use for |
+|-------|---------|
+| `P0: critical` | Must do now — blocks everything |
+| `P1: next` | Do next — high value, unblocked |
+| `P2: later` | Planned but not urgent |
+| `P3: backlog` | Nice to have, no timeline |
+
+### Triage
+| Label | Use for |
+|-------|---------|
 | `good first issue` | Newcomer-friendly tasks |
 | `help wanted` | Needs external contribution |
 | `wontfix` | Won't be addressed |
 | `duplicate` | Already exists |
 | `invalid` | Not valid/applicable |
+
+## Project Board
+
+Cross-repo project board: [3D Reconstruction Pipeline](https://github.com/users/hummat/projects/4)
+
+Covers mini-mesh, sdfstudio, and pipeline dependencies (nerfstudio, vggsfm, hloc-cli).
+All issues should be added to the project board and assigned a priority label.

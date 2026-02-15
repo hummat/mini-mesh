@@ -78,6 +78,12 @@ Before making changes, read the architecture docs:
 3. Update `docker/run.sh` if needed
 4. Update `README.md` documentation
 
+## Issues & Project Board
+
+- **Issue templates**: Use the [bug report](https://github.com/hummat/mini-mesh/issues/new?template=bug_report.yml) or [feature request](https://github.com/hummat/mini-mesh/issues/new?template=feature_request.yml) form
+- **Labels**: Area and priority labels are defined in `.github/labels.yml`; area labels are auto-applied from issue form dropdowns
+- **Project board**: [3D Reconstruction Pipeline](https://github.com/users/hummat/projects/4) — cross-repo board covering mini-mesh, sdfstudio, and dependencies
+
 ## Pull Request Process
 
 1. **Create an issue first** for non-trivial changes
