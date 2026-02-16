@@ -1,6 +1,6 @@
 # Feature Workflow
 
-**Read this file before starting any feature or non-trivial change.**
+**Read this file before creating issues, PRs, or branches.**
 
 ## New Features
 
@@ -23,9 +23,24 @@ Skip issue for typos, small fixes, docs-only changes. Branch + PR is still recom
 
 ## Templates
 
-- **Issues**: Use `.github/ISSUE_TEMPLATE/` templates (bug_report.yml, feature_request.yml)
-- **PRs**: Use `.github/PULL_REQUEST_TEMPLATE.md` — fill out Summary, Changes, Type, Testing, Checklist
-- **Contributing**: See `.github/CONTRIBUTING.md` for dev setup and code style
+- **Issues**: `.github/ISSUE_TEMPLATE/` (bug_report.yml, feature_request.yml)
+- **PRs**: `.github/PULL_REQUEST_TEMPLATE.md`
+- **Contributing**: `.github/CONTRIBUTING.md`
+
+## Creating Issues via CLI/API (for agents)
+
+GitHub issue templates are a UI feature — neither `gh` CLI nor GitHub API/MCP supports creating issues from templates directly. When creating issues programmatically:
+
+1. **Read the template** in `.github/ISSUE_TEMPLATE/` to see required fields
+2. **Structure the body** to match the template sections (use markdown headers matching each template field)
+3. **Add labels** that the template would auto-apply (e.g., `bug` for bug_report.yml, `enhancement` for feature_request.yml)
+
+## Creating PRs via CLI/API (for agents)
+
+`gh pr create --body` overrides the template. When creating PRs programmatically:
+
+1. **Read** `.github/PULL_REQUEST_TEMPLATE.md` to see required sections
+2. **Structure the body** to match the template (use the same markdown headers)
 
 ## Commit Validation
 

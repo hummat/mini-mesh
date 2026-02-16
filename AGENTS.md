@@ -6,13 +6,11 @@ This file is the single source of truth for agent instructions in this repo.
 ## Conventions
 
 Read relevant `docs/agent/` files before proceeding:
-- `workflow.md` — **read before starting any feature** (issues with labels, branching, PRs)
+- `workflow.md` — **read before creating issues, PRs, or branches** (templates, labels, naming)
 - `code_conventions.md` — **read before writing code** (style, typing, minimal diffs)
 - `architecture.md` — read before modifying pipeline or structure
 - `testing_patterns.md` — read before writing tests
 - `releases.md` — read before releasing (conventional commits, git-cliff)
-
-**REQUIRED: Read `docs/agent/workflow.md` before implementing, updating, fixing, or changing anything.**
 
 ---
 
