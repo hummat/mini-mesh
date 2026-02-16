@@ -27,6 +27,13 @@ Skip issue for typos, small fixes, docs-only changes. Branch + PR is still recom
 - **PRs**: Use `.github/PULL_REQUEST_TEMPLATE.md` — fill out Summary, Changes, Type, Testing, Checklist
 - **Contributing**: See `.github/CONTRIBUTING.md` for dev setup and code style
 
+## Commit Validation
+
+Commit messages must follow conventional commits (see `docs/agent/releases.md`).
+
+- **Locally**: A `commit-msg` hook rejects non-conforming messages. Auto-installed by `make deps`.
+- **CI**: The `commit-lint` job validates all PR commits. If it fails, fix the offending commit with `git rebase -i` and amend the message.
+
 ## Labels
 
 Defined in `.github/labels.yml`, synced automatically via `sync-labels.yml` workflow.

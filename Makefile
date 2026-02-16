@@ -11,7 +11,7 @@ help:
 	@echo "  release Create a GitHub Release via gh (VERSION optional)"
 
 deps:
-	@uv sync --group dev
+	@bash scripts/deps.sh
 
 fmt:
 	@uv run ruff format .
