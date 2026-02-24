@@ -7,7 +7,7 @@ name = "mini-mesh"
 version = "0.3.1"
 description = "Video to 3D mesh reconstruction pipeline"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.11,<3.13"
 authors = [{ name = "Matthias Humt", email = "github.gizzard320@passmail.net" }]
 keywords = [
