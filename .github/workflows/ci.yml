@@ -19,10 +19,11 @@ jobs:
           fetch-depth: 0
 
       - name: Validate conventional commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           pattern='^(feat|fix|docs|refactor|perf|test|chore|ci|revert|style|build)(\([a-z0-9._-]+\))?!?: .+'
-          base=${{ github.event.pull_request.base.sha }}
-          head=${{ github.event.pull_request.head.sha }}
           bad=0
           while IFS= read -r sha; do
             msg=$(git log -1 --format='%s' "$sha")
@@ -34,7 +35,7 @@ jobs:
               echo "::error::Bad commit message: $msg ($sha)"
               bad=1
             fi
-          done < <(git rev-list "$base".."$head")
+          done < <(git rev-list "$BASE_SHA".."$HEAD_SHA")
           if [[ "$bad" -eq 1 ]]; then
             echo ""
             echo "Expected format: type(scope): description"
