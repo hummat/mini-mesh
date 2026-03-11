@@ -90,6 +90,11 @@
   color: "FBCA04"
   description: Requires literature review / experimental
 
+# Status
+- name: blocked
+  color: "B60205"
+  description: Blocked by another issue or external dependency
+
 # Priority
 - name: "P0: critical"
   color: "B60205"
