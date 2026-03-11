@@ -55,6 +55,11 @@ The `run.sh` script orchestrates a 5-stage pipeline:
   - NeRF/splat models → `ns-train` (Nerfstudio)
 - `config/defaults.sh` provides base defaults for all model types
 
+## Dependencies
+
+See [`dependencies.md`](dependencies.md) for the full dependency map, including
+which projects are forked, what the forks change, and pinned versions.
+
 ## Data Flow
 ```
 video/images → ffmpeg.sh → images/ → sfm.sh → sparse/ → process → transforms.json

@@ -310,6 +310,18 @@ Visit the [GitHub Pages site](https://hummat.github.io/mini-mesh) for:
 4. [Neuralangelo: High-Fidelity Neural Surface Reconstruction](https://arxiv.org/abs/2306.03092)
 5. [Mip-NeRF 360: Unbounded Anti-Aliased NeRF](https://arxiv.org/abs/2111.12077)
 
-## Credits
+## Dependencies
 
-Built on [SDFStudio](https://github.com/autonomousvision/sdfstudio), [nerfstudio](https://github.com/nerfstudio-project/nerfstudio), [COLMAP](https://colmap.github.io), [GLOMAP](https://github.com/colmap/glomap), [HLoc](https://github.com/cvg/Hierarchical-Localization), and [VGGSfM](https://vggsfm.github.io).
+mini-mesh builds on several open-source projects. We maintain active forks of
+libraries where upstream is stale or we need faster iteration.
+
+| Component | Upstream | Fork | Role |
+|-----------|----------|------|------|
+| **SDFStudio** | [autonomousvision/sdfstudio](https://github.com/autonomousvision/sdfstudio) | [hummat/sdfstudio](https://github.com/hummat/sdfstudio) | NeuS/VolSDF surface reconstruction, mesh extraction, texture baking. Fork modernizes PyTorch, adds RTX 40XX support and PBR export fixes. |
+| **nerfstudio** | [nerfstudio-project/nerfstudio](https://github.com/nerfstudio-project/nerfstudio) | [hummat/nerfstudio](https://github.com/hummat/nerfstudio) | NeRF and Gaussian splatting training + export. Fork fixes deprecated PyTorch imports. |
+| **SAM 2** | [facebookresearch/sam2](https://github.com/facebookresearch/sam2) | [hummat/sam2](https://github.com/hummat/sam2) | Interactive segmentation for background masking. Fork adds a full CLI (upstream has none). |
+| **VGGSfM** | [facebookresearch/vggsfm](https://github.com/facebookresearch/vggsfm) | [hummat/vggsfm](https://github.com/hummat/vggsfm) | Deep-learning SfM. Fork makes it pip-installable and fixes CUDA compatibility. |
+| **HLoc CLI** | — | [hummat/hloc-cli](https://github.com/hummat/hloc-cli) | CLI wrapper for [Hierarchical-Localization](https://github.com/cvg/Hierarchical-Localization) deep-learning SfM. |
+| **COLMAP** | [colmap/colmap](https://github.com/colmap/colmap) | — | Classical SfM (feature extraction, matching, mapping) |
+| **GLOMAP** | [colmap/glomap](https://github.com/colmap/glomap) | — | Global SfM mapper (faster alternative to COLMAP's incremental mapper) |
+| **nvdiffrast** | [NVlabs/nvdiffrast](https://github.com/NVlabs/nvdiffrast) | — | GPU-accelerated rasterization for texture baking |

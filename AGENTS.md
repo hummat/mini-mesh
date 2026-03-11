@@ -9,6 +9,7 @@ Read relevant `docs/agent/` files before proceeding:
 - `workflow.md` — **read before creating issues, PRs, or branches** (templates, labels, naming)
 - `code_conventions.md` — **read before writing code** (style, typing, minimal diffs)
 - `architecture.md` — read before modifying pipeline or structure
+- `dependencies.md` — read before changing dependencies, forks, or Docker builds
 - `testing_patterns.md` — read before writing tests
 - `releases.md` — read before releasing (conventional commits, git-cliff)
 
