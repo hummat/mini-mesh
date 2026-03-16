@@ -71,3 +71,4 @@ runtime/
 .aider*
 .gemini/
 .mcp.json
+HANDOFF.md
