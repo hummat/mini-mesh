@@ -72,3 +72,5 @@ runtime/
 .gemini/
 .mcp.json
 HANDOFF.md
+
+.claude/settings.local.json
