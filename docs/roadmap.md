@@ -86,9 +86,17 @@ Requires Phase 1 completion for key dependencies.
 | Issue | Repo | Summary | Depends on |
 |-------|------|---------|------------|
 | [sdfstudio#10](https://github.com/hummat/sdfstudio/issues/10) | sdfstudio | Integrate BRDF/PBR into training pipeline | sdfstudio #11 |
-| [#11](https://github.com/hummat/mini-mesh/issues/11) | mini-mesh | PBR texture extraction and BRDF-aware training (Stages 1-2) | sdfstudio #10, #7 |
+| [#11](https://github.com/hummat/mini-mesh/issues/11) | mini-mesh | **Tracking issue** — PBR texture extraction and BRDF-aware training | sdfstudio #10, #7 |
+| [#19](https://github.com/hummat/mini-mesh/issues/19) | mini-mesh | glTF/GLB exporter with PBR channels (basecolor / ORM / normal) | — |
+| [#20](https://github.com/hummat/mini-mesh/issues/20) | mini-mesh | UV-space multi-view texel observation builder | — |
+| [#23](https://github.com/hummat/mini-mesh/issues/23) | mini-mesh | Differentiable GGX dielectric BRDF + UV-space optimizer | #20 |
+| [#24](https://github.com/hummat/mini-mesh/issues/24) | mini-mesh | Per-view environment lighting estimator (SH + Spherical Gaussians) | #20 |
+| [#21](https://github.com/hummat/mini-mesh/issues/21) | mini-mesh | PBR-NeRF energy conservation + NDF-weighted specular loss | sdfstudio#10, #5 |
+| [#22](https://github.com/hummat/mini-mesh/issues/22) | mini-mesh | Evaluate TensoIR / NeILF++ as inverse-rendering backends | #5 |
 
-Multi-stage: verify proxy PBR signals → glTF/GLB export → optional UV-space refinement.
+Stage decomposition: #19 (export container) ← #23 + #24 ← #20 (observations).
+Training-time regularizers: #21 (PBR-NeRF losses) on top of sdfstudio#10.
+Alternative path: #22 (TensoIR/NeILF++) as research investigation.
 
 ### Gaussian surface reconstruction
 
@@ -116,6 +124,5 @@ Forward-looking features, some research-grade. Less deterministic timelines.
 | [#15](https://github.com/hummat/mini-mesh/issues/15) | mini-mesh | Surface-aware Gaussian densification strategies | #13 |
 | [#16](https://github.com/hummat/mini-mesh/issues/16) | mini-mesh | Blender integration for viewing/artistic workflows | — |
 | [#5](https://github.com/hummat/mini-mesh/issues/5) | mini-mesh | End-to-end validation with ground truth meshes | — |
-| [#11 Stage 2.5/3](https://github.com/hummat/mini-mesh/issues/11) | mini-mesh | Advanced PBR: UV-space inverse rendering, nvdiffrec | #11 Stages 1-2 |
 
 Note: #5 (E2E validation) and #16 (Blender) have no hard dependencies and could be pulled earlier if prioritized.
