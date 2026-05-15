@@ -86,6 +86,7 @@ export_args=("$@")
 extract_mesh_args=()
 texture_mesh_args=("${EXPORT_DEFAULTS[@]}")
 nerf_args=()
+nerf_tsdf_args=()
 method=poisson
 mesh_only=false
 texture_only=false
@@ -104,7 +105,7 @@ while [ $i -lt ${#export_args[@]} ]; do
     --bounding-box-min|--bounding-box-max)
       require_args "${export_args[$i]}" 3 "$remaining"
       extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
-      nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
+      nerf_tsdf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
       i=$((i+4))
       ;;
     --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces|--num-directions|--pad-px|--appearance-idx)
@@ -234,6 +235,7 @@ if [ -f "$exp_path/config.yml" ]; then
         --output-dir "$exp_path" \
         --batch-size 1 \
         --resolution 256 256 256 \
+        "${nerf_tsdf_args[@]}" \
         "${nerf_args[@]}"
     else
       run_cmd ns-export poisson \
