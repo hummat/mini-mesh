@@ -1,8 +1,9 @@
-.PHONY: help deps fmt lint type test check clean release
+.PHONY: help deps build fmt lint type test check clean release
 
 help:
 	@echo "Targets:"
 	@echo "  deps    Install dev dependencies (uv sync)"
+	@echo "  build   Build local pipeline dependencies for webui local mode"
 	@echo "  fmt     Format (ruff)"
 	@echo "  lint    Lint (shellcheck + ruff)"
 	@echo "  type    Type check (pyright)"
@@ -12,6 +13,13 @@ help:
 
 deps:
 	@bash scripts/deps.sh
+
+build:
+	@if command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; then \
+		direnv exec . bash scripts/build.sh; \
+	else \
+		bash scripts/build.sh; \
+	fi
 
 fmt:
 	@uv run ruff format .

@@ -20,6 +20,8 @@ def _run_script(
     """Run a Bash script from the repository with a minimal environment."""
     cmd = ["bash", str(repo_root / script_rel_path), *args]
     env = os.environ.copy()
+    env.setdefault("MINI_MESH_LOCAL_PREFIX", str(repo_root / ".local-does-not-exist-for-tests"))
+    env.setdefault("MINI_MESH_VENV_BIN", str(repo_root / ".venv-does-not-exist-for-tests" / "bin"))
     if env_overrides:
         env.update(env_overrides)
     return subprocess.run(
@@ -88,6 +90,80 @@ class TestFfmpegScript:
         assert str(video_path) in log
         assert "fps=3" in log
         assert "between(t,1,2)" in log
+
+
+class TestEnvBootstrap:
+    """Tests for scripts/env.sh local dependency bootstrap."""
+
+    def test_env_bootstrap_prefers_local_prefix(self, tmp_path: Path) -> None:
+        """env.sh should put local build outputs before stale user binaries."""
+        repo_root = Path(__file__).resolve().parents[1]
+        prefix = tmp_path / "mini-mesh"
+        venv_bin = tmp_path / "venv" / "bin"
+        (prefix / "bin").mkdir(parents=True)
+        (prefix / "lib").mkdir()
+        (prefix / "lib64").mkdir()
+        venv_bin.mkdir(parents=True)
+        command = (
+            "source scripts/env.sh; "
+            'printf \'%s\n%s\n%s\n\' "$PATH" "$LD_LIBRARY_PATH" "$CMAKE_PREFIX_PATH"'
+        )
+
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                command,
+            ],
+            cwd=repo_root,
+            env={
+                **os.environ,
+                "MINI_MESH_LOCAL_PREFIX": str(prefix),
+                "MINI_MESH_VENV_BIN": str(venv_bin),
+                "PATH": "/stale/bin:/usr/bin",
+                "LD_LIBRARY_PATH": "/cuda/lib64",
+                "CMAKE_PREFIX_PATH": "/other/prefix",
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        path, ld_library_path, cmake_prefix_path = result.stdout.splitlines()
+        assert path.startswith(f"{prefix / 'bin'}:{venv_bin}:")
+        assert ld_library_path.startswith(f"{prefix / 'lib'}:{prefix / 'lib64'}:")
+        assert cmake_prefix_path.startswith(f"{prefix}:")
+
+    def test_env_bootstrap_warns_for_explicit_missing_local_prefix(self, tmp_path: Path) -> None:
+        """An explicitly configured but missing prefix should fail loudly enough to diagnose."""
+        repo_root = Path(__file__).resolve().parents[1]
+        missing_prefix = tmp_path / "missing-prefix"
+
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "source scripts/env.sh; printf '%s' \"$PATH\"",
+            ],
+            cwd=repo_root,
+            env={
+                **os.environ,
+                "MINI_MESH_LOCAL_PREFIX": str(missing_prefix),
+                "MINI_MESH_VENV_BIN": str(tmp_path / "missing-venv" / "bin"),
+                "PATH": "/usr/bin",
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0
+        assert result.stdout == "/usr/bin"
+        assert f"MINI_MESH_LOCAL_PREFIX is set but missing: {missing_prefix}" in result.stderr
+        assert "Run 'make build' or unset MINI_MESH_LOCAL_PREFIX." in result.stderr
 
 
 class TestSfmScript:
@@ -312,6 +388,140 @@ class TestTrainScript:
         assert "nerfstudio-data" in log
         assert f"--data {data_dir}" in log
 
+    def test_train_consumes_missing_implicit_model_config(self, tmp_path: Path) -> None:
+        """If the default model-name config is absent, it should not become a CLI arg."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_missing_implicit.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "future-splat-model",
+                "my_exp",
+                str(data_dir),
+                "future-splat-model",
+                "--vis",
+                "viewer",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train future-splat-model" in log
+        assert log.count("future-splat-model") == 1
+        assert "--vis viewer" in log
+
+    def test_train_errors_on_missing_explicit_config(self, tmp_path: Path) -> None:
+        """Unknown config names should fail before reaching the trainer CLI."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_bad_config.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto",
+                "my_exp",
+                str(data_dir),
+                "does-not-exist",
+                "--vis",
+                "viewer",
+            ],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "Config 'does-not-exist' not found" in result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train" not in log
+
+    def test_train_rejects_full_splatfacto_w(self, tmp_path: Path) -> None:
+        """Full splatfacto-w needs a data layout mini-mesh does not produce."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_full_splatfactow.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-w",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-w",
+            ],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "splatfacto-w requires the plugin's splatfactow_dataparser" in result.stderr
+        assert "use --model splatfacto-w-light instead" in result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train" not in log
+
+    def test_train_splatfacto_w_light_uses_config(self, tmp_path: Path) -> None:
+        """The supported W variant should use its checked-in mini-mesh config."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_splatfactow_light.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-w-light",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-w-light",
+                "--vis",
+                "viewer",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train splatfacto-w-light" in log
+        assert "--max-num-iterations 30001" in log
+        assert "--steps-per-save 2000" in log
+        assert "--vis viewer" in log
+
 
 class TestRunScript:
     """Tests for scripts/run.sh with stubbed pipeline tools."""
@@ -442,3 +652,50 @@ class TestRunScript:
         # Export stage with --mesh-only should call sdf-extract-mesh but not sdf-texture-mesh.
         assert "sdf-extract-mesh" in log
         assert "sdf-texture-mesh" not in log
+
+    def test_run_script_retrains_existing_experiment_dir_without_config(
+        self, tmp_path: Path
+    ) -> None:
+        """A partial experiment directory without config.yml should not skip train."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        exp_path = scene_dir / "train" / "be_prepared" / "neus-facto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_run.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "--skip",
+                "train",
+                "--model",
+                "neus-facto",
+                "--name",
+                "be_prepared",
+                "--config",
+                "neus-facto-short",
+                "export",
+                "--mesh-only",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-train neus-facto" in log
+        assert (exp_path / "config.yml").is_file()

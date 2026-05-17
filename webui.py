@@ -789,7 +789,13 @@ def create_ui() -> gr.Blocks:
                 with gr.Accordion("4. Train", open=False):
                     train_model = gr.Dropdown(
                         label="Model",
-                        choices=["neus", "neus-facto", "nerfacto", "splatfacto"],
+                        choices=[
+                            "neus",
+                            "neus-facto",
+                            "nerfacto",
+                            "splatfacto",
+                            "splatfacto-w-light",
+                        ],
                         value="neus",
                         info="Training model type",
                     )
@@ -803,6 +809,7 @@ def create_ui() -> gr.Blocks:
                             "nerfacto",
                             "nerfacto-big",
                             "nerfacto-huge",
+                            "splatfacto-w-light",
                         ],
                         value="neus-grid-short",
                         info="Training configuration",

@@ -40,12 +40,13 @@ classifiers = [
 dependencies = ["gradio>=4.0.0"]
 
 [project.optional-dependencies]
-# Core pipeline deps (sdfstudio for NeuS/VolSDF methods)
+# Core pipeline deps. scripts/build.sh and docker/Dockerfile prebuild the CUDA
+# wheels that sdfstudio expects but cannot resolve correctly from PyPI.
 core = [
     "numpy<2",
     "scikit-build-core>=0.11",
     "pybind11>=2.6",
-    "sdfstudio[cuda,cuda-build,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0",
+    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0",
 ]
 # Background removal
 rembg = ["rembg[gpu,cli]"]
@@ -65,7 +66,7 @@ vggsfm = [
 #   git clone --recursive https://github.com/cvg/Hierarchical-Localization.git
 #   pip install -e Hierarchical-Localization
 #   pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
-# All optional deps for local install (excludes tinycudann, hloc which require manual steps)
+# All optional deps for local install (excludes hloc; CUDA extensions are built by scripts/build.sh)
 local = [
     "mini-mesh[core,rembg,nerf,sam,vggsfm]",
 ]

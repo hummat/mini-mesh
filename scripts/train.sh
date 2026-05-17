@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/env.sh
+source "$SCRIPT_DIR/env.sh"
+
 if [ $# -lt 3 ]; then
   echo "ERROR: Missing required arguments"
   echo "Usage: $0 MODEL_NAME EXP_NAME DATA_DIR [CONFIG] [additional args...]"
@@ -24,33 +28,51 @@ else
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 MODEL_NAME="$1"
 EXP_NAME="$2"
 DATA_DIR="$3"
+
+if [ "$MODEL_NAME" = splatfacto-w ]; then
+  echo "[ERROR] splatfacto-w requires the plugin's splatfactow_dataparser and Phototourism/Nerf-W data layout." >&2
+  echo "        mini-mesh produces Nerfstudio data; use --model splatfacto-w-light instead." >&2
+  exit 1
+fi
+
 # CONFIG may refer to a file path or a named config in CONFIG_DIR.
-CONFIG="$4"
-if [ -f "$CONFIG" ]; then
-  echo "[INFO] Using config file: $CONFIG"
+CONFIG=()
+CONFIG_NAME="${4:-}"
+if [ -n "$CONFIG_NAME" ] && [ -f "$CONFIG_NAME" ]; then
+  echo "[INFO] Using config file: $CONFIG_NAME"
   # shellcheck disable=SC1090
-  source "$CONFIG"
+  source "$CONFIG_NAME"
   shift 4
-elif [ -f "$CONFIG_DIR/$CONFIG.sh" ]; then
-  echo "[INFO] Using config file $CONFIG.sh from $CONFIG_DIR"
+elif [ -n "$CONFIG_NAME" ] && [ -f "$CONFIG_DIR/$CONFIG_NAME.sh" ]; then
+  echo "[INFO] Using config file $CONFIG_NAME.sh from $CONFIG_DIR"
   # shellcheck disable=SC1090
-  source "$CONFIG_DIR/$CONFIG.sh"
+  source "$CONFIG_DIR/$CONFIG_NAME.sh"
   shift 4
 else
-  if [ -f "$CONFIG_DIR/$MODEL_NAME.sh" ]; then
+  if [ -n "$CONFIG_NAME" ] && [ "$CONFIG_NAME" != "$MODEL_NAME" ]; then
+      echo "[ERROR] Config '$CONFIG_NAME' not found. Expected file path or $CONFIG_DIR/$CONFIG_NAME.sh" >&2
+      exit 1
+  elif [ -f "$CONFIG_DIR/$MODEL_NAME.sh" ]; then
       echo "[INFO] Using config file $MODEL_NAME.sh"
       # shellcheck disable=SC1090
       source "$CONFIG_DIR/$MODEL_NAME.sh"
+      if [ -n "$CONFIG_NAME" ]; then
+        shift 4
+      else
+        shift 3
+      fi
   else
-      echo "[INFO] No config file found"
-      CONFIG=()
+      echo "[INFO] No config file found for $MODEL_NAME; using defaults only"
+      if [ -n "$CONFIG_NAME" ]; then
+        shift 4
+      else
+        shift 3
+      fi
   fi
-  shift 3
 fi
 # shellcheck disable=SC1091
 source "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays

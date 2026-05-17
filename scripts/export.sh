@@ -2,6 +2,8 @@
 set -e
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/env.sh
+source "$script_dir/env.sh"
 # shellcheck source=../config/defaults.sh
 if ! source "$script_dir/../config/defaults.sh"; then
   echo "[ERROR]: Failed to source config/defaults.sh"
@@ -31,6 +33,16 @@ run_cmd() {
     echo "[CMD]: $*"
   fi
   "$@"
+}
+
+experiment_model_name() {
+  local path="$1"
+  local name
+  name="$(basename "$path")"
+  if [ "$name" = run ]; then
+    name="$(basename "$(dirname "$path")")"
+  fi
+  echo "$name"
 }
 
 function show_help {
@@ -206,20 +218,30 @@ if [ -f "$exp_path/config.yml" ]; then
   if [[ ${#export_args[@]} -gt 0 ]]; then
     echo "[INFO]: Export args: ${export_args[*]}"
   fi
-  model_name=$(basename "$exp_path")
+  model_name="$(experiment_model_name "$exp_path")"
   if [[ "$model_name" == *nerf* ]] || [[ "$model_name" == *splat* ]] || [[ "$model_name" == *ngp* ]]; then
     if [ "$mesh_only" = true ] || [ "$texture_only" = true ] || [ -n "$input_mesh_filename" ]; then
       echo "[ERROR]: --mesh-only/--texture-only/--input-mesh-filename are only supported for SDF experiments."
       exit 1
     fi
     if [[ "$model_name" == *splat* ]]; then
-      run_cmd ns-export gaussian-splat \
-        --load-config "$exp_path/config.yml" \
-        --output-dir "$exp_path" \
-        --obb-center 0 0 0 \
-        --obb-rotation 0 0 0 \
-        --obb-scale 1 1 1 \
-        "${nerf_args[@]}"
+      if [ "$model_name" = splatfacto-w-light ]; then
+        run_cmd python "$script_dir/export_splatfactow.py" \
+          --load-config "$exp_path/config.yml" \
+          --output-dir "$exp_path" \
+          --obb-center 0 0 0 \
+          --obb-rotation 0 0 0 \
+          --obb-scale 1 1 1 \
+          "${nerf_args[@]}"
+      else
+        run_cmd ns-export gaussian-splat \
+          --load-config "$exp_path/config.yml" \
+          --output-dir "$exp_path" \
+          --obb-center 0 0 0 \
+          --obb-rotation 0 0 0 \
+          --obb-scale 1 1 1 \
+          "${nerf_args[@]}"
+      fi
     elif [ "$method" = pointcloud ]; then
       run_cmd ns-export pointcloud \
         --load-config "$exp_path/config.yml" \

@@ -15,12 +15,18 @@ ARG TORCH_CUDA_ARCH_LIST=75;80;86;89
 ARG MAX_JOBS=8
 ARG CXXFLAGS="-O3 -DNDEBUG"
 ARG WITH_GUI=ON
+ARG INSTALL_OPTIONAL_DEPS=ON
+ARG NVDIFFRAST_REF=253ac4fcea7de5f396371124af597e6cc957bfae
+ARG GSPLAT_VERSION=1.4.0
 
 ENV QT_XCB_GL_INTEGRATION=xcb_egl
 ENV CUDA_HOME=/usr/local/cuda
 ENV MAX_JOBS=${MAX_JOBS}
 ENV CXXFLAGS="${CXXFLAGS}"
 ENV WITH_GUI=${WITH_GUI}
+ENV INSTALL_OPTIONAL_DEPS=${INSTALL_OPTIONAL_DEPS}
+ENV NVDIFFRAST_REF=${NVDIFFRAST_REF}
+ENV GSPLAT_VERSION=${GSPLAT_VERSION}
 
 # Avoid conda Boost 1.87, force system Boost 1.74
 RUN conda remove -y boost boost-cpp || true
@@ -60,8 +66,6 @@ RUN if [ "$WITH_GUI" = "ON" ]; then \
 
 RUN mkdir -p /workspace/git
 
-# TODO: Also compile Ceres from source with CUDA support?
-
 # PoseLib 2.0.2
 RUN cd /workspace/git && git clone --recursive https://github.com/PoseLib/PoseLib.git PoseLib && cd PoseLib && \
     git checkout 7e9f5f53372e43f89655040d4dfc4a00e5ace11c && \
@@ -74,7 +78,7 @@ RUN cd /workspace/git && git clone --recursive https://github.com/PoseLib/PoseLi
     ninja -C build install -j ${MAX_JOBS} && \
     cd /workspace/git && rm -rf PoseLib
 
-# COLMAP 3.12.6 (but actually 3.13.0.dev0?)
+# COLMAP pinned post-3.12 commit; reports 3.13.0.dev0 at runtime.
 RUN cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd colmap && \
     git checkout c5f9cefc87e5dd596b638e4cee0ff543c7d14755 && \
     cmake . -B build -GNinja \
@@ -84,7 +88,7 @@ RUN cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd co
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST} \
+    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
     -DGUI_ENABLED=${WITH_GUI} \
     -DCMAKE_INSTALL_PREFIX=/workspace/colmap && \
     ninja -C build install -j ${MAX_JOBS} && \
@@ -101,7 +105,7 @@ RUN cd /workspace/git && git clone https://github.com/colmap/glomap.git && cd gl
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST} \
+    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
     -DCMAKE_INSTALL_PREFIX=/workspace/glomap && \
     ninja -C build install -j ${MAX_JOBS} && \
     cd /workspace/git && rm -rf glomap
@@ -111,8 +115,23 @@ RUN cd /workspace/git && git clone --recursive https://github.com/nvlabs/tiny-cu
     git checkout 32507f059d7abc8c13f5df81ea9597b70923ee44 && \
     git submodule update --init --recursive && \
     cd bindings/torch && \
-    TCNN_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST} MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
-    cd /workspace && rm -rf git
+    TCNN_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
+    cd /workspace/git && rm -rf tiny-cuda-nn
+
+# nvdiffrast wheel for GPU-accelerated SDF texture baking
+RUN cd /workspace/git && git clone https://github.com/NVlabs/nvdiffrast.git && cd nvdiffrast && \
+    git checkout "${NVDIFFRAST_REF}" && \
+    TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
+    cd /workspace/git && rm -rf nvdiffrast
+
+# gsplat wheel for nerfstudio Gaussian splatting methods
+RUN mkdir -p /workspace/gsplat-wheels && \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    cd /workspace/git && git clone https://github.com/nerfstudio-project/gsplat.git && cd gsplat && \
+    git checkout "v${GSPLAT_VERSION}" && \
+    TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace/gsplat-wheels && \
+    cd /workspace/git && rm -rf gsplat ; \
+    fi
 
 
 ############################
@@ -179,14 +198,22 @@ RUN if [ "$WITH_GUI" = "ON" ]; then \
 COPY --from=builder /workspace/colmap /usr/local
 COPY --from=builder /workspace/glomap /usr/local
 
-COPY --from=builder /workspace/tinycudann*.whl /tmp/
-RUN pip install --no-cache-dir /tmp/tinycudann*.whl && rm /tmp/tinycudann*.whl
-
 # Pin only the core PyTorch-related packages (from base image)
 RUN pip list --format=json | python -c 'import sys, json; \
     keys = {"torch", "torchvision", "torch-tensorrt"}; \
     print("\n".join(["{}=={}".format(p["name"], p["version"]) for p in json.load(sys.stdin) if p["name"] in keys]))' \
     > /tmp/constraints.txt
+
+COPY --from=builder /workspace/tinycudann*.whl /workspace/nvdiffrast*.whl /tmp/
+RUN pip install --no-cache-dir --no-deps -c /tmp/constraints.txt /tmp/tinycudann*.whl /tmp/nvdiffrast*.whl && \
+    rm /tmp/tinycudann*.whl /tmp/nvdiffrast*.whl
+
+COPY --from=builder /workspace/gsplat-wheels /tmp/gsplat-wheels
+
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-cache-dir --no-deps -c /tmp/constraints.txt /tmp/gsplat-wheels/gsplat*.whl; \
+    fi && \
+    rm -rf /tmp/gsplat-wheels
 
 # Core Python deps that must not disturb the torch stack
 RUN pip install --no-cache-dir -c /tmp/constraints.txt \

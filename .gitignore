@@ -58,6 +58,8 @@ pytestdebug.log
 
 # General caches
 .cache/
+.local/
+outputs/
 
 # Env metadata
 .python-version

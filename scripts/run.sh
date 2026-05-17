@@ -6,6 +6,8 @@ export NUM_THREADS OPENBLAS_NUM_THREADS="$NUM_THREADS" MKL_NUM_THREADS="$NUM_THR
        OMP_NUM_THREADS="$NUM_THREADS" TBB_NUM_THREADS="$NUM_THREADS"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/env.sh
+source "$script_dir/env.sh"
 input_dir=""
 name="unknown"
 mail_addr=""
@@ -407,7 +409,7 @@ echo "============================="
 
 exp_path="$input_dir/train/$name/$model/run"
 if [ "$train_skip" != true ]; then
-  if ! [ -d "$exp_path" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
+  if ! [ -f "$exp_path/config.yml" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
     if [[ ${#train_args[@]} -gt 0 ]]; then
       echo "Train args: ${train_args[*]}"
     fi

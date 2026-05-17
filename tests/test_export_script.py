@@ -43,6 +43,8 @@ def _run_export_script(
         *extra_args,
     ]
     env = os.environ.copy()
+    env.setdefault("MINI_MESH_LOCAL_PREFIX", str(repo_root / ".local-does-not-exist-for-tests"))
+    env.setdefault("MINI_MESH_VENV_BIN", str(repo_root / ".venv-does-not-exist-for-tests" / "bin"))
     if env_overrides:
         env.update(env_overrides)
     return subprocess.run(
@@ -207,6 +209,89 @@ class TestExportScriptNerfGuards:
 
 class TestExportScriptNerfWorkflow:
     """Tests for NeRF export argument routing."""
+
+    def test_splat_export_uses_parent_model_name_for_run_timestamp(self, tmp_path: Path) -> None:
+        """Pipeline paths end in /run, but the model name is the parent directory."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export gaussian-splat" in log
+        assert "sdf-extract-mesh" not in log
+
+    def test_splat_mcmc_export_uses_parent_model_name_for_run_timestamp(
+        self, tmp_path: Path
+    ) -> None:
+        """splatfacto-mcmc should route through the Nerfstudio splat exporter."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto-mcmc" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export gaussian-splat" in log
+        assert "sdf-extract-mesh" not in log
+
+    def test_splatfacto_w_light_uses_local_exporter(self, tmp_path: Path) -> None:
+        """splatfacto-w-light needs the local duck-typed Gaussian exporter."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto-w-light" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+        python_stub = bin_dir / "python"
+        python_stub.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        python_stub.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert f"python {repo_root / 'scripts' / 'export_splatfactow.py'}" in log
+        assert "ns-export gaussian-splat" not in log
+        assert "sdf-extract-mesh" not in log
 
     def test_poisson_export_does_not_forward_bounding_box_args(self, tmp_path: Path) -> None:
         """Poisson export does not accept bounding-box min/max arguments."""

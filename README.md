@@ -55,6 +55,9 @@ This downloads the pre-built Docker image and runs the full pipeline. Add `--hel
 | `hummat/mini-mesh:latest` | ~11.6GB | Default — includes all features |
 | `hummat/mini-mesh:slim` | ~9GB | Limited VRAM or disk space (no rembg, nerfstudio, sam2, hloc, vggsfm) |
 
+The full image prebuilds CUDA wheels for `nvdiffrast` and `gsplat`, so texture baking and
+nerfstudio Gaussian splatting methods do not compile CUDA extensions at runtime.
+
 Also available on GitHub Container Registry: `ghcr.io/hummat/mini-mesh`
 
 To use slim:
@@ -87,40 +90,38 @@ See [CONTRIBUTING.md](/.github/CONTRIBUTING.md#docker) for build variants and op
 
 Requirements: Python 3.11, CUDA 12.4.1, COLMAP, GLOMAP, uv
 
-1. Install [Python 3.11](https://www.python.org/downloads/release/python-3110)
+This repository includes a local setup helper for the Web UI's `local` mode. It uses
+the active CUDA build environment, builds pinned PoseLib/COLMAP/GLOMAP into
+`.local/mini-mesh`, and installs the Python/CUDA stack into `.venv`.
 
-2. Install [CUDA Toolkit 12.4.1](https://developer.nvidia.com/cuda-toolkit)
+```bash
+cp .envrc.example .envrc
+# edit .envrc for your CUDA/GCC paths and GPU architecture
+direnv allow
+make build
+uv run python webui.py
+```
 
-3. Install [PoseLib](https://github.com/PoseLib/PoseLib) (optional but recommended):
+Manual setup requires:
 
-   ```bash
-   git clone https://github.com/PoseLib/PoseLib.git && cd PoseLib
-   git checkout 7e9f5f53372e43f89655040d4dfc4a00e5ace11c
-   # Build per PoseLib README
-   ```
-
-4. Install [COLMAP](https://colmap.github.io/install.html) and [GLOMAP](https://github.com/colmap/glomap):
-   - COLMAP: `c5f9cefc87e5dd596b638e4cee0ff543c7d14755` (≈ 3.12.6)
-   - GLOMAP: `0edb1b8435e0f9a594318908b81a31f078a51bf7` (≈ 1.2.0)
-
-5. Install Python dependencies:
-
-   ```bash
-   uv sync --extra local
-   ```
-
-6. Activate the virtual environment:
-
-   ```bash
-   source .venv/bin/activate
-   ```
+- Python 3.11 or 3.12 via uv
+- CUDA Toolkit 12.4.x in `CUDA_HOME`
+- GCC/G++ 12 for CUDA extension builds
+- System C++ headers/libraries for COLMAP/GLOMAP
+- `CUDA_HOME`, `CC`, `CXX`, `CUDAHOSTCXX`, `TORCH_CUDA_ARCH_LIST`, and `MAX_JOBS`
+  exported in `.envrc` or in the shell running `make build`
 
 </details>
 
 <details markdown="1">
 <summary><strong>Optional dependencies</strong></summary>
 
-If you used `uv sync --extra local`, these are already installed (except HLoc).
+`make build` installs the local optional stack used by Web UI `local` mode:
+nerfstudio, rembg, SAM2, VGGSfM, HLoc, tiny-cuda-nn, nvdiffrast, and gsplat.
+The CUDA extension sources are pinned to the same refs as the Docker image.
+
+For custom environments, install from the pinned refs used by `scripts/build.sh`
+and `pyproject.toml` instead of upstream HEAD. For example:
 
 ```bash
 # NeRF/splat models
@@ -140,7 +141,7 @@ uv pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031
 uv pip install git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834
 
 # GPU texture baking (nvdiffrast) - requires CUDA toolkit
-uv pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast.git
+uv pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast.git@253ac4fcea7de5f396371124af597e6cc957bfae
 ```
 
 </details>
@@ -151,8 +152,7 @@ uv pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast.git
 # Docker
 docker/run.sh /path/to/your/video/or/images
 
-# Manual
-source .venv/bin/activate  # if using uv
+# Manual/local
 scripts/run.sh /path/to/your/video/or/images
 ```
 
@@ -175,6 +175,11 @@ The final mesh appears next to your input. Steps already completed are skipped (
 | `neuralangelo` | Higher quality via multi-resolution features, slower |
 | `nerfacto` | View synthesis, not watertight meshes (requires nerfstudio) |
 | `splatfacto` | Fast view synthesis via point clouds (requires nerfstudio) |
+| `splatfacto-w-light` | Splatfacto-W variant compatible with mini-mesh/Nerfstudio data |
+
+Full `splatfacto-w` is intentionally not exposed: it expects the plugin's
+Phototourism/Nerf-W dataparser and dataset layout, not mini-mesh's processed
+`transforms.json` data.
 
 **Config suffixes:** `-test` (3K iters), `-min` (7K), `-short` (10-30K), (none) (100K), `-long` (200K+)
 

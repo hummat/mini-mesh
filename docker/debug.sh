@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Debug helper to reproduce the builder + runtime stages from
-# docker/Dockerfile (PoseLib -> COLMAP -> GLOMAP -> tiny-cuda-nn ->
-# Python deps) inside an interactive container.
+# docker/Dockerfile inside an interactive container: builder dependencies,
+# PoseLib/COLMAP/GLOMAP, CUDA extension wheels, runtime libraries, wheel
+# installs, then Python dependencies.
 #
 # Usage (inside a container based on pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
 # or a close equivalent):
@@ -14,7 +15,6 @@ set -euo pipefail
 # You can override these environment variables (must roughly match
 # docker/Dockerfile):
 #   TORCH_CUDA_ARCH_LIST (default: 75,80,86,89)
-#   MARCH_NATIVE         (default: ON)
 #   MAX_JOBS             (default: 8)
 #   WORKDIR              (default: current working directory)
 #   INSTALL_OPTIONAL_DEPS (default: ON)
@@ -31,6 +31,8 @@ COMPILE_POSELIB="${COMPILE_POSELIB:-ON}"
 COMPILE_COLMAP="${COMPILE_COLMAP:-ON}"
 COMPILE_GLOMAP="${COMPILE_GLOMAP:-ON}"
 COMPILE_TCNN="${COMPILE_TCNN:-ON}"
+COMPILE_NVDIFFRAST="${COMPILE_NVDIFFRAST:-ON}"
+COMPILE_GSPLAT="${COMPILE_GSPLAT:-ON}"
 INSTALL_SDFSTUDIO="${INSTALL_SDFSTUDIO:-ON}"
 
 run_step() {
@@ -57,6 +59,8 @@ echo "COMPILE_POSELIB       = ${COMPILE_POSELIB}"
 echo "COMPILE_COLMAP        = ${COMPILE_COLMAP}"
 echo "COMPILE_GLOMAP        = ${COMPILE_GLOMAP}"
 echo "COMPILE_TCNN          = ${COMPILE_TCNN}"
+echo "COMPILE_NVDIFFRAST    = ${COMPILE_NVDIFFRAST}"
+echo "COMPILE_GSPLAT        = ${COMPILE_GSPLAT}"
 echo "INSTALL_SDFSTUDIO     = ${INSTALL_SDFSTUDIO}"
 echo
 
@@ -65,6 +69,8 @@ echo
 : "${COLMAP_REF:=c5f9cefc87e5dd596b638e4cee0ff543c7d14755}"   # ~= COLMAP 3.12.6
 : "${GLOMAP_REF:=0edb1b8435e0f9a594318908b81a31f078a51bf7}"   # ~= GLOMAP 1.2.0
 : "${TCNN_REF:=32507f059d7abc8c13f5df81ea9597b70923ee44}"     # ~= tiny-cuda-nn 1.7
+: "${NVDIFFRAST_REF:=253ac4fcea7de5f396371124af597e6cc957bfae}"
+: "${GSPLAT_VERSION:=1.4.0}"
 
 if [ "${INSTALL_SYSTEM_DEPS}" = "ON" ]; then
   echo "=== Step 0: install build dependencies (Dockerfile builder stage) ==="
@@ -108,7 +114,7 @@ git --version || true
 nvidia-smi || true
 echo
 
-mkdir -p "${WORKDIR}/git"
+mkdir -p "${WORKDIR}/git" "${WORKDIR}/wheels"
 cd "${WORKDIR}/git"
 
 if [ "${COMPILE_POSELIB}" = "ON" ]; then
@@ -202,6 +208,34 @@ else
   echo "=== Step 4: SKIPPED (COMPILE_TCNN=${COMPILE_TCNN}) ==="
 fi
 
+if [ "${COMPILE_NVDIFFRAST}" = "ON" ]; then
+  echo "=== Step 4d: build nvdiffrast wheel (exact Dockerfile ref) ==="
+  rm -rf nvdiffrast
+  run_step 4d1 "clone nvdiffrast" git clone https://github.com/NVlabs/nvdiffrast.git
+  cd nvdiffrast
+  run_step 4d2 "checkout nvdiffrast ref" git checkout "${NVDIFFRAST_REF}"
+  echo "nvdiffrast HEAD: $(git rev-parse HEAD)" || true
+  run_step 4d3 "build nvdiffrast wheel" bash -c 'TORCH_CUDA_ARCH_LIST="'"${TORCH_CUDA_ARCH_LIST}"'" MAX_JOBS="'"${MAX_JOBS}"'" pip wheel . --no-build-isolation --no-deps -w "'"${WORKDIR}/wheels"'"'
+  cd "${WORKDIR}/git"
+  echo
+else
+  echo "=== Step 4d: SKIPPED (COMPILE_NVDIFFRAST=${COMPILE_NVDIFFRAST}) ==="
+fi
+
+if [ "${COMPILE_GSPLAT}" = "ON" ]; then
+  echo "=== Step 4e: build gsplat wheel (exact Dockerfile version) ==="
+  rm -rf gsplat
+  run_step 4e1 "clone gsplat" git clone https://github.com/nerfstudio-project/gsplat.git
+  cd gsplat
+  run_step 4e2 "checkout gsplat tag" git checkout "v${GSPLAT_VERSION}"
+  echo "gsplat HEAD: $(git rev-parse HEAD)" || true
+  run_step 4e3 "build gsplat wheel" bash -c 'TORCH_CUDA_ARCH_LIST="'"${TORCH_CUDA_ARCH_LIST}"'" MAX_JOBS="'"${MAX_JOBS}"'" pip wheel . --no-build-isolation --no-deps -w "'"${WORKDIR}/wheels"'"'
+  cd "${WORKDIR}/git"
+  echo
+else
+  echo "=== Step 4e: SKIPPED (COMPILE_GSPLAT=${COMPILE_GSPLAT}) ==="
+fi
+
 if [ "${INSTALL_SYSTEM_DEPS}" = "ON" ]; then
   echo "=== Step 5: install runtime libraries (Dockerfile runtime stage) ==="
   run_step 5 "apt-get runtime libs (core)" bash -c '
@@ -242,6 +276,19 @@ else
   echo "=== Step 6: SKIPPED (COMPILE_TCNN=${COMPILE_TCNN}) ==="
 fi
 
+if [ "${COMPILE_NVDIFFRAST}" = "ON" ]; then
+  echo "=== Step 6a: install nvdiffrast wheel into Python env ==="
+  NVDIFFRAST_WHL="$(find "${WORKDIR}/wheels" -maxdepth 1 -type f -name 'nvdiffrast*.whl' | head -n 1 || true)"
+  if [ -z "${NVDIFFRAST_WHL}" ]; then
+    echo "ERROR: nvdiffrast wheel not found under ${WORKDIR}/wheels" >&2
+    exit 1
+  fi
+  echo "Installing wheel: ${NVDIFFRAST_WHL}"
+  run_step 6a "pip install nvdiffrast wheel" pip install --no-cache-dir "${NVDIFFRAST_WHL}"
+else
+  echo "=== Step 6a: SKIPPED (COMPILE_NVDIFFRAST=${COMPILE_NVDIFFRAST}) ==="
+fi
+
 echo
 if [ "${INSTALL_SDFSTUDIO}" = "ON" ]; then
   echo "=== Step 7: install sdfstudio (Dockerfile match, constraints approximated) ==="
@@ -258,6 +305,16 @@ if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
   echo "=== Step 8a: rembg ==="
   run_step 8a "pip install rembg" pip install --no-cache-dir --no-build-isolation \
     "rembg[gpu,cli]"
+
+  if [ "${COMPILE_GSPLAT}" = "ON" ]; then
+    echo "=== Step 8b0: gsplat ==="
+    GSPLAT_WHL="$(find "${WORKDIR}/wheels" -maxdepth 1 -type f -name 'gsplat*.whl' | head -n 1 || true)"
+    if [ -z "${GSPLAT_WHL}" ]; then
+      echo "ERROR: gsplat wheel not found under ${WORKDIR}/wheels" >&2
+      exit 1
+    fi
+    run_step 8b0 "pip install gsplat wheel" pip install --no-cache-dir "${GSPLAT_WHL}"
+  fi
 
   echo "=== Step 8b: nerfstudio ==="
   run_step 8b "pip install nerfstudio" pip install --no-cache-dir --no-build-isolation \
@@ -294,3 +351,4 @@ echo "  PoseLib  : ${WORKDIR}/poselib"
 echo "  COLMAP   : ${WORKDIR}/colmap"
 echo "  GLOMAP   : ${WORKDIR}/glomap"
 echo "  tcnn whl : ${WORKDIR}/tiny-cuda-nn/bindings/torch/dist"
+echo "  wheels   : ${WORKDIR}/wheels"

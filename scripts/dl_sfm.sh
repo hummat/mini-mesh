@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/env.sh
+source "$script_dir/env.sh"
+
 function show_help {
   echo "Usage: $0 <path-to-images> [options]"
   echo

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/env.sh
+source "$script_dir/env.sh"
+
 if ! command -v colmap &> /dev/null; then
   echo "[ERROR]: COLMAP binary could not be found."
   exit 1

@@ -11,7 +11,7 @@ mini-mesh (scripts/*.sh, webui.py)
 ├── hummat/sdfstudio ........... neural surface reconstruction (sdf-train, sdf-extract-mesh, sdf-texture-mesh)
 │   └── tiny-cuda-nn .......... multi-resolution hash encoding (built from source)
 ├── hummat/nerfstudio .......... NeRF/splat methods (ns-train, ns-export)
-│   └── gsplat ................. CUDA Gaussian splatting kernels (pip wheel)
+│   └── gsplat ................. CUDA Gaussian splatting kernels (built locally/Docker wheel)
 ├── COLMAP ..................... classical SfM (feature extraction, matching, mapping)
 ├── GLOMAP ..................... global SfM mapper (alternative to COLMAP's incremental mapper)
 ├── PoseLib .................... C++ pose estimation library (used by COLMAP/GLOMAP)
@@ -38,7 +38,7 @@ mini-mesh (scripts/*.sh, webui.py)
 Key fork changes:
 - Modernized PyTorch (GradScaler, autocast imports for current PyTorch)
 - RTX 40XX support via configurable CUDA arch lists
-- Added `cuda-build` extra for tinycudann + nvdiffrast
+- Expects local/Docker builds to prebuild tiny-cuda-nn and nvdiffrast before install
 - Portable config paths and `--data` override for cross-environment usage
 - PBR/GLB export fixes (dielectric defaults, metallic channel)
 - CPU/CUDA variant selection via pip extras
@@ -103,14 +103,17 @@ extraction and matching through a COLMAP-like SfM pipeline.
 ## C/C++ Dependencies (built from source)
 
 These are compiled in the Docker builder stage and copied to the runtime image.
+For Web UI `local` mode, `scripts/build.sh` builds the same pinned refs into
+`.local/mini-mesh` and the repo `.venv`.
 
 | Dependency | Pinned commit | Version | Purpose |
 |---|---|---|---|
 | [COLMAP](https://github.com/colmap/colmap) | `c5f9cefc` | ~3.12.6 | Feature extraction, matching, incremental mapping |
 | [GLOMAP](https://github.com/colmap/glomap) | `0edb1b84` | ~1.2.0 | Global SfM mapper (faster, more robust than COLMAP mapper) |
 | [PoseLib](https://github.com/PoseLib/PoseLib) | `7e9f5f53` | 2.0.2 | Minimal pose solvers (used by COLMAP/GLOMAP) |
-| [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn) | latest | — | Multi-resolution hash encoding (used by sdfstudio) |
-| [nvdiffrast](https://github.com/NVlabs/nvdiffrast) | latest | — | GPU-accelerated rasterization for texture baking |
+| [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn) | `32507f0` | ~1.7 | Multi-resolution hash encoding (used by sdfstudio) |
+| [nvdiffrast](https://github.com/NVlabs/nvdiffrast) | `253ac4f` | — | GPU-accelerated rasterization for texture baking |
+| [gsplat](https://github.com/nerfstudio-project/gsplat) | `v1.4.0` | 1.4.0 | CUDA Gaussian splatting kernels (used by nerfstudio) |
 
 ## Stale Branches
 
@@ -132,12 +135,13 @@ need rebasing onto current `main` and re-evaluation of the integration approach.
 
 ## Version Pins
 
-All Python fork dependencies are pinned to specific commits in `pyproject.toml`
-(lines 42–71). C/C++ dependencies are pinned in the `Dockerfile` and
-`README.md` manual install instructions.
+All Python fork dependencies are pinned to specific commits in `pyproject.toml`.
+C/C++ and CUDA extension dependencies are pinned in `docker/Dockerfile` and
+`scripts/build.sh`.
 
 When updating a pin, check:
 1. The fork's commit history for breaking changes
 2. `docker/Dockerfile` build commands
-3. `README.md` manual install instructions
-4. `pyproject.toml` optional dependency URLs
+3. `scripts/build.sh` local build refs
+4. `README.md` manual install instructions
+5. `pyproject.toml` optional dependency URLs

@@ -1,0 +1,19 @@
+# Copy to .envrc and adapt to your host toolchain.
+#
+# scripts/build.sh reads these environment variables. direnv is convenient, but
+# not required; exporting the same variables in your shell is equivalent.
+
+export CUDA_HOME=/usr/local/cuda-12.4
+export CC=gcc-12
+export CXX=g++-12
+export CUDAHOSTCXX=g++-12
+
+# Match your GPU architecture list. Examples:
+#   RTX 30xx: 8.6
+#   RTX 40xx: 8.9
+#   Docker default multi-arch build: 7.5;8.0;8.6;8.9
+export TORCH_CUDA_ARCH_LIST=8.9
+export MAX_JOBS=8
+
+export PATH="$CUDA_HOME/bin:$PATH"
+export LD_LIBRARY_PATH="$CUDA_HOME/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
