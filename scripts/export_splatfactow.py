@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
-import torch
 
 
 def _console_print(message: str) -> None:
@@ -36,6 +35,8 @@ def _add_sh_coefficients(
 
 
 def _add_rgb(model: object, map_to_tensors: OrderedDict[str, np.ndarray]) -> None:
+    import torch
+
     if hasattr(model, "colors"):
         colors_tensor = model.colors  # type: ignore[attr-defined]
     else:
@@ -95,6 +96,8 @@ def export_splatfactow(
     obb_rotation: tuple[float, float, float] | None,
     obb_scale: tuple[float, float, float] | None,
 ) -> None:
+    import torch
+
     from nerfstudio.data.scene_box import OrientedBox
     from nerfstudio.scripts.exporter import ExportGaussianSplat
     from nerfstudio.utils.eval_utils import eval_setup
