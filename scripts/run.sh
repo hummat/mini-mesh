@@ -46,6 +46,17 @@ run_cmd() {
   "$@"
 }
 
+experiment_model_dir_name() {
+  case "$1" in
+    splatfacto-mcmc)
+      echo "splatfacto"
+      ;;
+    *)
+      echo "$1"
+      ;;
+  esac
+}
+
 function show_help {
   echo "Usage: $0 <input_path> [options] [contexts] [args...]"
   echo
@@ -414,7 +425,8 @@ echo "============================="
 echo "          4. TRAIN           "
 echo "============================="
 
-exp_path="$input_dir/train/$name/$model/run"
+exp_model=$(experiment_model_dir_name "$model")
+exp_path="$input_dir/train/$name/$exp_model/run"
 if [ "$train_skip" != true ]; then
   if ! [ -f "$exp_path/config.yml" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
     if [[ ${#train_args[@]} -gt 0 ]]; then

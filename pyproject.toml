@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mini-mesh"
-version = "0.4.1"
+version = "0.4.2"
 description = "Video to 3D mesh reconstruction pipeline"
 readme = "README.md"
 license = "MIT"
@@ -44,6 +44,7 @@ dependencies = ["gradio>=4.0.0"]
 # wheels that sdfstudio expects but cannot resolve correctly from PyPI.
 core = [
     "numpy<2",
+    "pillow==12.1.0",
     "scikit-build-core>=0.11",
     "pybind11>=2.6",
     "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0",

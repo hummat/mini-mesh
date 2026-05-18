@@ -521,6 +521,133 @@ class TestTrainScript:
         assert "--max-num-iterations 30001" in log
         assert "--steps-per-save 2000" in log
         assert "--vis viewer" in log
+        assert "--viewer.quit-on-train-completion True" in log
+
+    def test_train_viewer_disables_torch_compile_for_nerfstudio(self, tmp_path: Path) -> None:
+        """Viewer mode should avoid TorchDynamo render-thread failures in Nerfstudio."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_viewer_compile.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+        ns_train = bin_dir / "ns-train"
+        ns_train.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    f'echo "$0 $*" >> "{log_path}"',
+                    f'echo "TORCH_COMPILE_DISABLE=${{TORCH_COMPILE_DISABLE-}}" >> "{log_path}"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        ns_train.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-mcmc",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-mcmc-short",
+                "--vis",
+                "viewer",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train splatfacto-mcmc" in log
+        assert "--vis viewer" in log
+        assert "--viewer.quit-on-train-completion True" in log
+        assert "TORCH_COMPILE_DISABLE=1" in log
+
+    def test_train_viewer_respects_explicit_quit_on_completion(self, tmp_path: Path) -> None:
+        """Explicit viewer lifetime settings should not be overwritten."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_viewer_quit_override.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-mcmc",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-mcmc-short",
+                "--vis",
+                "viewer",
+                "--viewer.quit-on-train-completion",
+                "False",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "--viewer.quit-on-train-completion False" in log
+        assert "--viewer.quit-on-train-completion True" not in log
+
+    def test_train_tensorboard_keeps_torch_compile_default(self, tmp_path: Path) -> None:
+        """Non-viewer training should leave torch.compile behavior to upstream defaults."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_tensorboard_compile.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+        ns_train = bin_dir / "ns-train"
+        ns_train.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    f'echo "$0 $*" >> "{log_path}"',
+                    f'echo "TORCH_COMPILE_DISABLE=${{TORCH_COMPILE_DISABLE-}}" >> "{log_path}"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        ns_train.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-mcmc",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-mcmc-short",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train splatfacto-mcmc" in log
+        assert "TORCH_COMPILE_DISABLE=" in log
+        assert "TORCH_COMPILE_DISABLE=1" not in log
 
 
 class TestRunScript:
@@ -569,7 +696,7 @@ class TestRunScript:
                         "fi",
                     ]
                 )
-            elif name == "sdf-train":
+            elif name in ("sdf-train", "ns-train"):
                 body = "\n".join(
                     [
                         "#!/usr/bin/env bash",
@@ -589,6 +716,7 @@ class TestRunScript:
                         "  esac",
                         "done",
                         'if [ -n "$out_dir" ] && [ -n "$exp_name" ] && [ -n "$model" ]; then',
+                        '  if [ "$model" = "splatfacto-mcmc" ]; then model="splatfacto"; fi',
                         '  exp_path="$out_dir/$exp_name/$model/run"',
                         '  mkdir -p "$exp_path"',
                         '  echo "dummy: true" > "$exp_path/config.yml"',
@@ -745,6 +873,101 @@ class TestRunScript:
         log = log_path.read_text(encoding="utf-8")
         assert "sdf-train neus-facto" not in log
         assert "sdf-extract-mesh" in log
+
+    def test_run_script_exports_splatfacto_mcmc_from_nerfstudio_method_dir(
+        self, tmp_path: Path
+    ) -> None:
+        """splatfacto-mcmc trains with that CLI name but writes under splatfacto/run."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_splatfacto_mcmc.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "--skip",
+                "train",
+                "--model",
+                "splatfacto-mcmc",
+                "--name",
+                "firebrigade",
+                "--config",
+                "splatfacto-mcmc-short",
+                "export",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        exp_path = scene_dir / "train" / "firebrigade" / "splatfacto" / "run"
+        assert (exp_path / "config.yml").is_file()
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train splatfacto-mcmc" in log
+        assert f"--load-config {exp_path / 'config.yml'}" in log
+        assert "ns-export gaussian-splat" in log
+
+    def test_run_script_skips_splatfacto_mcmc_when_method_dir_config_exists(
+        self, tmp_path: Path
+    ) -> None:
+        """Existing splatfacto/run config should satisfy a splatfacto-mcmc run."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        exp_path = scene_dir / "train" / "firebrigade" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_splatfacto_mcmc_skip.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "--skip",
+                "train",
+                "--model",
+                "splatfacto-mcmc",
+                "--name",
+                "firebrigade",
+                "--config",
+                "splatfacto-mcmc-short",
+                "export",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train splatfacto-mcmc" not in log
+        assert f"--load-config {exp_path / 'config.yml'}" in log
 
     def test_run_script_rejects_full_splatfacto_w_before_pipeline_stages(
         self, tmp_path: Path

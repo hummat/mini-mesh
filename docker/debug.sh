@@ -23,6 +23,7 @@ set -euo pipefail
 
 CMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES:-75;80;86;89}"
 TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-7.5;8.0;8.6;8.9+PTX}"
+PILLOW_VERSION="${PILLOW_VERSION:-12.1.0}"
 CXXFLAGS="${CXXFLAGS:--O3 -DNDEBUG}"
 MAX_JOBS="${MAX_JOBS:-8}"
 WORKDIR="${WORKDIR:-$PWD}"
@@ -54,6 +55,7 @@ echo "=== debug.sh: settings ==="
 echo "WORKDIR               = ${WORKDIR}"
 echo "CMAKE_CUDA_ARCHITECTURES = ${CMAKE_CUDA_ARCHITECTURES}"
 echo "TORCH_CUDA_ARCH_LIST  = ${TORCH_CUDA_ARCH_LIST}"
+echo "PILLOW_VERSION        = ${PILLOW_VERSION}"
 echo "CXXFLAGS              = ${CXXFLAGS}"
 echo "MAX_JOBS              = ${MAX_JOBS}"
 echo "INSTALL_OPTIONAL_DEPS = ${INSTALL_OPTIONAL_DEPS}"
@@ -297,6 +299,7 @@ echo
 if [ "${INSTALL_SDFSTUDIO}" = "ON" ]; then
   echo "=== Step 7: install sdfstudio (Dockerfile match, constraints approximated) ==="
   run_step 7 "pip install sdfstudio" pip install --no-cache-dir \
+    "pillow==${PILLOW_VERSION}" \
     git+https://github.com/hummat/sdfstudio.git@v0.8.0
 else
   echo "=== Step 7: SKIPPED (INSTALL_SDFSTUDIO=${INSTALL_SDFSTUDIO}) ==="

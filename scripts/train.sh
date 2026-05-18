@@ -110,6 +110,36 @@ route_args() {
   done
 }
 
+find_command_option_value() {
+  local option="$1"
+  local value=""
+  local i=0
+  while [[ $i -lt ${#COMMAND[@]} ]]; do
+    if [[ "${COMMAND[$i]}" = "$option" && $((i + 1)) -lt ${#COMMAND[@]} ]]; then
+      value="${COMMAND[$((i + 1))]}"
+      i=$((i + 2))
+    else
+      i=$((i + 1))
+    fi
+  done
+  printf '%s\n' "$value"
+}
+
+find_array_option_value() {
+  local option="$1"
+  shift
+  local value=""
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" = "$option" && $# -gt 1 ]]; then
+      value="$2"
+      shift 2
+    else
+      shift
+    fi
+  done
+  printf '%s\n' "$value"
+}
+
 ARGS=()
 DATA_ARGS=()
 route_args ARGS DATA_ARGS "$@"
@@ -118,6 +148,11 @@ route_args ARGS DATA_ARGS "$@"
 CONFIG_ARGS=()
 DATA_CONFIG_ARGS=()
 route_args CONFIG_ARGS DATA_CONFIG_ARGS "${CONFIG[@]}"
+
+if [[ "$(find_array_option_value --vis "${CONFIG_ARGS[@]}" "${ARGS[@]}")" = viewer ]] \
+  && [[ -z "$(find_array_option_value --viewer.quit-on-train-completion "${CONFIG_ARGS[@]}" "${ARGS[@]}")" ]]; then
+  ARGS+=("--viewer.quit-on-train-completion" "True")
+fi
 
 # Debug: show argument routing
 [[ ${#DATA_ARGS[@]} -gt 0 ]] && echo "[DEBUG] Data args (CLI): ${DATA_ARGS[*]}"
@@ -158,6 +193,11 @@ else
     "${DATA_CONFIG_ARGS[@]}"
     "${DATA_ARGS[@]}"
   )
+fi
+
+if [[ "$(find_command_option_value --vis)" = viewer && -z "${TORCH_COMPILE_DISABLE+x}" ]]; then
+  export TORCH_COMPILE_DISABLE=1
+  echo "[INFO] Disabled torch.compile for viewer mode to avoid Nerfstudio render-thread compile interrupts."
 fi
 
 if [ -z "$SLURM_JOB_NAME" ]; then

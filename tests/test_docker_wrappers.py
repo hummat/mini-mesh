@@ -103,6 +103,27 @@ def test_run_wrapper_uses_repo_scripts_and_normalizes_relative_input(tmp_path: P
     assert "-it" not in docker_args
 
 
+def test_run_wrapper_masks_host_checkout_dependency_paths(tmp_path: Path) -> None:
+    """Mounted repo scripts should still use the container Python and system deps."""
+    repo_root = Path(__file__).resolve().parents[1]
+    input_path = tmp_path / "input.mp4"
+    input_path.write_bytes(b"")
+
+    result, docker_args, _ = _run_wrapper(
+        repo_root,
+        "run.sh",
+        [str(input_path), "--help"],
+        tmp_path,
+        env_overrides={"MINI_MESH_IMAGE": "hummat/mini-mesh:test"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"{repo_root}:/app" in docker_args
+    assert "/app/scripts/run.sh" in docker_args
+    assert "MINI_MESH_VENV_BIN=/opt/conda/bin" in docker_args
+    assert "MINI_MESH_LOCAL_PREFIX=/usr/local" in docker_args
+
+
 def test_run_wrapper_can_use_baked_image_scripts(tmp_path: Path) -> None:
     """Image app mode should not bind-mount the checkout."""
     repo_root = Path(__file__).resolve().parents[1]

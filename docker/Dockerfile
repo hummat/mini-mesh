@@ -157,6 +157,7 @@ LABEL org.opencontainers.image.source="https://github.com/hummat/mini-mesh"
 
 ARG MAX_JOBS=8
 ARG WITH_GUI=ON
+ARG PILLOW_VERSION=12.1.0
 
 # Make PyTorch's vendored CUDA runtime visible to non-Python binaries (COLMAP, etc.)
 ENV LD_LIBRARY_PATH=/opt/conda/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
@@ -203,6 +204,7 @@ RUN pip list --format=json | python -c 'import sys, json; \
     keys = {"torch", "torchvision", "torch-tensorrt"}; \
     print("\n".join(["{}=={}".format(p["name"], p["version"]) for p in json.load(sys.stdin) if p["name"] in keys]))' \
     > /tmp/constraints.txt && \
+    printf 'pillow==%s\n' "${PILLOW_VERSION}" >> /tmp/constraints.txt && \
     test -s /tmp/constraints.txt
 
 COPY --from=builder /workspace/tinycudann*.whl /workspace/nvdiffrast*.whl /tmp/
@@ -218,6 +220,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pybind11>=2.6 \
     ninja==1.13.0 \
     "numpy<2" \
+    "pillow==${PILLOW_VERSION}" \
     "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
 
 # Build tools only if optional deps enabled (SAM2 JIT-compiles CUDA extension at runtime)

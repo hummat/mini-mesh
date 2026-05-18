@@ -1656,7 +1656,7 @@ wheels = [
 
 [[package]]
 name = "mini-mesh"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "." }
 dependencies = [
     { name = "gradio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1665,6 +1665,7 @@ dependencies = [
 [package.optional-dependencies]
 core = [
     { name = "numpy", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pillow", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pybind11", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "scikit-build-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sdfstudio", extra = ["cuda", "export"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1672,6 +1673,7 @@ core = [
 local = [
     { name = "nerfstudio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "numpy", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pillow", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pybind11", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "rembg", extra = ["cli", "gpu"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sam2", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1707,6 +1709,7 @@ requires-dist = [
     { name = "mini-mesh", extras = ["core", "rembg", "nerf", "sam", "vggsfm"], marker = "extra == 'local'" },
     { name = "nerfstudio", marker = "extra == 'nerf'", git = "https://github.com/hummat/nerfstudio.git?rev=55a1f83025bb28cbf792760c9b79f9eb22c3a2e4" },
     { name = "numpy", marker = "extra == 'core'", specifier = "<2" },
+    { name = "pillow", marker = "extra == 'core'", specifier = "==12.1.0" },
     { name = "pybind11", marker = "extra == 'core'", specifier = ">=2.6" },
     { name = "rembg", extras = ["gpu", "cli"], marker = "extra == 'rembg'", specifier = "==2.0.69" },
     { name = "sam2", marker = "extra == 'sam'", git = "https://github.com/hummat/sam2.git?rev=98f488a540f87260b8e51146dc3ab15694dd174c" },

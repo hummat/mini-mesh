@@ -92,6 +92,20 @@ class TestDockerfileCudaWheels:
         core_deps = dockerfile.index("# Core Python deps that must not disturb the torch stack")
         assert "ninja==1.13.0" in dockerfile[core_deps:]
 
+    def test_runtime_pins_pillow_below_nerfstudio_setimage_break(self) -> None:
+        """Pillow 12.2 changed a low-level encoder API used by this Nerfstudio pin."""
+        dockerfile = _dockerfile_text()
+
+        constraints = dockerfile.index("> /tmp/constraints.txt")
+        core_deps = dockerfile.index("# Core Python deps that must not disturb the torch stack")
+
+        assert "ARG PILLOW_VERSION=12.1.0" in dockerfile
+        assert (
+            "printf 'pillow==%s\\n' \"${PILLOW_VERSION}\" >> /tmp/constraints.txt"
+            in dockerfile[constraints:]
+        )
+        assert '"pillow==${PILLOW_VERSION}"' in dockerfile[core_deps:]
+
     def test_runtime_asserts_cuda_wheel_presence(self) -> None:
         """Missing copied wheels should fail before pip sees an unresolved glob."""
         dockerfile = _dockerfile_text()
