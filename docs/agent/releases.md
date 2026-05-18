@@ -169,7 +169,7 @@ docker login                      # Docker Hub
 docker login ghcr.io -u USERNAME  # GHCR (use GitHub PAT with packages:write)
 
 # 4. Tag and push to both registries
-docker/publish.sh 0.3.1
+docker/publish.sh <version>
 ```
 
 The script tags and pushes `latest`, `VERSION`, `slim`, and `VERSION-slim` to both Docker Hub and GHCR.

@@ -19,6 +19,9 @@ Options:
   --no-gui           Build COLMAP without GUI
   --help             Show this help
 
+Environment:
+  MINI_MESH_DOCKER_BUILD_NETWORK  Optional docker build network mode, e.g. host
+
 Examples:
   docker/build.sh                    # Build full image
   docker/build.sh slim               # Build slim image
@@ -161,4 +164,9 @@ case "$VARIANT" in
 esac
 
 echo "Building $TAG..."
-docker build -t "$TAG" -f "$SCRIPT_DIR/Dockerfile" "${BUILD_ARGS[@]}" "$REPO_ROOT"
+DOCKER_ARGS=(build -t "$TAG" -f "$SCRIPT_DIR/Dockerfile")
+if [[ -n "${MINI_MESH_DOCKER_BUILD_NETWORK:-}" ]]; then
+  DOCKER_ARGS+=(--network "$MINI_MESH_DOCKER_BUILD_NETWORK")
+fi
+
+DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}" docker "${DOCKER_ARGS[@]}" "${BUILD_ARGS[@]}" "$REPO_ROOT"

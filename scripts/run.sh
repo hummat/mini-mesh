@@ -96,6 +96,7 @@ function show_help {
   echo "                       --normal-map-convention <str>              Normal map convention: opengl, directx (default: opengl)"
   echo "                       --appearance-idx <int>                     Camera index for appearance embedding"
   echo "                       --method <str>                             NeRF export: poisson, tsdf, pointcloud (default: poisson)"
+  echo "                       --obb-rotation <float float float>          Rotation of oriented bounding-box (default: 0 0 0)"
   echo "                       --mesh-only                                Extract mesh but skip texturing (SDF only)"
   echo "                       --texture-only                             Texture existing mesh, skip extraction (SDF only)"
   echo "                       --input-mesh-filename <path>               Custom mesh file for texturing (requires --texture-only)"
@@ -289,6 +290,12 @@ if [ -n "$mail_addr" ]; then
   logfile="$input_dir/run.log"
   exec > >(tee -a "$logfile") 2>&1
   verbose_echo "Logging to $logfile, will email $mail_addr on completion"
+fi
+
+if [ "$model" = splatfacto-w ]; then
+  echo "[ERROR] splatfacto-w requires the plugin's splatfactow_dataparser and Phototourism/Nerf-W data layout." >&2
+  echo "        mini-mesh produces Nerfstudio data; use --model splatfacto-w-light instead." >&2
+  exit 1
 fi
 
 echo "Global args: ${global_args[*]}"

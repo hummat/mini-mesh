@@ -67,16 +67,16 @@ docker pull hummat/mini-mesh:slim
 MINI_MESH_IMAGE=hummat/mini-mesh:slim docker/run.sh /path/to/input
 ```
 
-If `MINI_MESH_IMAGE` is unset and `hummat/mini-mesh:local` exists, the wrappers
-use the local image and print that choice. Set `MINI_MESH_IMAGE` to force a
-specific image.
+The wrappers use `hummat/mini-mesh:latest` unless `MINI_MESH_IMAGE` is set. To
+run a locally built image, use `MINI_MESH_USE_LOCAL_IMAGE=1`.
 
 </details>
 
 <details markdown="1">
 <summary><strong>Building custom images</strong></summary>
 
-The pre-built image supports GPUs from GTX 16XX/RTX 20XX to RTX 40XX (compute capabilities 7.5–8.9).
+The pre-built image includes native CUDA code for compute capabilities 7.5, 8.0,
+8.6, and 8.9, plus PyTorch-extension PTX for 8.9.
 
 ```bash
 docker/build.sh local  # Build optimized for your GPU
@@ -84,7 +84,9 @@ docker/build.sh local  # Build optimized for your GPU
 
 See [CONTRIBUTING.md](/.github/CONTRIBUTING.md#docker) for build variants and options.
 
-**RTX 50XX (Blackwell) not yet supported** — requires CUDA 12.8+ and PyTorch with sm_120 support. Track [PyTorch#159207](https://github.com/pytorch/pytorch/issues/159207) for updates.
+**RTX 50XX (Blackwell):** not a native target in the published image. The PTX
+fallback may work with a new enough driver, but the reliable path is a custom
+CUDA/PyTorch stack with native Blackwell support.
 
 </details>
 
@@ -134,7 +136,7 @@ and `pyproject.toml` instead of upstream HEAD. For example:
 uv pip install git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
 
 # Background masking
-uv pip install "rembg[gpu,cli]"
+uv pip install "rembg[gpu,cli]==2.0.69"
 uv pip install git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c
 
 # Advanced SfM (HLoc) - requires manual clone
@@ -182,9 +184,10 @@ Environment variables:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `MINI_MESH_IMAGE` | local image if present, else `hummat/mini-mesh:latest` | Docker image to run |
+| `MINI_MESH_IMAGE` | `hummat/mini-mesh:latest` | Docker image to run |
+| `MINI_MESH_USE_LOCAL_IMAGE` | `off` | Use `hummat/mini-mesh:local`; fails if the image is missing |
 | `MINI_MESH_DOCKER_APP` | `repo` | `repo` runs `/app/scripts/run.sh`; `image` runs the baked `/opt/mini-mesh/scripts/run.sh` |
-| `MINI_MESH_DOCKER_TTY` | `auto` for `run.sh`; `on` for interactive `start.sh` | `auto`, `on`, or `off` |
+| `MINI_MESH_DOCKER_TTY` | `auto` for `run.sh`; `on` for `start.sh` without a command; otherwise `auto` | `auto`, `on`, or `off` |
 | `MINI_MESH_DOCKER_X11` | `auto` | `auto`, `on`, or `off` for COLMAP GUI/X11 forwarding |
 | `MINI_MESH_DOCKER_PORT` | `7007` | Host port mapped to container port `7007`; use `none` to disable |
 

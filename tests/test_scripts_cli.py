@@ -699,3 +699,87 @@ class TestRunScript:
         log = log_path.read_text(encoding="utf-8")
         assert "sdf-train neus-facto" in log
         assert (exp_path / "config.yml").is_file()
+
+    def test_run_script_skips_train_when_config_exists(self, tmp_path: Path) -> None:
+        """A completed experiment directory should not retrain unless overwritten."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        exp_path = scene_dir / "train" / "be_prepared" / "neus-facto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_skip_train.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "--skip",
+                "train",
+                "--model",
+                "neus-facto",
+                "--name",
+                "be_prepared",
+                "--config",
+                "neus-facto-short",
+                "export",
+                "--mesh-only",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-train neus-facto" not in log
+        assert "sdf-extract-mesh" in log
+
+    def test_run_script_rejects_full_splatfacto_w_before_pipeline_stages(
+        self, tmp_path: Path
+    ) -> None:
+        """The unsupported W variant should fail before video/SfM/process work starts."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_full_splatfactow.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "process",
+                "train",
+                "--model",
+                "splatfacto-w",
+                "export",
+            ],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "splatfacto-w requires the plugin's splatfactow_dataparser" in result.stderr
+
+        log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        assert "sdf-process-data" not in log
+        assert "ns-train" not in log

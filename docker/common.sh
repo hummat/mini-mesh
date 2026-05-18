@@ -36,12 +36,22 @@ mini_mesh_select_image() {
     return
   fi
 
-  if docker image inspect hummat/mini-mesh:local >/dev/null 2>&1; then
-    echo "Using local Docker image: hummat/mini-mesh:local" >&2
-    printf '%s\n' "hummat/mini-mesh:local"
-  else
-    printf '%s\n' "hummat/mini-mesh:latest"
-  fi
+  case "${MINI_MESH_USE_LOCAL_IMAGE:-off}" in
+    on|true|1)
+      if docker image inspect hummat/mini-mesh:local >/dev/null 2>&1; then
+        echo "Using local Docker image: hummat/mini-mesh:local" >&2
+        printf '%s\n' "hummat/mini-mesh:local"
+      else
+        mini_mesh_die "MINI_MESH_USE_LOCAL_IMAGE is set, but hummat/mini-mesh:local does not exist"
+      fi
+      ;;
+    off|false|0|"")
+      printf '%s\n' "hummat/mini-mesh:latest"
+      ;;
+    *)
+      mini_mesh_die "MINI_MESH_USE_LOCAL_IMAGE must be one of: on, off"
+      ;;
+  esac
 }
 
 mini_mesh_add_tty_args() {

@@ -4,7 +4,7 @@ set -e
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/env.sh
 source "$script_dir/env.sh"
-# shellcheck source=../config/defaults.sh
+# shellcheck source=config/defaults.sh
 if ! source "$script_dir/../config/defaults.sh"; then
   echo "[ERROR]: Failed to source config/defaults.sh"
   exit 1
@@ -69,6 +69,7 @@ function show_help {
   echo "                              --appearance-idx <int>                    Camera index for appearance embedding"
   echo "                              --method <string>                         NeRF export method: poisson, tsdf, pointcloud (default: poisson)"
   echo "                              --obb-center <float float float>          Center of oriented bounding-box (default: 0 0 0)"
+  echo "                              --obb-rotation <float float float>        Rotation of oriented bounding-box (default: 0 0 0)"
   echo "                              --obb-scale <float float float>           Scale of oriented bounding-box (default: 1 1 1)"
   echo "                              --downscale-factor <int>                  Image downscale factor for TSDF extraction (default: 2)"
   echo "                              --mesh-only                               Extract mesh but skip texturing (SDF only)"
@@ -100,6 +101,9 @@ texture_mesh_args=("${EXPORT_DEFAULTS[@]}")
 nerf_args=()
 nerf_tsdf_args=()
 method=poisson
+nerf_obb_center=(0 0 0)
+nerf_obb_rotation=(0 0 0)
+nerf_obb_scale=(1 1 1)
 mesh_only=false
 texture_only=false
 input_mesh_filename=""
@@ -111,7 +115,11 @@ while [ $i -lt ${#export_args[@]} ]; do
     --resolution|--marching-cube-threshold)
       require_args "${export_args[$i]}" 1 "$remaining"
       extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
-      nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      i=$((i+2))
+      ;;
+    --downscale-factor)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      nerf_tsdf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       i=$((i+2))
       ;;
     --bounding-box-min|--bounding-box-max)
@@ -175,9 +183,19 @@ while [ $i -lt ${#export_args[@]} ]; do
       method="$val"
       i=$((i+2))
       ;;
-    --obb-center|--obb-scale)
+    --obb-center|--obb-rotation|--obb-scale)
       require_args "${export_args[$i]}" 3 "$remaining"
-      nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
+      case "${export_args[$i]}" in
+        --obb-center)
+          nerf_obb_center=("${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
+          ;;
+        --obb-rotation)
+          nerf_obb_rotation=("${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
+          ;;
+        --obb-scale)
+          nerf_obb_scale=("${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
+          ;;
+      esac
       i=$((i+4))
       ;;
     --mesh-only)
@@ -229,26 +247,26 @@ if [ -f "$exp_path/config.yml" ]; then
         run_cmd python "$script_dir/export_splatfactow.py" \
           --load-config "$exp_path/config.yml" \
           --output-dir "$exp_path" \
-          --obb-center 0 0 0 \
-          --obb-rotation 0 0 0 \
-          --obb-scale 1 1 1 \
+          --obb-center "${nerf_obb_center[@]}" \
+          --obb-rotation "${nerf_obb_rotation[@]}" \
+          --obb-scale "${nerf_obb_scale[@]}" \
           "${nerf_args[@]}"
       else
         run_cmd ns-export gaussian-splat \
           --load-config "$exp_path/config.yml" \
           --output-dir "$exp_path" \
-          --obb-center 0 0 0 \
-          --obb-rotation 0 0 0 \
-          --obb-scale 1 1 1 \
+          --obb-center "${nerf_obb_center[@]}" \
+          --obb-rotation "${nerf_obb_rotation[@]}" \
+          --obb-scale "${nerf_obb_scale[@]}" \
           "${nerf_args[@]}"
       fi
     elif [ "$method" = pointcloud ]; then
       run_cmd ns-export pointcloud \
         --load-config "$exp_path/config.yml" \
         --output-dir "$exp_path" \
-        --obb-center 0 0 0 \
-        --obb-rotation 0 0 0 \
-        --obb-scale 1 1 1 \
+        --obb-center "${nerf_obb_center[@]}" \
+        --obb-rotation "${nerf_obb_rotation[@]}" \
+        --obb-scale "${nerf_obb_scale[@]}" \
         --std-ratio 1 \
         "${nerf_args[@]}"
     elif [ "$method" = tsdf ]; then
@@ -264,9 +282,9 @@ if [ -f "$exp_path/config.yml" ]; then
         --load-config "$exp_path/config.yml" \
         --output-dir "$exp_path" \
         --save-point-cloud True \
-        --obb-center 0 0 0 \
-        --obb-rotation 0 0 0 \
-        --obb-scale 1 1 1 \
+        --obb-center "${nerf_obb_center[@]}" \
+        --obb-rotation "${nerf_obb_rotation[@]}" \
+        --obb-scale "${nerf_obb_scale[@]}" \
         --std-ratio 1 \
         --density-quantile 0.01 \
         "${nerf_args[@]}"

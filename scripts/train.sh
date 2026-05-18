@@ -33,6 +33,15 @@ MODEL_NAME="$1"
 EXP_NAME="$2"
 DATA_DIR="$3"
 
+source_required_config() {
+  local config_path="$1"
+  # shellcheck disable=SC1090
+  if ! source "$config_path"; then
+    echo "[ERROR] Failed to source config file: $config_path" >&2
+    exit 1
+  fi
+}
+
 if [ "$MODEL_NAME" = splatfacto-w ]; then
   echo "[ERROR] splatfacto-w requires the plugin's splatfactow_dataparser and Phototourism/Nerf-W data layout." >&2
   echo "        mini-mesh produces Nerfstudio data; use --model splatfacto-w-light instead." >&2
@@ -44,13 +53,11 @@ CONFIG=()
 CONFIG_NAME="${4:-}"
 if [ -n "$CONFIG_NAME" ] && [ -f "$CONFIG_NAME" ]; then
   echo "[INFO] Using config file: $CONFIG_NAME"
-  # shellcheck disable=SC1090
-  source "$CONFIG_NAME"
+  source_required_config "$CONFIG_NAME"
   shift 4
 elif [ -n "$CONFIG_NAME" ] && [ -f "$CONFIG_DIR/$CONFIG_NAME.sh" ]; then
   echo "[INFO] Using config file $CONFIG_NAME.sh from $CONFIG_DIR"
-  # shellcheck disable=SC1090
-  source "$CONFIG_DIR/$CONFIG_NAME.sh"
+  source_required_config "$CONFIG_DIR/$CONFIG_NAME.sh"
   shift 4
 else
   if [ -n "$CONFIG_NAME" ] && [ "$CONFIG_NAME" != "$MODEL_NAME" ]; then
@@ -58,8 +65,7 @@ else
       exit 1
   elif [ -f "$CONFIG_DIR/$MODEL_NAME.sh" ]; then
       echo "[INFO] Using config file $MODEL_NAME.sh"
-      # shellcheck disable=SC1090
-      source "$CONFIG_DIR/$MODEL_NAME.sh"
+      source_required_config "$CONFIG_DIR/$MODEL_NAME.sh"
       if [ -n "$CONFIG_NAME" ]; then
         shift 4
       else
@@ -74,8 +80,7 @@ else
       fi
   fi
 fi
-# shellcheck disable=SC1091
-source "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
+source_required_config "$CONFIG_DIR/defaults.sh"  # Defines DEFAULTS and DATA_DEFAULTS arrays
 
 # Route arguments to trainer (ARGS/CONFIG_ARGS) or dataparser (DATA_ARGS/DATA_CONFIG_ARGS)
 route_args() {

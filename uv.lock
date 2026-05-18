@@ -1656,7 +1656,7 @@ wheels = [
 
 [[package]]
 name = "mini-mesh"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "." }
 dependencies = [
     { name = "gradio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1708,7 +1708,7 @@ requires-dist = [
     { name = "nerfstudio", marker = "extra == 'nerf'", git = "https://github.com/hummat/nerfstudio.git?rev=55a1f83025bb28cbf792760c9b79f9eb22c3a2e4" },
     { name = "numpy", marker = "extra == 'core'", specifier = "<2" },
     { name = "pybind11", marker = "extra == 'core'", specifier = ">=2.6" },
-    { name = "rembg", extras = ["gpu", "cli"], marker = "extra == 'rembg'" },
+    { name = "rembg", extras = ["gpu", "cli"], marker = "extra == 'rembg'", specifier = "==2.0.69" },
     { name = "sam2", marker = "extra == 'sam'", git = "https://github.com/hummat/sam2.git?rev=98f488a540f87260b8e51146dc3ab15694dd174c" },
     { name = "scikit-build-core", marker = "extra == 'core'", specifier = ">=0.11" },
     { name = "sdfstudio", extras = ["cuda", "export"], marker = "extra == 'core'", git = "https://github.com/hummat/sdfstudio.git?rev=v0.8.0" },

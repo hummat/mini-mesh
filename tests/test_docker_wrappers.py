@@ -125,8 +125,8 @@ def test_run_wrapper_can_use_baked_image_scripts(tmp_path: Path) -> None:
     assert "/opt/mini-mesh/scripts/run.sh" in docker_args
 
 
-def test_wrapper_auto_selects_local_image_when_present(tmp_path: Path) -> None:
-    """Local builds should be preferred when no explicit image is set."""
+def test_wrapper_uses_latest_by_default_even_when_local_image_exists(tmp_path: Path) -> None:
+    """A stale local image should not silently override the release image."""
     repo_root = Path(__file__).resolve().parents[1]
     input_path = tmp_path / "input.mp4"
     input_path.write_bytes(b"")
@@ -140,8 +140,49 @@ def test_wrapper_auto_selects_local_image_when_present(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
+    assert "hummat/mini-mesh:latest" in docker_args
+    assert "hummat/mini-mesh:local" not in docker_args
+    assert "Using local Docker image" not in result.stderr
+
+
+def test_wrapper_can_opt_into_local_image(tmp_path: Path) -> None:
+    """Local image selection should be explicit."""
+    repo_root = Path(__file__).resolve().parents[1]
+    input_path = tmp_path / "input.mp4"
+    input_path.write_bytes(b"")
+
+    result, docker_args, _ = _run_wrapper(
+        repo_root,
+        "run.sh",
+        [str(input_path), "--help"],
+        tmp_path,
+        local_exists=True,
+        env_overrides={"MINI_MESH_USE_LOCAL_IMAGE": "1"},
+    )
+
+    assert result.returncode == 0, result.stderr
     assert "hummat/mini-mesh:local" in docker_args
     assert "Using local Docker image: hummat/mini-mesh:local" in result.stderr
+
+
+def test_wrapper_errors_when_local_image_requested_but_missing(tmp_path: Path) -> None:
+    """Explicit local image mode should fail loudly if the image is absent."""
+    repo_root = Path(__file__).resolve().parents[1]
+    input_path = tmp_path / "input.mp4"
+    input_path.write_bytes(b"")
+
+    result, docker_args, _ = _run_wrapper(
+        repo_root,
+        "run.sh",
+        [str(input_path), "--help"],
+        tmp_path,
+        local_exists=False,
+        env_overrides={"MINI_MESH_USE_LOCAL_IMAGE": "1"},
+    )
+
+    assert result.returncode != 0
+    assert not docker_args
+    assert "hummat/mini-mesh:local does not exist" in result.stderr
 
 
 def test_explicit_image_overrides_local_auto_selection(tmp_path: Path) -> None:

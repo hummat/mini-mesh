@@ -13,6 +13,17 @@ def _dockerfile_text() -> str:
 class TestDockerfileCudaWheels:
     """Checks for CUDA extension wheel build/install ordering."""
 
+    def test_buildkit_cache_mounts_are_enabled(self) -> None:
+        """Heavy rebuilds should reuse compiler and pip caches across invalidated layers."""
+        dockerfile = _dockerfile_text()
+
+        assert dockerfile.startswith("# syntax=docker/dockerfile:1.7\n")
+        assert dockerfile.count("target=/root/.cache/ccache,sharing=locked") >= 3
+        assert dockerfile.count("target=/root/.cache/pip,sharing=locked") >= 6
+        assert "ENV CCACHE_DIR=/root/.cache/ccache" in dockerfile
+        assert dockerfile.count("-DCMAKE_C_COMPILER_LAUNCHER=ccache") == 3
+        assert dockerfile.count("-DCMAKE_CXX_COMPILER_LAUNCHER=ccache") == 3
+
     def test_nvdiffrast_and_gsplat_are_built_as_pinned_wheels(self) -> None:
         """CUDA extensions should be built once in the builder stage."""
         dockerfile = _dockerfile_text()
@@ -66,6 +77,33 @@ class TestDockerfileCudaWheels:
         assert nvdiffrast_install < sdfstudio_install
         assert gsplat_install < nerfstudio_install
 
+    def test_constraints_generation_fails_closed(self) -> None:
+        """The torch constraints file must not become silently empty."""
+        dockerfile = _dockerfile_text()
+
+        assert 'SHELL ["/bin/bash", "-eo", "pipefail", "-c"]' in dockerfile
+        constraints = dockerfile.index("> /tmp/constraints.txt")
+        assert "test -s /tmp/constraints.txt" in dockerfile[constraints:]
+
+    def test_runtime_replaces_base_image_ninja_metadata(self) -> None:
+        """The PyTorch base image ninja wheel fails pip check on Linux."""
+        dockerfile = _dockerfile_text()
+
+        core_deps = dockerfile.index("# Core Python deps that must not disturb the torch stack")
+        assert "ninja==1.13.0" in dockerfile[core_deps:]
+
+    def test_runtime_asserts_cuda_wheel_presence(self) -> None:
+        """Missing copied wheels should fail before pip sees an unresolved glob."""
+        dockerfile = _dockerfile_text()
+
+        assert "ls /tmp/tinycudann*.whl >/dev/null" in dockerfile
+        assert "ls /tmp/nvdiffrast*.whl >/dev/null" in dockerfile
+        gsplat_gate = dockerfile.index('if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then')
+        gsplat_assert = dockerfile.index("ls /tmp/gsplat-wheels/gsplat*.whl >/dev/null")
+        gsplat_install = dockerfile.index("/tmp/gsplat-wheels/gsplat*.whl", gsplat_assert)
+
+        assert gsplat_gate < gsplat_assert < gsplat_install
+
     def test_optional_gsplat_build_is_gated(self) -> None:
         """INSTALL_OPTIONAL_DEPS=OFF should skip the slow gsplat builder-stage compile."""
         dockerfile = _dockerfile_text()
@@ -84,6 +122,54 @@ class TestDockerfileCudaWheels:
         assert "ARG INSTALL_OPTIONAL_DEPS=ON" in dockerfile[:gsplat_clone]
         assert gsplat_gate < gsplat_clone
         assert gsplat_copy < gsplat_install
+
+    def test_core_runtime_layers_precede_optional_runtime_layers(self) -> None:
+        """Slim/full builds should share the core Python dependency layer."""
+        dockerfile = _dockerfile_text()
+
+        sdfstudio_install = dockerfile.index(
+            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"'
+        )
+        optional_build_tools = dockerfile.index(
+            "# Build tools only if optional deps enabled",
+            sdfstudio_install,
+        )
+        gsplat_copy = dockerfile.index(
+            "COPY --from=builder /workspace/gsplat-wheels /tmp/gsplat-wheels"
+        )
+        rembg_install = dockerfile.index('"rembg[gpu,cli]==2.0.69"')
+
+        assert sdfstudio_install < optional_build_tools < gsplat_copy < rembg_install
+
+    def test_rembg_is_pinned_below_numpy_two_cutover(self) -> None:
+        """Newer rembg releases require numpy>=2.3, which conflicts with nerfstudio."""
+        dockerfile = _dockerfile_text()
+
+        assert '"rembg[gpu,cli]==2.0.69"' in dockerfile
+
+    def test_optional_deps_arg_does_not_invalidate_core_layers(self) -> None:
+        """Switching slim/full should not rebuild mandatory CUDA wheels or core runtime deps."""
+        dockerfile = _dockerfile_text()
+
+        builder_optional_arg = dockerfile.index(
+            "ARG INSTALL_OPTIONAL_DEPS=ON",
+            dockerfile.index("# gsplat wheel"),
+        )
+        tinycudann_build = dockerfile.index("# tiny-cuda-nn wheel")
+        nvdiffrast_build = dockerfile.index("# nvdiffrast wheel")
+        gsplat_build = dockerfile.index("# gsplat wheel")
+        runtime_optional_arg = dockerfile.index(
+            "ARG INSTALL_OPTIONAL_DEPS=ON",
+            dockerfile.index("# Build tools only if optional deps enabled"),
+        )
+        runtime_apt = dockerfile.index("# Core COLMAP/GLOMAP runtime deps")
+        sdfstudio_install = dockerfile.index(
+            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"'
+        )
+        optional_build_tools = dockerfile.index("# Build tools only if optional deps enabled")
+
+        assert tinycudann_build < nvdiffrast_build < gsplat_build < builder_optional_arg
+        assert runtime_apt < sdfstudio_install < optional_build_tools < runtime_optional_arg
 
     def test_cuda_arch_lists_are_quoted_in_shell_commands(self) -> None:
         """CMake/tiny-cuda-nn and PyTorch extensions use different arch formats."""

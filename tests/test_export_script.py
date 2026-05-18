@@ -341,6 +341,84 @@ class TestExportScriptNerfWorkflow:
         assert "--bounding-box-min" not in log
         assert "--bounding-box-max" not in log
 
+    def test_pointcloud_export_does_not_forward_bounding_box_args(self, tmp_path: Path) -> None:
+        """Pointcloud export uses OBB cropping, not TSDF bounding-box flags."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            [
+                "--method",
+                "pointcloud",
+                "--bounding-box-min",
+                "-0.5",
+                "-0.5",
+                "-0.5",
+                "--bounding-box-max",
+                "0.5",
+                "0.5",
+                "0.5",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export pointcloud" in log
+        assert "--bounding-box-min" not in log
+        assert "--bounding-box-max" not in log
+
+    def test_gaussian_splat_export_does_not_forward_bounding_box_args(self, tmp_path: Path) -> None:
+        """Gaussian splat export uses OBB cropping, not TSDF bounding-box flags."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            [
+                "--bounding-box-min",
+                "-0.5",
+                "-0.5",
+                "-0.5",
+                "--bounding-box-max",
+                "0.5",
+                "0.5",
+                "0.5",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export gaussian-splat" in log
+        assert "--bounding-box-min" not in log
+        assert "--bounding-box-max" not in log
+
     def test_tsdf_export_forwards_bounding_box_args(self, tmp_path: Path) -> None:
         """TSDF export accepts bounding-box min/max arguments."""
         repo_root = Path(__file__).resolve().parents[1]
@@ -380,3 +458,105 @@ class TestExportScriptNerfWorkflow:
         assert "ns-export tsdf" in log
         assert "--bounding-box-min -0.5 -0.5 -0.5" in log
         assert "--bounding-box-max 0.5 0.5 0.5" in log
+
+    def test_tsdf_export_forwards_downscale_factor(self, tmp_path: Path) -> None:
+        """The documented TSDF downscale flag should reach ns-export."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "tsdf", "--downscale-factor", "2"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export tsdf" in log
+        assert "--downscale-factor 2" in log
+
+    def test_tsdf_export_does_not_forward_single_resolution(self, tmp_path: Path) -> None:
+        """SDF --resolution is a single int and must not collide with TSDF's 3-D resolution."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "tsdf", "--resolution", "512"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export tsdf" in log
+        assert "--resolution 256 256 256" in log
+        assert "--resolution 512" not in log
+
+    def test_nerf_export_forwards_single_obb_triplet(self, tmp_path: Path) -> None:
+        """User OBB values should replace defaults instead of relying on last-wins parsing."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            [
+                "--obb-center",
+                "1",
+                "2",
+                "3",
+                "--obb-rotation",
+                "4",
+                "5",
+                "6",
+                "--obb-scale",
+                "7",
+                "8",
+                "9",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert log.count("--obb-center") == 1
+        assert log.count("--obb-rotation") == 1
+        assert log.count("--obb-scale") == 1
+        assert "--obb-center 1 2 3" in log
+        assert "--obb-rotation 4 5 6" in log
+        assert "--obb-scale 7 8 9" in log

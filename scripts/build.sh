@@ -167,6 +167,9 @@ build_poselib() {
   checkout_repo https://github.com/PoseLib/PoseLib.git PoseLib "$POSELIB_REF" ON
   if grep -q 'Eigen::Vector2d x0;' PoseLib/misc/colmap_models.cc; then
     sed -i '/Eigen::Vector2d x0;/d' PoseLib/misc/colmap_models.cc
+  elif git diff --quiet -- PoseLib/misc/colmap_models.cc; then
+    echo "ERROR: PoseLib patch site missing: PoseLib/misc/colmap_models.cc" >&2
+    exit 1
   fi
   rm -rf build
   configure_and_build "PoseLib" . -B build -GNinja \
@@ -184,6 +187,10 @@ build_colmap() {
 
   checkout_repo https://github.com/colmap/colmap.git colmap "$COLMAP_REF"
   if ! grep -q '#include <cassert>' src/colmap/sfm/observation_manager.cc; then
+    if ! grep -q '#include "colmap/util/misc.h"' src/colmap/sfm/observation_manager.cc; then
+      echo "ERROR: COLMAP patch site missing: src/colmap/sfm/observation_manager.cc" >&2
+      exit 1
+    fi
     sed -i '/#include "colmap\/util\/misc.h"/a #include <cassert>' src/colmap/sfm/observation_manager.cc
   fi
   rm -rf build
@@ -208,6 +215,9 @@ build_glomap() {
   checkout_repo https://github.com/colmap/glomap.git glomap "$GLOMAP_REF"
   if grep -q 'find_package(Eigen3 3\.4 REQUIRED)' cmake/FindDependencies.cmake; then
     sed -i 's/find_package(Eigen3 3\.4 REQUIRED)/find_package(Eigen3 REQUIRED)/' cmake/FindDependencies.cmake
+  elif ! grep -q 'find_package(Eigen3 REQUIRED)' cmake/FindDependencies.cmake; then
+    echo "ERROR: GLOMAP patch site missing: cmake/FindDependencies.cmake" >&2
+    exit 1
   fi
   rm -rf build
   configure_and_build "GLOMAP" . -B build -GNinja \
@@ -253,6 +263,8 @@ install_cuda_package() {
 }
 
 install_python_deps() {
+  # uv sync can restore the locked LightGlue package; install HLoc afterwards
+  # so its recursive submodule copy wins for local hloc runs.
   run_step "sync Python local extras" uv sync --extra local --frozen --inexact
 
   install_cuda_package tiny-cuda-nn tinycudann \
@@ -280,8 +292,6 @@ install_hloc() {
   local hloc_ref="3bdf494c852f157db57a1cf2039a6c826d52e702"
   local hloc_cli_ref="1b714e1183bbc3cb6f4031ddedcc4bd5190ece29"
 
-  # uv sync can restore the locked LightGlue package; reinstall HLoc afterwards
-  # so its recursive submodule copy wins for local hloc runs.
   checkout_repo https://github.com/cvg/Hierarchical-Localization.git Hierarchical-Localization "$hloc_ref" ON
   run_step "install Hierarchical-Localization" uv pip install --no-build-isolation -e "$MINI_MESH_BUILD_ROOT/Hierarchical-Localization"
   run_step "install hloc-cli" uv pip install --no-build-isolation --no-deps \

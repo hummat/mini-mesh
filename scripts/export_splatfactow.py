@@ -10,10 +10,15 @@ from typing import Literal
 
 import numpy as np
 import torch
-from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.scripts.exporter import ExportGaussianSplat
-from nerfstudio.utils.eval_utils import eval_setup
-from nerfstudio.utils.rich_utils import CONSOLE
+
+
+def _console_print(message: str) -> None:
+    try:
+        from nerfstudio.utils.rich_utils import CONSOLE
+    except ModuleNotFoundError:
+        print(message)
+    else:
+        CONSOLE.print(message)
 
 
 def _add_sh_coefficients(
@@ -42,22 +47,35 @@ def _add_rgb(model: object, map_to_tensors: OrderedDict[str, np.ndarray]) -> Non
     map_to_tensors["blue"] = colors[:, 2]
 
 
+def _finite_row_mask(tensor: np.ndarray, count: int) -> np.ndarray:
+    if tensor.shape[0] != count:
+        raise ValueError(f"Expected first dimension {count}, got {tensor.shape[0]}")
+    if count == 0:
+        return np.ones(0, dtype=bool)
+    return np.isfinite(tensor.reshape(count, -1)).all(axis=1)
+
+
 def _finite_and_opacity_filter(map_to_tensors: OrderedDict[str, np.ndarray], count: int) -> int:
     selected = np.ones(count, dtype=bool)
     for key, tensor in map_to_tensors.items():
-        selected_before = np.sum(selected)
-        selected = np.logical_and(selected, np.isfinite(tensor).all(axis=-1))
-        selected_after = np.sum(selected)
+        selected_before = int(np.sum(selected))
+        selected = np.logical_and(selected, _finite_row_mask(np.asarray(tensor), count))
+        selected_after = int(np.sum(selected))
         if selected_after < selected_before:
-            CONSOLE.print(f"{selected_before - selected_after} NaN/Inf elements in {key}")
+            _console_print(f"{selected_before - selected_after} NaN/Inf elements in {key}")
 
-    nan_count = np.sum(selected) - count
-    low_opacity = map_to_tensors["opacity"].squeeze(axis=-1) < -5.5373
-    low_opacity_count = np.sum(low_opacity)
+    finite_count = int(np.sum(selected))
+    nan_count = count - finite_count
+    opacity = np.asarray(map_to_tensors["opacity"])
+    if opacity.shape[0] != count:
+        raise ValueError(f"Expected opacity first dimension {count}, got {opacity.shape[0]}")
+    opacity_values = opacity.reshape(count, -1)[:, 0] if count > 0 else np.asarray([], dtype=float)
+    low_opacity = opacity_values < -5.5373
+    low_opacity_count = int(np.sum(low_opacity & selected))
     selected[low_opacity] = 0
 
     if np.sum(selected) < count:
-        CONSOLE.print(
+        _console_print(
             f"{nan_count} Gaussians have NaN/Inf and {low_opacity_count} have low opacity, "
             f"only export {np.sum(selected)}/{count}"
         )
@@ -77,6 +95,10 @@ def export_splatfactow(
     obb_rotation: tuple[float, float, float] | None,
     obb_scale: tuple[float, float, float] | None,
 ) -> None:
+    from nerfstudio.data.scene_box import OrientedBox
+    from nerfstudio.scripts.exporter import ExportGaussianSplat
+    from nerfstudio.utils.eval_utils import eval_setup
+
     output_dir.mkdir(parents=True, exist_ok=True)
     _, pipeline, _, _ = eval_setup(load_config, test_mode="inference")
     model = pipeline.model
@@ -102,7 +124,7 @@ def export_splatfactow(
         if ply_color_mode == "rgb":
             _add_rgb(model, map_to_tensors)
             if getattr(model.config, "sh_degree", 0) > 0:
-                CONSOLE.print(
+                _console_print(
                     "Warning: model has SH colors; exporting RGB ignores higher-order SH."
                 )
         else:

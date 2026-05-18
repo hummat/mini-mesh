@@ -19,8 +19,6 @@ Tracked on the [project board](https://github.com/users/hummat/projects/4).
                     │               mini-mesh                       │
                     │                                               │
                     │  Phase 1 ─────────────────────────────────── │
-                    │  #7  nvdiffrast Docker           P1           │
-                    │  #8  gsplat Docker               P1           │
                     │  #10 resume training             P1           │
                     │                                               │
                     │  Phase 2 ─────────────────────────────────── │
@@ -40,14 +38,12 @@ Tracked on the [project board](https://github.com/users/hummat/projects/4).
 
 Independent work streams that unblock everything downstream.
 
-### Docker prerequisites
+### Completed in v0.4.0
 
 | Issue | Repo | Summary |
 |-------|------|---------|
-| [#7](https://github.com/hummat/mini-mesh/issues/7) | mini-mesh | Add nvdiffrast to Docker image for GPU-accelerated texturing |
-| [#8](https://github.com/hummat/mini-mesh/issues/8) | mini-mesh | Add gsplat to Docker image (build wheel in builder stage) |
-
-Unblocks: GPU texture baking (#11 Stage 3), all Gaussian methods (#13, #14, #15).
+| [#7](https://github.com/hummat/mini-mesh/issues/7) | mini-mesh | Added nvdiffrast to Docker image for GPU-accelerated texturing |
+| [#8](https://github.com/hummat/mini-mesh/issues/8) | mini-mesh | Added gsplat to Docker image (built as a wheel in the builder stage) |
 
 ### Pipeline UX
 
@@ -71,11 +67,9 @@ Three upstream PR ports (#11-#13) that improve SDF reconstruction quality. #14 i
 ### Suggested order (if sequential)
 
 1. sdfstudio #11, #12, #13 — small, well-scoped upstream ports
-2. mini-mesh #7 (nvdiffrast) — build change, immediate texture speed benefit
-3. mini-mesh #8 (gsplat) — build change, unblocks all Gaussian work
-4. mini-mesh #10 (resume) — pipeline logic change
+2. mini-mesh #10 (resume) — pipeline logic change
 
-All four tracks are independent and can be parallelized.
+The remaining tracks are independent and can be parallelized.
 
 ## Phase 2: PBR & Gaussian Surface Recon
 

@@ -308,7 +308,7 @@ if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
 
   echo "=== Step 8a: rembg ==="
   run_step 8a "pip install rembg" pip install --no-cache-dir --no-build-isolation \
-    "rembg[gpu,cli]"
+    "rembg[gpu,cli]==2.0.69"
 
   if [ "${COMPILE_GSPLAT}" = "ON" ]; then
     echo "=== Step 8b0: gsplat ==="

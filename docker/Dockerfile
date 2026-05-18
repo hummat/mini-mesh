@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 ARG BUILDER_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
 ARG RUNTIME_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
@@ -5,6 +7,8 @@ ARG RUNTIME_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 # Builder stage
 ############################
 FROM ${BUILDER_IMAGE} AS builder
+
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 LABEL org.opencontainers.image.title="hummat/colmap-glomap"
 LABEL org.opencontainers.image.description="COLMAP, GLOMAP, tiny-cuda-nn base image"
@@ -16,18 +20,11 @@ ARG TORCH_CUDA_ARCH_LIST=7.5;8.0;8.6;8.9+PTX
 ARG MAX_JOBS=8
 ARG CXXFLAGS="-O3 -DNDEBUG"
 ARG WITH_GUI=ON
-ARG INSTALL_OPTIONAL_DEPS=ON
 ARG NVDIFFRAST_REF=253ac4fcea7de5f396371124af597e6cc957bfae
-ARG GSPLAT_VERSION=1.4.0
 
 ENV QT_XCB_GL_INTEGRATION=xcb_egl
 ENV CUDA_HOME=/usr/local/cuda
-ENV MAX_JOBS=${MAX_JOBS}
-ENV CXXFLAGS="${CXXFLAGS}"
-ENV WITH_GUI=${WITH_GUI}
-ENV INSTALL_OPTIONAL_DEPS=${INSTALL_OPTIONAL_DEPS}
-ENV NVDIFFRAST_REF=${NVDIFFRAST_REF}
-ENV GSPLAT_VERSION=${GSPLAT_VERSION}
+ENV CCACHE_DIR=/root/.cache/ccache
 
 # Avoid conda Boost 1.87, force system Boost 1.74
 RUN conda remove -y boost boost-cpp || true
@@ -68,11 +65,13 @@ RUN if [ "$WITH_GUI" = "ON" ]; then \
 RUN mkdir -p /workspace/git
 
 # PoseLib 2.0.2
-RUN cd /workspace/git && git clone --recursive https://github.com/PoseLib/PoseLib.git PoseLib && cd PoseLib && \
+RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
+    cd /workspace/git && git clone --recursive https://github.com/PoseLib/PoseLib.git PoseLib && cd PoseLib && \
     git checkout 7e9f5f53372e43f89655040d4dfc4a00e5ace11c && \
     git submodule update --init --recursive && \
     cmake . -B build -GNinja \
     -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/workspace/poselib && \
@@ -80,12 +79,14 @@ RUN cd /workspace/git && git clone --recursive https://github.com/PoseLib/PoseLi
     cd /workspace/git && rm -rf PoseLib
 
 # COLMAP pinned post-3.12 commit; reports 3.13.0.dev0 at runtime.
-RUN cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd colmap && \
+RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
+    cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd colmap && \
     git checkout c5f9cefc87e5dd596b638e4cee0ff543c7d14755 && \
     cmake . -B build -GNinja \
     -DCMAKE_PREFIX_PATH="/workspace/poselib;/usr/local" \
     -DFETCH_POSELIB=OFF \
     -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
@@ -96,13 +97,15 @@ RUN cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd co
     cd /workspace/git && rm -rf colmap
 
 # GLOMAP 1.2.0
-RUN cd /workspace/git && git clone https://github.com/colmap/glomap.git && cd glomap && \
+RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
+    cd /workspace/git && git clone https://github.com/colmap/glomap.git && cd glomap && \
     git checkout 0edb1b8435e0f9a594318908b81a31f078a51bf7 && \
     cmake . -B build -GNinja \
     -DFETCH_POSELIB=OFF \
     -DFETCH_COLMAP=OFF \
     -DCMAKE_PREFIX_PATH="/workspace/poselib;/workspace/colmap;/usr/local" \
     -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
@@ -112,7 +115,8 @@ RUN cd /workspace/git && git clone https://github.com/colmap/glomap.git && cd gl
     cd /workspace/git && rm -rf glomap
 
 # tiny-cuda-nn wheel (for torch, approx. tiny-cuda-nn 1.7)
-RUN cd /workspace/git && git clone --recursive https://github.com/nvlabs/tiny-cuda-nn.git && cd tiny-cuda-nn && \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    cd /workspace/git && git clone --recursive https://github.com/nvlabs/tiny-cuda-nn.git && cd tiny-cuda-nn && \
     git checkout 32507f059d7abc8c13f5df81ea9597b70923ee44 && \
     git submodule update --init --recursive && \
     cd bindings/torch && \
@@ -120,13 +124,17 @@ RUN cd /workspace/git && git clone --recursive https://github.com/nvlabs/tiny-cu
     cd /workspace/git && rm -rf tiny-cuda-nn
 
 # nvdiffrast wheel for GPU-accelerated SDF texture baking
-RUN cd /workspace/git && git clone https://github.com/NVlabs/nvdiffrast.git && cd nvdiffrast && \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    cd /workspace/git && git clone https://github.com/NVlabs/nvdiffrast.git && cd nvdiffrast && \
     git checkout "${NVDIFFRAST_REF}" && \
     TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
     cd /workspace/git && rm -rf nvdiffrast
 
 # gsplat wheel for nerfstudio Gaussian splatting methods
-RUN mkdir -p /workspace/gsplat-wheels && \
+ARG INSTALL_OPTIONAL_DEPS=ON
+ARG GSPLAT_VERSION=1.4.0
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    mkdir -p /workspace/gsplat-wheels && \
     if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     cd /workspace/git && git clone https://github.com/nerfstudio-project/gsplat.git && cd gsplat && \
     git checkout "v${GSPLAT_VERSION}" && \
@@ -141,16 +149,14 @@ RUN mkdir -p /workspace/gsplat-wheels && \
 ############################
 FROM ${RUNTIME_IMAGE} AS runtime
 
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+
 LABEL org.opencontainers.image.title="hummat/mini-mesh"
 LABEL org.opencontainers.image.description="Mini-mesh runtime with COLMAP, GLOMAP, tiny-cuda-nn and SDF/NeRF deps"
 LABEL org.opencontainers.image.source="https://github.com/hummat/mini-mesh"
 
 ARG MAX_JOBS=8
 ARG WITH_GUI=ON
-ARG INSTALL_OPTIONAL_DEPS=ON
-
-ENV MAX_JOBS=${MAX_JOBS}
-ENV WITH_GUI=${WITH_GUI}
 
 # Make PyTorch's vendored CUDA runtime visible to non-Python binaries (COLMAP, etc.)
 ENV LD_LIBRARY_PATH=/opt/conda/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
@@ -179,14 +185,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Build tools only if optional deps enabled (SAM2 JIT-compiles CUDA extension at runtime)
-RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
-    apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
-    build-essential \
-    cmake \
-    && rm -rf /var/lib/apt/lists/* ; \
-    fi
-
 # GUI runtime deps only if WITH_GUI=ON
 RUN if [ "$WITH_GUI" = "ON" ]; then \
     apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
@@ -204,63 +202,85 @@ COPY --from=builder /workspace/glomap /usr/local
 RUN pip list --format=json | python -c 'import sys, json; \
     keys = {"torch", "torchvision", "torch-tensorrt"}; \
     print("\n".join(["{}=={}".format(p["name"], p["version"]) for p in json.load(sys.stdin) if p["name"] in keys]))' \
-    > /tmp/constraints.txt
+    > /tmp/constraints.txt && \
+    test -s /tmp/constraints.txt
 
 COPY --from=builder /workspace/tinycudann*.whl /workspace/nvdiffrast*.whl /tmp/
-RUN pip install --no-cache-dir --no-deps -c /tmp/constraints.txt /tmp/tinycudann*.whl /tmp/nvdiffrast*.whl && \
+RUN ls /tmp/tinycudann*.whl >/dev/null && \
+    ls /tmp/nvdiffrast*.whl >/dev/null && \
+    pip install --no-cache-dir --no-deps -c /tmp/constraints.txt /tmp/tinycudann*.whl /tmp/nvdiffrast*.whl && \
     rm /tmp/tinycudann*.whl /tmp/nvdiffrast*.whl
+
+# Core Python deps that must not disturb the torch stack
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    pip install -c /tmp/constraints.txt \
+    scikit-build-core>=0.11 \
+    pybind11>=2.6 \
+    ninja==1.13.0 \
+    "numpy<2" \
+    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
+
+# Build tools only if optional deps enabled (SAM2 JIT-compiles CUDA extension at runtime)
+ARG INSTALL_OPTIONAL_DEPS=ON
+RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
+    build-essential \
+    cmake \
+    && rm -rf /var/lib/apt/lists/* ; \
+    fi
 
 COPY --from=builder /workspace/gsplat-wheels /tmp/gsplat-wheels
 
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    ls /tmp/gsplat-wheels/gsplat*.whl >/dev/null && \
     pip install --no-cache-dir --no-deps -c /tmp/constraints.txt /tmp/gsplat-wheels/gsplat*.whl; \
     fi && \
     rm -rf /tmp/gsplat-wheels
 
-# Core Python deps that must not disturb the torch stack
-RUN pip install --no-cache-dir -c /tmp/constraints.txt \
-    scikit-build-core>=0.11 \
-    pybind11>=2.6 \
-    "numpy<2" \
-    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
-
 # rembg for background removal
-RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
-    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
-    "rembg[gpu,cli]"; \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-build-isolation -c /tmp/constraints.txt \
+    "rembg[gpu,cli]==2.0.69"; \
     fi
 
 # nerfstudio for NeRF/Gaussian splatting methods
-RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
-    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4; \
     fi
 
 # sam2 for segmentation
-RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
-    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c; \
     fi
 
 # hloc for hierarchical localization (advanced SfM)
 # Note: Hierarchical-Localization requires local clone with --recursive for submodules
-RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     mkdir -p /opt/git && \
     cd /opt/git && \
     git clone --recursive https://github.com/cvg/Hierarchical-Localization.git && \
     cd Hierarchical-Localization && \
     git checkout 3bdf494c852f157db57a1cf2039a6c826d52e702 && \
     git submodule update --init --recursive && \
-    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt -e . && \
-    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+    pip install --no-build-isolation -c /tmp/constraints.txt -e . && \
+    pip install --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29; \
     fi
 
 # vggsfm for visual-geometry-grounded SfM
-RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
-    pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834; \
     fi
+
+ENV MAX_JOBS=${MAX_JOBS}
 
 COPY scripts /opt/mini-mesh/scripts
 COPY config /opt/mini-mesh/config
