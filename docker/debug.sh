@@ -14,13 +14,15 @@ set -euo pipefail
 #
 # You can override these environment variables (must roughly match
 # docker/Dockerfile):
-#   TORCH_CUDA_ARCH_LIST (default: 75,80,86,89)
+#   CMAKE_CUDA_ARCHITECTURES (default: 75;80;86;89)
+#   TORCH_CUDA_ARCH_LIST     (default: 7.5;8.0;8.6;8.9+PTX)
 #   MAX_JOBS             (default: 8)
 #   WORKDIR              (default: current working directory)
 #   INSTALL_OPTIONAL_DEPS (default: ON)
 #   INSTALL_SYSTEM_DEPS   (default: ON)
 
-TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-75;80;86;89}"
+CMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES:-75;80;86;89}"
+TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-7.5;8.0;8.6;8.9+PTX}"
 CXXFLAGS="${CXXFLAGS:--O3 -DNDEBUG}"
 MAX_JOBS="${MAX_JOBS:-8}"
 WORKDIR="${WORKDIR:-$PWD}"
@@ -50,6 +52,7 @@ run_step() {
 
 echo "=== debug.sh: settings ==="
 echo "WORKDIR               = ${WORKDIR}"
+echo "CMAKE_CUDA_ARCHITECTURES = ${CMAKE_CUDA_ARCHITECTURES}"
 echo "TORCH_CUDA_ARCH_LIST  = ${TORCH_CUDA_ARCH_LIST}"
 echo "CXXFLAGS              = ${CXXFLAGS}"
 echo "MAX_JOBS              = ${MAX_JOBS}"
@@ -151,7 +154,7 @@ if [ "${COMPILE_COLMAP}" = "ON" ]; then
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
+    -DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" \
     -DGUI_ENABLED="${WITH_GUI}" \
     -DCMAKE_INSTALL_PREFIX="${WORKDIR}/colmap"
   run_step 2d "ninja COLMAP" ninja -C build install -j"${MAX_JOBS}"
@@ -179,7 +182,7 @@ if [ "${COMPILE_GLOMAP}" = "ON" ]; then
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
+    -DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" \
     -DCMAKE_INSTALL_PREFIX="${WORKDIR}/glomap"
   echo "GLOMAP CMake configure completed; starting build/install..."
   run_step 3d "ninja GLOMAP" ninja -C build install -j"${MAX_JOBS}"
@@ -198,8 +201,8 @@ if [ "${COMPILE_TCNN}" = "ON" ]; then
   git submodule update --init --recursive
   echo "tiny-cuda-nn HEAD: $(git rev-parse HEAD)" || true
   cd bindings/torch
-  echo "Running tiny-cuda-nn setup.py with TCNN_CUDA_ARCHITECTURES=${TORCH_CUDA_ARCH_LIST}, MAX_JOBS=${MAX_JOBS}"
-  run_step 4c "build tiny-cuda-nn wheel" bash -c 'TCNN_CUDA_ARCHITECTURES="'"${TORCH_CUDA_ARCH_LIST}"'" MAX_JOBS="'"${MAX_JOBS}"'" python setup.py bdist_wheel'
+  echo "Running tiny-cuda-nn setup.py with TCNN_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}, MAX_JOBS=${MAX_JOBS}"
+  run_step 4c "build tiny-cuda-nn wheel" bash -c 'TCNN_CUDA_ARCHITECTURES="'"${CMAKE_CUDA_ARCHITECTURES}"'" MAX_JOBS="'"${MAX_JOBS}"'" python setup.py bdist_wheel'
   echo "Built wheel(s):"
   ls dist
   cd "${WORKDIR}/git"
@@ -228,6 +231,7 @@ if [ "${COMPILE_GSPLAT}" = "ON" ]; then
   run_step 4e1 "clone gsplat" git clone https://github.com/nerfstudio-project/gsplat.git
   cd gsplat
   run_step 4e2 "checkout gsplat tag" git checkout "v${GSPLAT_VERSION}"
+  run_step 4e2a "update gsplat submodules" git submodule update --init --recursive
   echo "gsplat HEAD: $(git rev-parse HEAD)" || true
   run_step 4e3 "build gsplat wheel" bash -c 'TORCH_CUDA_ARCH_LIST="'"${TORCH_CUDA_ARCH_LIST}"'" MAX_JOBS="'"${MAX_JOBS}"'" pip wheel . --no-build-isolation --no-deps -w "'"${WORKDIR}/wheels"'"'
   cd "${WORKDIR}/git"

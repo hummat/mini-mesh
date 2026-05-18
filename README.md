@@ -20,7 +20,8 @@ Requires [Docker](https://docs.docker.com/get-docker), an NVIDIA GPU with 12GB+ 
 docker/run.sh /path/to/your/video/or/images
 ```
 
-This downloads the pre-built Docker image and runs the full pipeline. Add `--help` for options.
+This uses a Docker image and runs the full pipeline through the checked-out
+repository wrapper. Add `--help` for options.
 
 ## Installation
 
@@ -66,6 +67,10 @@ docker pull hummat/mini-mesh:slim
 MINI_MESH_IMAGE=hummat/mini-mesh:slim docker/run.sh /path/to/input
 ```
 
+If `MINI_MESH_IMAGE` is unset and `hummat/mini-mesh:local` exists, the wrappers
+use the local image and print that choice. Set `MINI_MESH_IMAGE` to force a
+specific image.
+
 </details>
 
 <details markdown="1">
@@ -110,6 +115,7 @@ Manual setup requires:
 - System C++ headers/libraries for COLMAP/GLOMAP
 - `CUDA_HOME`, `CC`, `CXX`, `CUDAHOSTCXX`, `TORCH_CUDA_ARCH_LIST`, and `MAX_JOBS`
   exported in `.envrc` or in the shell running `make build`
+- Optional PyTorch-extension PTX fallback via `TORCH_CUDA_ARCH_LIST=8.9+PTX`
 
 </details>
 
@@ -165,6 +171,28 @@ docker/run.sh /path/to/input video --fps 1 sfm --method glomap process --mask re
 ```
 
 The final mesh appears next to your input. Steps already completed are skipped (use `--overwrite` to re-run).
+
+### Docker wrapper options
+
+`docker/run.sh` and `docker/start.sh` mount your input directory at `/data` and,
+by default, mount the current checkout at `/app` so the container runs the same
+scripts you have locally.
+
+Environment variables:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MINI_MESH_IMAGE` | local image if present, else `hummat/mini-mesh:latest` | Docker image to run |
+| `MINI_MESH_DOCKER_APP` | `repo` | `repo` runs `/app/scripts/run.sh`; `image` runs the baked `/opt/mini-mesh/scripts/run.sh` |
+| `MINI_MESH_DOCKER_TTY` | `auto` for `run.sh`; `on` for interactive `start.sh` | `auto`, `on`, or `off` |
+| `MINI_MESH_DOCKER_X11` | `auto` | `auto`, `on`, or `off` for COLMAP GUI/X11 forwarding |
+| `MINI_MESH_DOCKER_PORT` | `7007` | Host port mapped to container port `7007`; use `none` to disable |
+
+Use the baked scripts in the image for release smoke tests:
+
+```bash
+MINI_MESH_DOCKER_APP=image docker/run.sh /path/to/input video --fps 1
+```
 
 ### Models
 

@@ -105,6 +105,9 @@ extraction and matching through a COLMAP-like SfM pipeline.
 These are compiled in the Docker builder stage and copied to the runtime image.
 For Web UI `local` mode, `scripts/build.sh` builds the same pinned refs into
 `.local/mini-mesh` and the repo `.venv`.
+Docker release builds target CUDA architectures `75;80;86;89` for CMake
+projects and `7.5;8.0;8.6;8.9+PTX` for PyTorch extension wheels. This gives
+native cubins through Ada/RTX 40xx and a PTX JIT fallback for newer GPUs.
 
 | Dependency | Pinned commit | Version | Purpose |
 |---|---|---|---|
@@ -145,3 +148,14 @@ When updating a pin, check:
 3. `scripts/build.sh` local build refs
 4. `README.md` manual install instructions
 5. `pyproject.toml` optional dependency URLs
+
+## Docker Wrapper Contract
+
+`docker/run.sh` and `docker/start.sh` are the public Docker entry points. By
+default they mount the current checkout at `/app` and run the host checkout's
+scripts, matching the README workflow where users clone the repository first.
+
+The runtime image also contains a baked copy of `scripts/` and `config/` under
+`/opt/mini-mesh`. Set `MINI_MESH_DOCKER_APP=image` to test those baked scripts
+without mounting the checkout. Keep this path working when changing Docker
+runtime dependencies or wrapper behavior.

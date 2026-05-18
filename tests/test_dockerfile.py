@@ -23,8 +23,17 @@ class TestDockerfileCudaWheels:
         assert 'git checkout "${NVDIFFRAST_REF}"' in dockerfile
         assert "git clone https://github.com/nerfstudio-project/gsplat.git" in dockerfile
         assert 'git checkout "v${GSPLAT_VERSION}"' in dockerfile
+        gsplat_checkout = dockerfile.index('git checkout "v${GSPLAT_VERSION}"')
+        gsplat_submodules = dockerfile.index(
+            "git submodule update --init --recursive",
+            gsplat_checkout,
+        )
+        gsplat_wheel = dockerfile.index(
+            "pip wheel . --no-build-isolation --no-deps -w /workspace/gsplat-wheels",
+            gsplat_submodules,
+        )
         assert (
-            'TCNN_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel'
+            'TCNN_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" MAX_JOBS=${MAX_JOBS} pip wheel'
             in dockerfile
         )
         assert (
@@ -34,6 +43,7 @@ class TestDockerfileCudaWheels:
         assert (
             "pip wheel . --no-build-isolation --no-deps -w /workspace/gsplat-wheels" in dockerfile
         )
+        assert gsplat_submodules < gsplat_wheel
 
     def test_runtime_installs_cuda_wheels_before_dependents(self) -> None:
         """nvdiffrast must precede sdfstudio and gsplat must precede nerfstudio."""
@@ -76,12 +86,25 @@ class TestDockerfileCudaWheels:
         assert gsplat_copy < gsplat_install
 
     def test_cuda_arch_lists_are_quoted_in_shell_commands(self) -> None:
-        """The default semicolon-separated arch list must stay a single shell argument."""
+        """CMake/tiny-cuda-nn and PyTorch extensions use different arch formats."""
         dockerfile = _dockerfile_text()
 
-        assert '-DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}"' in dockerfile
-        assert 'TCNN_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}"' in dockerfile
+        assert "ARG CMAKE_CUDA_ARCHITECTURES=75;80;86;89" in dockerfile
+        assert "ARG TORCH_CUDA_ARCH_LIST=7.5;8.0;8.6;8.9+PTX" in dockerfile
+        assert '-DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}"' in dockerfile
+        assert 'TCNN_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}"' in dockerfile
         assert (
             'TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel'
             in dockerfile
         )
+
+    def test_runtime_image_contains_late_copy_of_app_scripts(self) -> None:
+        """Image mode should have app files without invalidating heavy dependency layers."""
+        dockerfile = _dockerfile_text()
+
+        vggsfm_install = dockerfile.index("git+https://github.com/hummat/vggsfm.git")
+        scripts_copy = dockerfile.index("COPY scripts /opt/mini-mesh/scripts")
+        config_copy = dockerfile.index("COPY config /opt/mini-mesh/config")
+        cmd = dockerfile.index('CMD ["bash"]')
+
+        assert vggsfm_install < scripts_copy < config_copy < cmd

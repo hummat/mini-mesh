@@ -11,7 +11,8 @@ LABEL org.opencontainers.image.description="COLMAP, GLOMAP, tiny-cuda-nn base im
 LABEL org.opencontainers.image.source="https://github.com/hummat/mini-mesh"
 
 ARG WORKDIR=/workspace
-ARG TORCH_CUDA_ARCH_LIST=75;80;86;89
+ARG CMAKE_CUDA_ARCHITECTURES=75;80;86;89
+ARG TORCH_CUDA_ARCH_LIST=7.5;8.0;8.6;8.9+PTX
 ARG MAX_JOBS=8
 ARG CXXFLAGS="-O3 -DNDEBUG"
 ARG WITH_GUI=ON
@@ -88,7 +89,7 @@ RUN cd /workspace/git && git clone https://github.com/colmap/colmap.git && cd co
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
+    -DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" \
     -DGUI_ENABLED=${WITH_GUI} \
     -DCMAKE_INSTALL_PREFIX=/workspace/colmap && \
     ninja -C build install -j ${MAX_JOBS} && \
@@ -105,7 +106,7 @@ RUN cd /workspace/git && git clone https://github.com/colmap/glomap.git && cd gl
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_DO_STRIP=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" \
+    -DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" \
     -DCMAKE_INSTALL_PREFIX=/workspace/glomap && \
     ninja -C build install -j ${MAX_JOBS} && \
     cd /workspace/git && rm -rf glomap
@@ -115,7 +116,7 @@ RUN cd /workspace/git && git clone --recursive https://github.com/nvlabs/tiny-cu
     git checkout 32507f059d7abc8c13f5df81ea9597b70923ee44 && \
     git submodule update --init --recursive && \
     cd bindings/torch && \
-    TCNN_CUDA_ARCHITECTURES="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
+    TCNN_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace && \
     cd /workspace/git && rm -rf tiny-cuda-nn
 
 # nvdiffrast wheel for GPU-accelerated SDF texture baking
@@ -129,6 +130,7 @@ RUN mkdir -p /workspace/gsplat-wheels && \
     if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     cd /workspace/git && git clone https://github.com/nerfstudio-project/gsplat.git && cd gsplat && \
     git checkout "v${GSPLAT_VERSION}" && \
+    git submodule update --init --recursive && \
     TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}" MAX_JOBS=${MAX_JOBS} pip wheel . --no-build-isolation --no-deps -w /workspace/gsplat-wheels && \
     cd /workspace/git && rm -rf gsplat ; \
     fi
@@ -259,5 +261,8 @@ RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     pip install --no-cache-dir --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/vggsfm.git@d597df629a312a662544006ac3bdbc2782b82834; \
     fi
+
+COPY scripts /opt/mini-mesh/scripts
+COPY config /opt/mini-mesh/config
 
 CMD ["bash"]

@@ -14,7 +14,7 @@ Variants:
   local   Single GPU, native CPU optimizations (don't publish)
 
 Options:
-  --cuda-arch <CC>   CUDA compute capability for local builds (default: auto-detect)
+  --cuda-arch <CC>   CUDA compute capability for local builds, e.g. 89 or 8.9 (default: auto-detect)
   --max-jobs <N>     Parallel compile jobs (default: 8)
   --no-gui           Build COLMAP without GUI
   --help             Show this help
@@ -33,6 +33,48 @@ VARIANT="full"
 CUDA_ARCH=""
 MAX_JOBS="8"
 WITH_GUI="ON"
+CMAKE_CUDA_ARCHES=""
+TORCH_CUDA_ARCHES=""
+
+format_cuda_arches() {
+  local input="$1"
+  local normalized
+  local token
+  local suffix
+  local numeric
+  local split_at
+  local -a arch_tokens
+
+  normalized="$(printf '%s' "$input" | tr ',' ';' | tr -d '[:space:]')"
+  CMAKE_CUDA_ARCHES=""
+  TORCH_CUDA_ARCHES=""
+
+  IFS=';' read -r -a arch_tokens <<< "$normalized"
+  for token in "${arch_tokens[@]}"; do
+    [[ -n "$token" ]] || continue
+
+    suffix=""
+    if [[ "$token" == *+PTX ]]; then
+      suffix="+PTX"
+      token="${token%+PTX}"
+    fi
+
+    numeric="${token//./}"
+    if [[ ! "$numeric" =~ ^[0-9]+$ || "${#numeric}" -lt 2 ]]; then
+      echo "Error: unsupported CUDA arch '$token'. Use values like 89, 8.9, or 75;80;86;89." >&2
+      exit 1
+    fi
+
+    split_at=$((${#numeric} - 1))
+    CMAKE_CUDA_ARCHES+="${CMAKE_CUDA_ARCHES:+;}${numeric}"
+    TORCH_CUDA_ARCHES+="${TORCH_CUDA_ARCHES:+;}${numeric:0:split_at}.${numeric:split_at:1}${suffix}"
+  done
+
+  if [[ -z "$CMAKE_CUDA_ARCHES" ]]; then
+    echo "Error: CUDA arch list is empty." >&2
+    exit 1
+  fi
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -85,10 +127,8 @@ if [[ "$VARIANT" == "local" && -z "$CUDA_ARCH" ]]; then
   fi
 fi
 
-# Normalize CUDA arch: remove dots (8.9 -> 89), trim whitespace
 if [[ -n "$CUDA_ARCH" ]]; then
-  CUDA_ARCH=$(echo "$CUDA_ARCH" | tr -d ' \n\r')
-  CUDA_ARCH="${CUDA_ARCH//.}"
+  format_cuda_arches "$CUDA_ARCH"
 fi
 
 # Build arguments based on variant
@@ -111,7 +151,8 @@ case "$VARIANT" in
   local)
     TAG="hummat/mini-mesh:local"
     BUILD_ARGS=(
-      --build-arg "TORCH_CUDA_ARCH_LIST=$CUDA_ARCH"
+      --build-arg "CMAKE_CUDA_ARCHITECTURES=$CMAKE_CUDA_ARCHES"
+      --build-arg "TORCH_CUDA_ARCH_LIST=$TORCH_CUDA_ARCHES"
       --build-arg "CXXFLAGS=-O3 -DNDEBUG -march=native"
       --build-arg "MAX_JOBS=$MAX_JOBS"
       --build-arg "WITH_GUI=$WITH_GUI"

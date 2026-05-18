@@ -88,6 +88,28 @@ def test_build_script_has_no_dead_shell_function_wrapper() -> None:
     assert "declare -F" not in text
 
 
+def test_build_script_strips_ptx_suffix_for_cmake_arches(tmp_path: Path) -> None:
+    """Local PTX fallback syntax is PyTorch-only; CMake needs bare numeric archs."""
+    repo_root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            "source scripts/build.sh >/dev/null; printf '%s' \"$CMAKE_CUDA_ARCHITECTURES\"",
+        ],
+        cwd=repo_root,
+        env={**_build_script_env(tmp_path), "TORCH_CUDA_ARCH_LIST": "8.9+PTX"},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "89"
+
+
 def test_python_package_matches_source_reports_corrupt_metadata(tmp_path: Path) -> None:
     """Bad direct_url.json should be an unexpected error, not a reinstall trigger."""
     repo_root = Path(__file__).resolve().parents[1]
