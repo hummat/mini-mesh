@@ -5,15 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1](https://github.com/hummat/mini-mesh/compare/v0.3.0..v0.3.1) - 2026-01-24
+## [0.4.0](https://github.com/hummat/mini-mesh/compare/v0.3.1..v0.4.0) - 2026-05-18
+
+### Bug Fixes
+
+- *(ci)* Quote hex color values in labels.yml
+- *(export)* Route NeRF bounding boxes only to TSDF
+
+
+### Documentation
+
+- *(roadmap)* Expand and restructure mini-mesh PBR milestones
+- Add implementation roadmap with phased milestones
+- Add dependency map with fork rationale and version pins
+- Clarify workflow.md trigger for issue/PR/branch creation
+- Simplify Docker workflow to local-only
+
 
 ### Features
 
-- *(docker)* Add build script variants (full, slim, local) with CI publish workflow
+- *(docker)* Add CUDA extension wheel builds
+- *(docker)* Add publish.sh script for Docker Hub + GHCR
+- Add local build helper and splatfacto-w-light support
+
+
+### Miscellaneous
+
+- *(ci)* Use env vars for PR SHAs in commit-lint step
+- *(deps)* Bump the all-actions group with 2 updates
+- *(deps)* Use conventional commit prefix for dependabot PRs
+- *(scripts)* Require uv instead of python in release script
+- Gitignore .claude/settings.local.json
+- Add HANDOFF.md to gitignore
+- Add blocked label for dependency tracking
+- Use SPDX license expression in pyproject.toml
+- Add commit-msg hook, CI commit-lint, and scripts/deps.sh
+- Add issue labels, auto-labeler, priority system, and project board
+- Add GitHub release workflow with git-cliff
+
+## [0.3.1](https://github.com/hummat/mini-mesh/compare/v0.3.0..v0.3.1) - 2026-01-24
 
 ### Bug Fixes
 
 - *(ci)* Add contents:read permission to sync-labels workflow
+- *(release)* Fix changelog formatting and add Docker feature
 
 
 ### Documentation
