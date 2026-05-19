@@ -698,6 +698,216 @@ class TestBatchScript:
         assert "Multiple videos share the stem 'scene'" in result.stderr
 
 
+class TestSceneScript:
+    """Tests for scripts/scene.sh multi-video scene assembly."""
+
+    @staticmethod
+    def _make_scene_repo(tmp_path: Path, source_repo: Path, log_path: Path) -> Path:
+        scene_repo = tmp_path / "scene-repo"
+        scripts_dir = scene_repo / "scripts"
+        docker_dir = scene_repo / "docker"
+        scripts_dir.mkdir(parents=True)
+        docker_dir.mkdir()
+        for script_name in ("scene.sh", "ffmpeg.sh"):
+            script_path = scripts_dir / script_name
+            script_path.write_text(
+                (source_repo / "scripts" / script_name).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            script_path.chmod(0o755)
+        TestBatchScript._make_runner_stub(scripts_dir / "run.sh", log_path)
+        TestBatchScript._make_runner_stub(docker_dir / "run.sh", log_path)
+        return scene_repo
+
+    @staticmethod
+    def _make_ffmpeg_stub(bin_dir: Path, log_path: Path) -> None:
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        ffmpeg = bin_dir / "ffmpeg"
+        ffmpeg.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    f'echo "$0 $*" >> "{log_path}"',
+                    'template="${@: -1}"',
+                    'mkdir -p "$(dirname "$template")"',
+                    'printf "frame1" > "${template//%04d/0001}"',
+                    'printf "frame2" > "${template//%04d/0002}"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        ffmpeg.chmod(0o755)
+
+    def test_scene_assembles_videos_and_runs_pipeline_once(self, tmp_path: Path) -> None:
+        """scene.sh should extract all videos into one image scene and run one pipeline."""
+        repo_root = Path(__file__).resolve().parents[1]
+        videos_dir = tmp_path / "videos"
+        work_dir = tmp_path / "scene"
+        videos_dir.mkdir()
+        first = videos_dir / "alpha.mp4"
+        second = videos_dir / "beta.mov"
+        first.write_bytes(b"alpha")
+        second.write_bytes(b"beta")
+
+        runner_log = tmp_path / "runner.log"
+        ffmpeg_log = tmp_path / "ffmpeg.log"
+        bin_dir = tmp_path / "bin"
+        self._make_ffmpeg_stub(bin_dir, ffmpeg_log)
+        scene_repo = self._make_scene_repo(tmp_path, repo_root, runner_log)
+
+        result = _run_script(
+            scene_repo,
+            "scripts/scene.sh",
+            [
+                "--runner",
+                "local",
+                "--work-dir",
+                str(work_dir),
+                str(first),
+                str(second),
+                "--",
+                "video",
+                "--fps",
+                "4",
+                "sfm",
+                "--method",
+                "glomap",
+                "train",
+                "--skip",
+            ],
+            {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"},
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert (work_dir / "images" / "0001_alpha_0001.jpg").read_text(encoding="utf-8") == "frame1"
+        assert (work_dir / "images" / "0001_alpha_0002.jpg").read_text(encoding="utf-8") == "frame2"
+        assert (work_dir / "images" / "0002_beta_0001.jpg").read_text(encoding="utf-8") == "frame1"
+        assert (work_dir / "images" / "0002_beta_0002.jpg").read_text(encoding="utf-8") == "frame2"
+
+        manifest = (work_dir / ".mini-mesh" / "frame_sources.tsv").read_text(encoding="utf-8")
+        assert "image\tsource_video\tsource_frame" in manifest
+        assert f"0001_alpha_0001.jpg\t{first}\t0001.jpg" in manifest
+        assert f"0002_beta_0002.jpg\t{second}\t0002.jpg" in manifest
+
+        ffmpeg_invocations = ffmpeg_log.read_text(encoding="utf-8")
+        assert str(first) in ffmpeg_invocations
+        assert str(second) in ffmpeg_invocations
+        assert "fps=4" in ffmpeg_invocations
+
+        runner_invocation = runner_log.read_text(encoding="utf-8")
+        assert f"{work_dir / 'images'} sfm --method glomap train --skip" in runner_invocation
+        assert "video --fps 4" not in runner_invocation
+
+    def test_scene_skips_existing_images_without_overwrite(self, tmp_path: Path) -> None:
+        """Existing assembled images should be reused unless --overwrite is set."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video = tmp_path / "scene.mp4"
+        work_dir = tmp_path / "scene"
+        images_dir = work_dir / "images"
+        images_dir.mkdir(parents=True)
+        video.write_bytes(b"scene")
+        (images_dir / "existing.jpg").write_text("keep", encoding="utf-8")
+
+        runner_log = tmp_path / "runner.log"
+        ffmpeg_log = tmp_path / "ffmpeg.log"
+        bin_dir = tmp_path / "bin"
+        self._make_ffmpeg_stub(bin_dir, ffmpeg_log)
+        scene_repo = self._make_scene_repo(tmp_path, repo_root, runner_log)
+
+        result = _run_script(
+            scene_repo,
+            "scripts/scene.sh",
+            [
+                "--runner",
+                "local",
+                "--work-dir",
+                str(work_dir),
+                str(video),
+                "--",
+                "sfm",
+                "--skip",
+            ],
+            {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"},
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert (images_dir / "existing.jpg").read_text(encoding="utf-8") == "keep"
+        assert not ffmpeg_log.exists()
+        assert f"{images_dir} sfm --skip" in runner_log.read_text(encoding="utf-8")
+
+    def test_scene_overwrite_rebuilds_images_and_forwards_overwrite(self, tmp_path: Path) -> None:
+        """--overwrite should rebuild assembled frames and pass overwrite to the pipeline."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video = tmp_path / "scene.mp4"
+        work_dir = tmp_path / "scene"
+        images_dir = work_dir / "images"
+        images_dir.mkdir(parents=True)
+        video.write_bytes(b"scene")
+        (images_dir / "stale.jpg").write_text("stale", encoding="utf-8")
+        (work_dir / "sparse").mkdir()
+        (work_dir / "database.db").write_text("db", encoding="utf-8")
+        (work_dir / "transforms.json").write_text("{}", encoding="utf-8")
+
+        runner_log = tmp_path / "runner.log"
+        ffmpeg_log = tmp_path / "ffmpeg.log"
+        bin_dir = tmp_path / "bin"
+        self._make_ffmpeg_stub(bin_dir, ffmpeg_log)
+        scene_repo = self._make_scene_repo(tmp_path, repo_root, runner_log)
+
+        result = _run_script(
+            scene_repo,
+            "scripts/scene.sh",
+            [
+                "--runner",
+                "local",
+                "--overwrite",
+                "--work-dir",
+                str(work_dir),
+                str(video),
+                "--",
+                "sfm",
+                "--skip",
+            ],
+            {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"},
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert not (images_dir / "stale.jpg").exists()
+        assert (images_dir / "0001_scene_0001.jpg").is_file()
+        assert not (work_dir / "sparse").exists()
+        assert not (work_dir / "database.db").exists()
+        assert not (work_dir / "transforms.json").exists()
+        assert f"{images_dir} --overwrite sfm --skip" in runner_log.read_text(encoding="utf-8")
+
+    def test_scene_rejects_video_output_override(self, tmp_path: Path) -> None:
+        """scene.sh owns the shared images directory and should reject ffmpeg output overrides."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video = tmp_path / "scene.mp4"
+        video.write_bytes(b"scene")
+
+        scene_repo = self._make_scene_repo(tmp_path, repo_root, tmp_path / "runner.log")
+        result = _run_script(
+            scene_repo,
+            "scripts/scene.sh",
+            [
+                "--runner",
+                "local",
+                "--work-dir",
+                str(tmp_path / "scene"),
+                str(video),
+                "--",
+                "video",
+                "--images",
+                str(tmp_path / "other-images"),
+                "sfm",
+                "--skip",
+            ],
+        )
+
+        assert result.returncode != 0
+        assert "scene.sh controls the frame output directory" in result.stderr
+
+
 class TestSfmScript:
     """Tests for scripts/sfm.sh with stubbed COLMAP."""
 

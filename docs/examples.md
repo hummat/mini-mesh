@@ -69,7 +69,31 @@ Notes:
 
 ---
 
-## 4. Nerfacto-big with multi-GPU training
+## 4. One scene from multiple videos
+
+Use this when several clips cover the same object or room and should be matched
+by one SfM run. The scene wrapper assembles the videos into one shared image
+folder, then calls the normal pipeline once.
+
+```bash
+scripts/scene.sh --work-dir /path/to/work/scene \
+  /path/to/clip_a.mp4 /path/to/clip_b.mp4 -- \
+  video --fps 4 \
+  sfm --method glomap \
+  process --mask rembg \
+  train --model splatfacto-mcmc --config splatfacto-mcmc-short --name sfmcmc \
+  export --obb-scale 1.5 1.5 1.0
+```
+
+Notes:
+
+- Frames are written as `0001_clip_a_0001.jpg`, `0002_clip_b_0001.jpg`, etc.
+- `.mini-mesh/frame_sources.tsv` records which video produced each assembled frame.
+- The `video` context controls extraction only; `run.sh` receives the shared `images/` directory and starts at SfM.
+
+---
+
+## 5. Nerfacto-big with multi-GPU training
 
 Same as above but with a larger Nerfacto variant and explicit multi-GPU flags.
 
@@ -92,7 +116,7 @@ Notes:
 
 ---
 
-## 5. Gaussian splatting with Splatfacto
+## 6. Gaussian splatting with Splatfacto
 
 Quick reconstruction and rendering using Gaussian splats.
 
@@ -112,7 +136,7 @@ Notes:
 
 ---
 
-## 6. Minimal SDF smoke test (Neus-grid-short)
+## 7. Minimal SDF smoke test (Neus-grid-short)
 
 Very small setup to check the pipeline end-to-end on a tiny example.
 

@@ -217,6 +217,28 @@ The default runner is Docker. Use `--runner local` for a local install, or
 lists from different parent directories, pass `--work-root`. Batch runs are
 sequential and stop on the first failed video.
 
+### Multiple videos of one scene
+
+Use `scripts/scene.sh` when several videos show the same scene and should feed
+one reconstruction. It extracts all videos into one shared `images/` directory
+with collision-proof frame names, writes `.mini-mesh/frame_sources.tsv`, then
+runs the normal pipeline once on that image scene.
+
+```bash
+scripts/scene.sh --runner docker --work-dir /path/to/scene \
+  /path/to/video1.mp4 /path/to/video2.mp4 -- \
+  video --fps 4 \
+  sfm --method glomap process --mask rembg \
+  train --model splatfacto-mcmc --config splatfacto-mcmc-short --name sfmcmc \
+  export --obb-scale 1.5 1.5 1.0
+```
+
+The optional `video ...` context is used only for frame extraction and is not
+forwarded to `run.sh`. Use `--overwrite` before `--` to rebuild the assembled
+frames and rerun the downstream pipeline with overwrite enabled. If the videos
+come from different cameras or zoom settings, pass `sfm --camera_model ...`
+carefully; the default COLMAP path assumes one shared camera.
+
 ### Docker wrapper options
 
 `docker/run.sh` and `docker/start.sh` mount your input directory at `/data` and,

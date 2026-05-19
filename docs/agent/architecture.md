@@ -13,6 +13,7 @@
 │   ├── sfm.sh                # structure-from-motion (COLMAP/GLOMAP)
 │   ├── dl_sfm.sh             # advanced SfM methods (hloc/vggsfm)
 │   ├── batch.sh              # sequential batch wrapper around run.sh/docker/run.sh
+│   ├── scene.sh              # multi-video same-scene assembler around run.sh/docker/run.sh
 │   └── lint.sh               # runs all checks (shellcheck/ruff/pyright/pytest)
 ├── config/                   # training configurations
 │   ├── defaults.sh           # base defaults for all model types
@@ -46,7 +47,7 @@ The `run.sh` script orchestrates a 5-stage pipeline:
 
 ## Single Source of Truth
 - `scripts/run.sh` defines the complete pipeline contract: contexts, flags, skip/overwrite semantics
-- All other entrypoints (`docker/run.sh`, `webui.py`) are thin wrappers around it
+- All other entrypoints (`docker/run.sh`, `webui.py`, `scripts/batch.sh`, `scripts/scene.sh`) are thin wrappers around it
 - Do not duplicate pipeline logic; extend `run.sh` patterns instead
 
 ## Web UI
@@ -73,6 +74,6 @@ which projects are forked, what the forks change, and pinned versions.
 ## Data Flow
 ```
 video/images → ffmpeg.sh → images/ → sfm.sh → sparse/ → process → transforms.json
-                                                              → images_masked/
-                                                              → train/ → export → mesh.ply + textures
+multi-video → scene.sh ───────┘                                → images_masked/
+                                                               → train/ → export → mesh.ply + textures
 ```
