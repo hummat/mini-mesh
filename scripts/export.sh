@@ -45,6 +45,31 @@ experiment_model_name() {
   echo "$name"
 }
 
+nerf_export_output_path() {
+  local exp_path="$1"
+  local model_name="$2"
+  local method="$3"
+
+  if [[ "$model_name" == *splat* ]]; then
+    echo "$exp_path/splat.ply"
+  elif [ "$method" = pointcloud ]; then
+    echo "$exp_path/point_cloud.ply"
+  elif [ "$method" = tsdf ]; then
+    echo "$exp_path/tsdf_mesh.ply"
+  else
+    echo "$exp_path/poisson_mesh.ply"
+  fi
+}
+
+should_run_export() {
+  local output_path="$1"
+  if [ -f "$output_path" ] && [ "${overwrite:-false}" != true ]; then
+    echo "[INFO]: Export output $output_path already exists; skipping (use --overwrite to rerun)"
+    return 1
+  fi
+  return 0
+}
+
 function show_help {
   echo "Usage: export.sh <exp_path> [export_args...]"
   echo
@@ -242,52 +267,55 @@ if [ -f "$exp_path/config.yml" ]; then
       echo "[ERROR]: --mesh-only/--texture-only/--input-mesh-filename are only supported for SDF experiments."
       exit 1
     fi
-    if [[ "$model_name" == *splat* ]]; then
-      if [ "$model_name" = splatfacto-w-light ]; then
-        run_cmd python "$script_dir/export_splatfactow.py" \
+    nerf_output_path="$(nerf_export_output_path "$exp_path" "$model_name" "$method")"
+    if should_run_export "$nerf_output_path"; then
+      if [[ "$model_name" == *splat* ]]; then
+        if [ "$model_name" = splatfacto-w-light ]; then
+          run_cmd python "$script_dir/export_splatfactow.py" \
+            --load-config "$exp_path/config.yml" \
+            --output-dir "$exp_path" \
+            --obb-center "${nerf_obb_center[@]}" \
+            --obb-rotation "${nerf_obb_rotation[@]}" \
+            --obb-scale "${nerf_obb_scale[@]}" \
+            "${nerf_args[@]}"
+        else
+          run_cmd ns-export gaussian-splat \
+            --load-config "$exp_path/config.yml" \
+            --output-dir "$exp_path" \
+            --obb-center "${nerf_obb_center[@]}" \
+            --obb-rotation "${nerf_obb_rotation[@]}" \
+            --obb-scale "${nerf_obb_scale[@]}" \
+            "${nerf_args[@]}"
+        fi
+      elif [ "$method" = pointcloud ]; then
+        run_cmd ns-export pointcloud \
           --load-config "$exp_path/config.yml" \
           --output-dir "$exp_path" \
           --obb-center "${nerf_obb_center[@]}" \
           --obb-rotation "${nerf_obb_rotation[@]}" \
           --obb-scale "${nerf_obb_scale[@]}" \
+          --std-ratio 1 \
+          "${nerf_args[@]}"
+      elif [ "$method" = tsdf ]; then
+        run_cmd ns-export tsdf \
+          --load-config "$exp_path/config.yml" \
+          --output-dir "$exp_path" \
+          --batch-size 1 \
+          --resolution 256 256 256 \
+          "${nerf_tsdf_args[@]}" \
           "${nerf_args[@]}"
       else
-        run_cmd ns-export gaussian-splat \
+        run_cmd ns-export poisson \
           --load-config "$exp_path/config.yml" \
           --output-dir "$exp_path" \
+          --save-point-cloud True \
           --obb-center "${nerf_obb_center[@]}" \
           --obb-rotation "${nerf_obb_rotation[@]}" \
           --obb-scale "${nerf_obb_scale[@]}" \
+          --std-ratio 1 \
+          --density-quantile 0.01 \
           "${nerf_args[@]}"
       fi
-    elif [ "$method" = pointcloud ]; then
-      run_cmd ns-export pointcloud \
-        --load-config "$exp_path/config.yml" \
-        --output-dir "$exp_path" \
-        --obb-center "${nerf_obb_center[@]}" \
-        --obb-rotation "${nerf_obb_rotation[@]}" \
-        --obb-scale "${nerf_obb_scale[@]}" \
-        --std-ratio 1 \
-        "${nerf_args[@]}"
-    elif [ "$method" = tsdf ]; then
-      run_cmd ns-export tsdf \
-        --load-config "$exp_path/config.yml" \
-        --output-dir "$exp_path" \
-        --batch-size 1 \
-        --resolution 256 256 256 \
-        "${nerf_tsdf_args[@]}" \
-        "${nerf_args[@]}"
-    else
-      run_cmd ns-export poisson \
-        --load-config "$exp_path/config.yml" \
-        --output-dir "$exp_path" \
-        --save-point-cloud True \
-        --obb-center "${nerf_obb_center[@]}" \
-        --obb-rotation "${nerf_obb_rotation[@]}" \
-        --obb-scale "${nerf_obb_scale[@]}" \
-        --std-ratio 1 \
-        --density-quantile 0.01 \
-        "${nerf_args[@]}"
     fi
   else
     if [ "$mesh_only" = true ] && [ "$texture_only" = true ]; then

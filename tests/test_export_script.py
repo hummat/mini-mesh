@@ -210,6 +210,149 @@ class TestExportScriptNerfGuards:
 class TestExportScriptNerfWorkflow:
     """Tests for NeRF export argument routing."""
 
+    def test_splat_export_skips_existing_output_without_overwrite(self, tmp_path: Path) -> None:
+        """Gaussian splat export should be idempotent when splat.ply already exists."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "splat.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+        assert not log_path.exists()
+
+    def test_splat_export_overwrites_existing_output_when_requested(self, tmp_path: Path) -> None:
+        """--overwrite should rerun Gaussian splat export even when splat.ply exists."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "splat.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, ["--overwrite"], env_overrides)
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export gaussian-splat" in log
+
+    def test_splatfacto_w_light_export_skips_existing_output_without_overwrite(
+        self, tmp_path: Path
+    ) -> None:
+        """The local splatfacto-w exporter should use the same output skip rule."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto-w-light" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "splat.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+        python_stub = bin_dir / "python"
+        python_stub.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        python_stub.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+        assert not log_path.exists()
+
+    def test_pointcloud_export_skips_existing_output_without_overwrite(
+        self, tmp_path: Path
+    ) -> None:
+        """Point cloud export should be idempotent when point_cloud.ply already exists."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "point_cloud.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, ["--method", "pointcloud"], env_overrides)
+        assert result.returncode == 0, result.stderr
+        assert not log_path.exists()
+
+    def test_tsdf_export_skips_existing_output_without_overwrite(self, tmp_path: Path) -> None:
+        """TSDF export should be idempotent when tsdf_mesh.ply already exists."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "tsdf_mesh.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, ["--method", "tsdf"], env_overrides)
+        assert result.returncode == 0, result.stderr
+        assert not log_path.exists()
+
+    def test_poisson_export_skips_existing_output_without_overwrite(self, tmp_path: Path) -> None:
+        """Poisson export should be idempotent when poisson_mesh.ply already exists."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "poisson_mesh.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+        assert not log_path.exists()
+
     def test_splat_export_uses_parent_model_name_for_run_timestamp(self, tmp_path: Path) -> None:
         """Pipeline paths end in /run, but the model name is the parent directory."""
         repo_root = Path(__file__).resolve().parents[1]

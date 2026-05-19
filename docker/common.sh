@@ -149,9 +149,12 @@ mini_mesh_build_docker_args() {
   mini_mesh_add_port_args
   docker_args+=(
     -e HOME=/tmp
+    -e LOGNAME=mini-mesh
     -e MINI_MESH_VENV_BIN=/opt/conda/bin
     -e MINI_MESH_LOCAL_PREFIX=/usr/local
     -e TORCH_HOME=/.cache/torch
+    -e TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor
+    -e USER=mini-mesh
     -e WANDB_API_KEY
     -e WANDB_MODE
     -e WANDB_PROJECT

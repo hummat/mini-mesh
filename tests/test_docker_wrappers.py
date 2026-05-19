@@ -122,6 +122,9 @@ def test_run_wrapper_masks_host_checkout_dependency_paths(tmp_path: Path) -> Non
     assert "/app/scripts/run.sh" in docker_args
     assert "MINI_MESH_VENV_BIN=/opt/conda/bin" in docker_args
     assert "MINI_MESH_LOCAL_PREFIX=/usr/local" in docker_args
+    assert "USER=mini-mesh" in docker_args
+    assert "LOGNAME=mini-mesh" in docker_args
+    assert "TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor" in docker_args
 
 
 def test_run_wrapper_can_use_baked_image_scripts(tmp_path: Path) -> None:
