@@ -32,8 +32,9 @@ The `<NAME>` values are exactly the model identifiers referenced below.
   `nerfacto-big` / `nerfacto-huge` for higher quality. Avoid classic `vanilla-nerf` unless you’re reproducing
   baselines.
 
-- If you need **real-time-ish inspection** and are OK with splats / point clouds:  
-  Use `--model splatfacto` with the `splatfacto` config, then export splats or a mesh once you’re happy.
+- If you need **real-time-ish inspection** or want to embed splats on the web:
+  Use `--model splatfacto-mcmc` with the default 30 000-iteration config (or `splatfacto-short` for development). See
+  section 6 for variant deltas, MCMC sizing, and the rendering-mode portability trade-off before exporting.
 
 - If your scene is **large-scale outdoors / architecture** and you want maximum surface detail:
   Try `--model neuralangelo` or `neus-facto-angelo` with their default or `-small` configs. These are slower and
@@ -407,8 +408,133 @@ representations instead of meshes.
 
 Choose splats when:
 
-- you want **fast, photo-realistic view synthesis and inspection**, and  
+- you want **fast, photo-realistic view synthesis and inspection**, or want to **embed splats on the web**, and
 - you’re OK either consuming Gaussians directly or running a separate mesh extraction step later.
+
+### 6.1 Splatfacto variants
+
+The three variants differ only in a handful of knobs but produce noticeably different splats:
+
+| Variant | `cull_alpha_thresh` | `densify_grad_thresh` | `stop_split_at` | `strategy` | Typical VRAM |
+|---|---|---|---|---|---|
+| `splatfacto` | 0.1 | 8e-4 | 15000 | default | ~6 GB |
+| `splatfacto-big` | 0.005 | 5e-4 | 15000 | default | ~12 GB |
+| `splatfacto-mcmc` | 0.005 | — | 25000 | mcmc | ~12 GB |
+
+All three default to 30 000 iterations and initialise from SfM points. None of them apply Mip-Splatting’s 3D
+covariance filter; only the 2D opacity compensation is available, and only when `rasterize_mode=antialiased` (see 6.3).
+
+Rule of thumb:
+
+- `splatfacto`: fast iteration, weaker hardware, small objects.
+- `splatfacto-big`: same scenes as base but you have the VRAM and want denser splats.
+- `splatfacto-mcmc`: best default for quality. Robust to weak init, and the hard splat-count cap doubles as a
+  file-size budget.
+
+### 6.2 MCMC strategy and `max_gs_num`
+
+`splatfacto-mcmc` follows the NeurIPS ’24 *3DGS as MCMC* formulation. Instead of cloning/splitting Gaussians by
+heuristic gradient rules, it samples positions via Stochastic Gradient Langevin Dynamics and relocates low-opacity
+Gaussians to high-density regions while respecting a hard total cap (`--pipeline.model.max-gs-num`, default
+1 000 000). Two L1 penalties run alongside SGLD: `mcmc_opacity_reg` (default 0.01) keeps opacities sparse, and
+`mcmc_scale_reg` (default 0.01) keeps scale magnitudes bounded.
+
+Sizing guide for `max-gs-num`:
+
+- 200k–500k: mobile-friendly blog assets, single objects.
+- 500k–1M: object/room captures, the safe default.
+- 1M–3M: large indoor scenes, outdoor close-range.
+- > 3M: only worth it with scene partitioning and LoD viewers; otherwise viewer perf and file size dominate.
+
+For mini-mesh you can pass `--pipeline.model.max-gs-num <N>` on the CLI, or wrap a preset in
+`config/splatfacto-mcmc-<size>.sh` if you’re running the same budget repeatedly.
+
+### 6.3 `rasterize_mode` and viewer compatibility
+
+`--pipeline.model.rasterize-mode` toggles between gsplat’s two rendering modes:
+
+- `classic` (default): screen-space `[0.3, 0.3]` Gaussian blur kernel, no opacity compensation. Matches the original
+  3DGS paper; renders correctly in every Gaussian-splat viewer.
+- `antialiased`: same dilation plus per-Gaussian opacity scaling by `sqrt(det(Σ_orig) / det(Σ_blurred))`. This is the
+  2D side of Mip-Splatting and gives noticeably better quality at non-training resolutions (mobile zoom, distance,
+  varying canvas size).
+
+The trade-off is **render-time compatibility**: an antialiased-trained PLY only renders correctly in viewers that
+apply the same compensation. The PLY format stores no flag for this; the receiver has to know.
+
+Viewer support for the antialiased compensation (verified 2026-05):
+
+| Viewer | Antialiased support | Notes |
+|---|---|---|
+| Nerfstudio’s own renderer | yes | renders training-time mode |
+| Brush (Arthur Brussee) | yes (opt-in Mip render mode) | `SplatRenderMode::Mip` selects the AA shader variant (`#ifdef MIP_SPLATTING`, `COV_BLUR=0.3`); `Default` is classic |
+| Spark (sparkjs.dev) | yes | AA-trained PLY: keep defaults (`blurAmount=0.3` applies the compensation, `preBlurAmount=0.0`). Classic-trained PLY: set `blurAmount=0.0, preBlurAmount=0.3`. |
+| PlayCanvas Engine ≥ 2.13 | yes (opt-in) | `GSplatParams.antiAlias = true` |
+| SuperSplat editor | partial | inherits from PlayCanvas Engine but does not enable `antiAlias` by default |
+| Antimatter15 / Mkkellogg / older WebGL viewers | no | classic only; AA-trained PLY renders too bright on tiny splats |
+
+Recommendation:
+
+- For deliverables shipped as portable PLY to unknown viewers, stay with `classic`.
+- When the target viewer is known and verified to support AA compensation (Spark, Brush, PlayCanvas with the flag),
+  `antialiased` is the better quality choice.
+
+**Important caveat**: Nerfstudio’s splatfacto only implements Mip-Splatting’s 2D opacity compensation, not the
+persistent 3D covariance filter (the per-view sampling-rate computation that gets folded into Gaussian covariances
+at training time). To get the full Mip-Splatting effect you need the upstream Mip-Splatting fork or a comparable
+custom training pass.
+
+`--pipeline.model.use-bilateral-grid` has the same portability problem and is worse: the grid parameters are never
+written to the exported PLY, so the training-time color correction is silently lost on export. Use it only for
+renders that stay inside Nerfstudio.
+
+### 6.4 Scale regularization
+
+`--pipeline.model.use-scale-regularization` adds the PhysGaussian anisotropy penalty: every 10 training steps it
+pushes Gaussians whose `max_scale / min_scale > max_gauss_ratio` (default 10) back toward isotropy. It suppresses
+the needle-like and pancake artifacts that cause spikes and streaks at grazing angles.
+
+It is **off by default** in Nerfstudio for a reason:
+
+- It can soften real thin geometry (wires, leaves, fur, mesh seams, hair).
+- With `splatfacto-mcmc` it stacks on top of `mcmc_scale_reg`, which already penalises scale magnitude. The combined
+  pressure on anisotropic detail compounds.
+
+Workflow: train once without it, render in your target viewer, and only enable on a re-train if you see specific
+needle/spike artifacts — typically around specular highlights, reflections, or sparse-view regions. Enabling
+preemptively trades visible quality for an artifact you may not have had.
+
+### 6.5 Splat export path
+
+`scripts/export.sh` writes `splat.ply` for any model whose name contains `splat`, via `ns-export gaussian-splat`. It
+does not run TSDF or Poisson auto-meshing for splat models; mesh extraction is a separate step. The exported PLY is
+the deliverable, so the portability considerations in 6.3 apply directly.
+
+`splatfacto-w-light` uses `scripts/export_splatfactow.py` for export, which carries the appearance-embedding
+handling needed by the in-the-wild variant.
+
+### 6.6 Blog and web embedding recipe
+
+For splats embedded in a webpage where you control the renderer (Spark, Brush, PlayCanvas with `antiAlias=true`),
+target the AA-aware path:
+
+```bash
+docker/run.sh /path/to/input \
+  train --model splatfacto-mcmc --config splatfacto-mcmc-web --name blog-export \
+  export
+```
+
+`scripts/export.sh` auto-routes splat models through `ns-export gaussian-splat`, so do not pass `--method` — the
+flag only accepts `poisson|tsdf|pointcloud` and would fail at the parser.
+
+On the Spark side, keep the defaults (`blurAmount=0.3, preBlurAmount=0.0`); they already apply the opacity
+compensation the AA-trained PLY expects. After export, compress `splat.ply` via SuperSplat’s compressed-PLY export
+or SOGS/SPZ depending on viewer support; aim for 5–20 MB. Don’t ship uncompressed PLY — even 400k Gaussians is over
+100 MB raw.
+
+For “download and view in any viewer” deliverables, train with `--pipeline.model.rasterize-mode classic` (override
+`splatfacto-mcmc-web` on the CLI, or use a separate config) and accept slightly softer rendering at non-training
+resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=0.3`.
 
 ---
 
@@ -435,9 +561,11 @@ Choose splats when:
   Downscale data and use lighter configs such as `neus-grid-short` / `neus2-short` for SDF or `nerfacto-short` for NeRF. Aim
   for a few thousand iterations to check masks, SfM, and basic scene framing before committing to long runs.
 
-  - For **fast splat-style outputs and real-time-ish inspection**:  
-    Use `splatfacto` (or `splatfacto-big` / `splatfacto-mcmc` when you care about quality). Keep in mind that you’ll get
-    Gaussians first; meshes are an extra step and may lose some of the splat fidelity.
+  - For **splat-based outputs, real-time-ish inspection, or web embedding**:
+    Use `splatfacto-mcmc` as the default; drop to `splatfacto` for faster iteration on weak hardware, and
+    `splatfacto-big` if you have ~12 GB VRAM and want denser splats. See section 6.3 before picking `rasterize-mode`
+    when the splats are going to a specific web viewer. The export path writes `splat.ply` only; mesh extraction is
+    a separate step.
 
   As always, mini-mesh's `config/*.sh` files map friendly config names (e.g. `neus-facto`, `neus2`,
   `neuralangelo`, `nerfacto-short`, `splatfacto`) onto these model identifiers. This document is meant as a
