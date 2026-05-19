@@ -14,6 +14,18 @@ mini_mesh_die() {
   exit 1
 }
 
+mini_mesh_shell_join() {
+  local quoted_args=()
+  local quoted_arg
+  local arg
+  for arg in "$@"; do
+    printf -v quoted_arg "%q" "$arg"
+    quoted_args+=("$quoted_arg")
+  done
+  local IFS=" "
+  printf "%s" "${quoted_args[*]}"
+}
+
 mini_mesh_cleanup_xhost() {
   if [[ -n "$mini_mesh_xhost_user" ]] && command -v xhost >/dev/null 2>&1; then
     xhost -local:"$mini_mesh_xhost_user" >/dev/null 2>&1 || true

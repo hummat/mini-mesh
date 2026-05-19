@@ -100,6 +100,12 @@ def test_run_wrapper_uses_repo_scripts_and_normalizes_relative_input(tmp_path: P
     assert "video" in docker_args
     assert "--fps" in docker_args
     assert "1" in docker_args
+    command_display = next(
+        arg for arg in docker_args if arg.startswith("MINI_MESH_COMMAND_DISPLAY=")
+    )
+    assert "docker/run.sh" in command_display
+    assert "video" in command_display
+    assert "--fps" in command_display
     assert "-it" not in docker_args
 
 

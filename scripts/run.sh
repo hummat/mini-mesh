@@ -12,6 +12,7 @@ input_dir=""
 name="unknown"
 mail_addr=""
 logfile=""
+original_command=("$0" "$@")
 
 finish_script() {
   local exit_code=$?
@@ -36,6 +37,18 @@ verbose_echo() {
   if [ "$verbose" = true ]; then
     echo "[VERBOSE]:" "$@"
   fi
+}
+
+shell_join() {
+  local quoted_args=()
+  local quoted_arg
+  local arg
+  for arg in "$@"; do
+    printf -v quoted_arg "%q" "$arg"
+    quoted_args+=("$quoted_arg")
+  done
+  local IFS=" "
+  printf "%s" "${quoted_args[*]}"
 }
 
 stage_run() {
@@ -418,6 +431,11 @@ if [ "$model" = splatfacto-w ]; then
   exit 1
 fi
 
+if [ -n "${MINI_MESH_COMMAND_DISPLAY:-}" ]; then
+  echo "Command: $MINI_MESH_COMMAND_DISPLAY"
+else
+  echo "Command: $(shell_join "${original_command[@]}")"
+fi
 echo "Global args: ${global_args[*]}"
 echo "============================="
 echo "          1. VIDEO           "

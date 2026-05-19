@@ -23,10 +23,14 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
+host_command=("$0" "$@")
+host_command_display="$(mini_mesh_shell_join "${host_command[@]}")"
+
 mini_mesh_resolve_input "$1"
 shift
 image="$(mini_mesh_select_image)"
 mini_mesh_build_docker_args auto
 mini_mesh_set_app_entrypoint
+docker_args+=(-e "MINI_MESH_COMMAND_DISPLAY=$host_command_display")
 
 docker "${docker_args[@]}" "$image" "$mini_mesh_app_entrypoint" "$mini_mesh_container_input" "$@"

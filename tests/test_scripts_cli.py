@@ -1254,6 +1254,9 @@ class TestRunScript:
         assert "sdf-texture-mesh" not in log
 
         assert "[INFO]: Video stage skipped: input is not a video file" in result.stdout
+        assert "Command: " in result.stdout
+        assert "scripts/run.sh" in result.stdout
+        assert "process train --model neus-facto" in result.stdout
         assert "[INFO]: Running SfM stage" in result.stdout
         assert "[INFO]: Running data processing stage" in result.stdout
         assert "[INFO]: Running train stage" in result.stdout
