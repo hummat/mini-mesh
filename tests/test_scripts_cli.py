@@ -166,6 +166,323 @@ class TestEnvBootstrap:
         assert "Run 'make build' or unset MINI_MESH_LOCAL_PREFIX." in result.stderr
 
 
+class TestBatchScript:
+    """Tests for scripts/batch.sh video batching."""
+
+    @staticmethod
+    def _make_batch_repo(tmp_path: Path, source_repo: Path, log_path: Path) -> Path:
+        batch_repo = tmp_path / "batch-repo"
+        scripts_dir = batch_repo / "scripts"
+        docker_dir = batch_repo / "docker"
+        scripts_dir.mkdir(parents=True)
+        docker_dir.mkdir()
+        batch_script = scripts_dir / "batch.sh"
+        batch_script.write_text(
+            (source_repo / "scripts" / "batch.sh").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        batch_script.chmod(0o755)
+        TestBatchScript._make_runner_stub(scripts_dir / "run.sh", log_path)
+        TestBatchScript._make_runner_stub(docker_dir / "run.sh", log_path)
+        return batch_repo
+
+    @staticmethod
+    def _make_runner_stub(path: Path, log_path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    f'echo "$0 $*" >> "{log_path}"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        path.chmod(0o755)
+
+    def test_batch_local_stages_each_video_and_forwards_pipeline_args(self, tmp_path: Path) -> None:
+        """Local mode should run scripts/run.sh once per top-level video."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+        first = video_dir / "alpha.mp4"
+        second = video_dir / "beta.MOV"
+        first.write_bytes(b"alpha")
+        second.write_bytes(b"beta")
+        (video_dir / "notes.txt").write_text("ignore", encoding="utf-8")
+
+        log_path = tmp_path / "batch_local.log"
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, log_path)
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                str(video_dir),
+                "--",
+                "video",
+                "--fps",
+                "4",
+                "train",
+                "--model",
+                "splatfacto-mcmc",
+            ],
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert (video_dir / "alpha" / "alpha.mp4").is_file()
+        assert (video_dir / "beta" / "beta.MOV").is_file()
+        assert (video_dir / "alpha" / "alpha.mp4").samefile(first)
+        assert (video_dir / "beta" / "beta.MOV").samefile(second)
+
+        log = log_path.read_text(encoding="utf-8")
+        assert (
+            f"{video_dir / 'alpha' / 'alpha.mp4'} video --fps 4 train --model splatfacto-mcmc"
+            in log
+        )
+        assert (
+            f"{video_dir / 'beta' / 'beta.MOV'} video --fps 4 train --model splatfacto-mcmc" in log
+        )
+
+    def test_batch_docker_uses_docker_wrapper_by_default(self, tmp_path: Path) -> None:
+        """Docker mode should run docker/run.sh unless overridden."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_dir = tmp_path / "videos"
+        work_root = tmp_path / "work"
+        video_dir.mkdir()
+        (video_dir / "scene.mp4").write_bytes(b"scene")
+
+        log_path = tmp_path / "batch_docker.log"
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, log_path)
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--work-root",
+                str(work_root),
+                str(video_dir),
+                "--",
+                "video",
+                "--fps",
+                "2",
+            ],
+        )
+
+        assert result.returncode == 0, result.stderr
+        log = log_path.read_text(encoding="utf-8")
+        assert f"{work_root / 'scene' / 'scene.mp4'} video --fps 2" in log
+
+    def test_batch_accepts_explicit_video_list(self, tmp_path: Path) -> None:
+        """Explicit video inputs should avoid scanning unrelated files."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+        first = video_dir / "alpha.mp4"
+        second = video_dir / "beta.mkv"
+        ignored = video_dir / "ignored.mov"
+        first.write_bytes(b"alpha")
+        second.write_bytes(b"beta")
+        ignored.write_bytes(b"ignored")
+
+        log_path = tmp_path / "batch_explicit.log"
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, log_path)
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                str(first),
+                str(second),
+                "--",
+                "video",
+                "--fps",
+                "3",
+            ],
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert (video_dir / "alpha" / "alpha.mp4").samefile(first)
+        assert (video_dir / "beta" / "beta.mkv").samefile(second)
+        assert not (video_dir / "ignored").exists()
+
+        log = log_path.read_text(encoding="utf-8")
+        assert f"{video_dir / 'alpha' / 'alpha.mp4'} video --fps 3" in log
+        assert f"{video_dir / 'beta' / 'beta.mkv'} video --fps 3" in log
+        assert "ignored.mov" not in log
+
+    def test_batch_explicit_video_list_requires_work_root_for_mixed_parents(
+        self, tmp_path: Path
+    ) -> None:
+        """Explicit video lists from different dirs need an unambiguous work root."""
+        repo_root = Path(__file__).resolve().parents[1]
+        first_dir = tmp_path / "first"
+        second_dir = tmp_path / "second"
+        first_dir.mkdir()
+        second_dir.mkdir()
+        first = first_dir / "alpha.mp4"
+        second = second_dir / "beta.mp4"
+        first.write_bytes(b"alpha")
+        second.write_bytes(b"beta")
+
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, tmp_path / "unused.log")
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                str(first),
+                str(second),
+                "--",
+                "video",
+                "--fps",
+                "1",
+            ],
+        )
+
+        assert result.returncode != 0
+        assert (
+            "--work-root is required when explicit video paths are from different directories"
+            in result.stderr
+        )
+
+    def test_batch_explicit_video_list_uses_work_root_for_mixed_parents(
+        self, tmp_path: Path
+    ) -> None:
+        """A work root makes mixed-parent explicit inputs deterministic."""
+        repo_root = Path(__file__).resolve().parents[1]
+        first_dir = tmp_path / "first"
+        second_dir = tmp_path / "second"
+        work_root = tmp_path / "work"
+        first_dir.mkdir()
+        second_dir.mkdir()
+        first = first_dir / "alpha.mp4"
+        second = second_dir / "beta.mp4"
+        first.write_bytes(b"alpha")
+        second.write_bytes(b"beta")
+
+        log_path = tmp_path / "batch_mixed_work_root.log"
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, log_path)
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                "--work-root",
+                str(work_root),
+                str(first),
+                str(second),
+                "--",
+                "process",
+                "--skip",
+            ],
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert (work_root / "alpha" / "alpha.mp4").samefile(first)
+        assert (work_root / "beta" / "beta.mp4").samefile(second)
+
+        log = log_path.read_text(encoding="utf-8")
+        assert f"{work_root / 'alpha' / 'alpha.mp4'} process --skip" in log
+        assert f"{work_root / 'beta' / 'beta.mp4'} process --skip" in log
+
+    def test_batch_copy_mode_is_idempotent_for_existing_copy(self, tmp_path: Path) -> None:
+        """Copy mode should allow reruns when the staged copy matches the source."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_dir = tmp_path / "videos"
+        work_root = tmp_path / "work"
+        video_dir.mkdir()
+        source = video_dir / "scene.mp4"
+        source.write_bytes(b"scene")
+        staged = work_root / "scene" / "scene.mp4"
+        staged.parent.mkdir(parents=True)
+        staged.write_bytes(b"scene")
+
+        log_path = tmp_path / "batch_copy.log"
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, log_path)
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                "--copy",
+                "--work-root",
+                str(work_root),
+                str(video_dir),
+                "--",
+                "train",
+                "--skip",
+            ],
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert staged.read_bytes() == b"scene"
+        assert not staged.samefile(source)
+
+    def test_batch_copy_mode_rejects_different_existing_copy(self, tmp_path: Path) -> None:
+        """Copy mode should not silently clobber a different staged file."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_dir = tmp_path / "videos"
+        work_root = tmp_path / "work"
+        video_dir.mkdir()
+        source = video_dir / "scene.mp4"
+        source.write_bytes(b"new")
+        staged = work_root / "scene" / "scene.mp4"
+        staged.parent.mkdir(parents=True)
+        staged.write_bytes(b"old")
+
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, tmp_path / "unused.log")
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                "--copy",
+                "--work-root",
+                str(work_root),
+                str(video_dir),
+                "--",
+                "train",
+                "--skip",
+            ],
+        )
+
+        assert result.returncode != 0
+        assert f"Work video exists with different contents: {staged}" in result.stderr
+        assert staged.read_bytes() == b"old"
+
+    def test_batch_rejects_duplicate_video_stems(self, tmp_path: Path) -> None:
+        """Duplicate stems would share a work dir, so fail before running anything."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+        (video_dir / "scene.mp4").write_bytes(b"mp4")
+        (video_dir / "scene.mov").write_bytes(b"mov")
+
+        batch_repo = self._make_batch_repo(tmp_path, repo_root, tmp_path / "unused.log")
+        result = _run_script(
+            batch_repo,
+            "scripts/batch.sh",
+            [
+                "--runner",
+                "local",
+                str(video_dir),
+                "--",
+                "video",
+                "--fps",
+                "1",
+            ],
+        )
+
+        assert result.returncode != 0
+        assert "Multiple videos share the stem 'scene'" in result.stderr
+
+
 class TestSfmScript:
     """Tests for scripts/sfm.sh with stubbed COLMAP."""
 

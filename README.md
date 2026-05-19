@@ -174,6 +174,24 @@ docker/run.sh /path/to/input video --fps 1 sfm --method glomap process --mask re
 
 The final mesh appears next to your input. Steps already completed are skipped (use `--overwrite` to re-run).
 
+### Batch processing
+
+Use `scripts/batch.sh` to run the same pipeline over every top-level video in a
+directory, or over an explicit list of videos. It creates one work directory per
+video stem and stages the video there, so outputs do not collide.
+
+```bash
+scripts/batch.sh /path/to/videos -- \
+  video --fps 4 \
+  train --model splatfacto-mcmc --config splatfacto-mcmc-short --name sfmcmc --vis viewer \
+  export --obb-scale 1.5 1.5 1.0
+```
+
+The default runner is Docker. Use `--runner local` for a local install, or
+`--copy` when hardlinks are not possible across filesystems. For explicit video
+lists from different parent directories, pass `--work-root`. Batch runs are
+sequential and stop on the first failed video.
+
 ### Docker wrapper options
 
 `docker/run.sh` and `docker/start.sh` mount your input directory at `/data` and,

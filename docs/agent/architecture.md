@@ -12,6 +12,7 @@
 │   ├── ffmpeg.sh             # video frame extraction
 │   ├── sfm.sh                # structure-from-motion (COLMAP/GLOMAP)
 │   ├── dl_sfm.sh             # advanced SfM methods (hloc/vggsfm)
+│   ├── batch.sh              # sequential batch wrapper around run.sh/docker/run.sh
 │   └── lint.sh               # runs all checks (shellcheck/ruff/pyright/pytest)
 ├── config/                   # training configurations
 │   ├── defaults.sh           # base defaults for all model types
