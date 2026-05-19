@@ -21,7 +21,7 @@
 │   ├── Dockerfile            # canonical image build
 │   ├── run.sh                # docker wrapper around scripts/run.sh
 │   └── Dockerfile_bak        # legacy backup (do not edit)
-├── webui.py                  # Gradio UI (wraps scripts/run.sh)
+├── webui.py                  # Gradio UI and local run launcher (wraps scripts/run.sh)
 ├── web.py                    # alias to webui.py
 ├── pyproject.toml           # Python config (hatchling build, dev deps, tooling)
 ├── tests/                    # unit tests for webui.py
@@ -48,6 +48,15 @@ The `run.sh` script orchestrates a 5-stage pipeline:
 - `scripts/run.sh` defines the complete pipeline contract: contexts, flags, skip/overwrite semantics
 - All other entrypoints (`docker/run.sh`, `webui.py`) are thin wrappers around it
 - Do not duplicate pipeline logic; extend `run.sh` patterns instead
+
+## Web UI
+
+`webui.py` is a local single-user Gradio workbench around `scripts/run.sh` and
+`docker/run.sh`. It builds argv without `shell=True`, starts at most one active
+pipeline run, streams stdout/stderr into the page, exposes a stop action, tracks
+the five `run.sh` stage banners, and previews discovered mesh artifacts through
+Gradio's native 3D model component. Keep pipeline semantics in `scripts/run.sh`;
+the UI should only translate form state into the existing command contract.
 
 ## Configuration System
 - Training configs are Bash arrays in `config/*.sh`: `CONFIG=(--flag1 value1 --flag2 value2 ...)`

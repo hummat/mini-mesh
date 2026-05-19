@@ -162,9 +162,17 @@ docker/run.sh /path/to/your/video/or/images
 
 # Manual/local
 scripts/run.sh /path/to/your/video/or/images
+
+# Local Web UI
+uv run python webui.py
 ```
 
 The pipeline runs 5 steps: **video** → **sfm** → **process** → **train** → **export**
+
+The Web UI is a local single-user launcher for the same pipeline contract. It
+builds the command, starts one active run, streams the combined log, supports
+stopping the child process, shows stage progress, and previews discovered mesh
+artifacts with the built-in 3D viewer.
 
 Pass arguments to specific steps using sub-commands:
 

@@ -1,5 +1,9 @@
 """Unit tests for webui.py command validation and building."""
 
+from __future__ import annotations
+
+from pathlib import Path
+
 
 class TestCommandValidation:
     """Test test_cmd() function for command validation."""
@@ -1335,6 +1339,8 @@ class TestRunPipelineEdgeCases:
 
     def test_process_crop_factor_string(self):
         """Test process with crop_factor as string."""
+        import shlex
+
         from webui import run_pipeline
 
         cmd = run_pipeline(
@@ -1342,7 +1348,8 @@ class TestRunPipelineEdgeCases:
             process_enable=True,
             process_crop_factor="0.1 0.2 0.3 0.4",
         )
-        assert "--crop-factor 0.1 0.2 0.3 0.4" in cmd
+        assert '"0.1 0.2 0.3 0.4"' in cmd
+        assert shlex.split(cmd)[-1] == "0.1 0.2 0.3 0.4"
 
     def test_process_min_match_ratio(self):
         """Test process with min_match_ratio."""
@@ -1502,6 +1509,272 @@ class TestRunPipelineEdgeCases:
             export_skip=True,
         )
         assert "export --skip" in cmd
+
+
+class TestStructuredCommandBuilder:
+    """Tests for argv-safe command construction used by the run launcher."""
+
+    def test_build_pipeline_argv_preserves_path_with_spaces(self):
+        """The executor should receive argv, not a shell-quoted command string."""
+        from webui import build_pipeline_argv, run_pipeline
+
+        argv = build_pipeline_argv(
+            input_path="/path/to/my video.mp4",
+            train_enable=True,
+            train_model="neus-facto",
+        )
+
+        assert argv[:2] == ["scripts/run.sh", "/path/to/my video.mp4"]
+        assert "--model" in argv
+        assert (
+            run_pipeline(
+                input_path="/path/to/my video.mp4",
+                train_enable=True,
+                train_model="neus-facto",
+            )
+            == 'scripts/run.sh "/path/to/my video.mp4" train --model neus-facto'
+        )
+
+    def test_run_pipeline_quotes_whitespace_in_non_input_values(self):
+        """Preview text should be copy-paste safe for every whitespace-bearing arg."""
+        import shlex
+
+        from webui import build_pipeline_argv, run_pipeline
+
+        argv = build_pipeline_argv(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_name="my run",
+            train_config="configs/has space.sh",
+        )
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_name="my run",
+            train_config="configs/has space.sh",
+        )
+
+        assert '"my run"' in cmd
+        assert '"configs/has space.sh"' in cmd
+        assert shlex.split(cmd) == argv
+
+    def test_validate_run_argv_rejects_resume_with_overwrite(self):
+        """The launcher should catch resume/overwrite conflicts before spawning."""
+        from webui import validate_run_argv
+
+        validation = validate_run_argv(["scripts/run.sh", "/x", "--overwrite", "train", "--resume"])
+
+        assert validation is not None
+        assert "resume" in validation
+        assert "overwrite" in validation
+
+
+class TestStageTracker:
+    """Tests for parsing scripts/run.sh stage banners into UI state."""
+
+    def test_stage_tracker_marks_running_skipped_and_done(self):
+        """Stage summary should follow the existing run.sh log format."""
+        from webui import StageTracker
+
+        tracker = StageTracker()
+        for line in [
+            "=============================",
+            "          1. VIDEO           ",
+            "=============================",
+            "[INFO]: Running video stage",
+            "=============================",
+            "          2. SfM             ",
+            "=============================",
+            "[INFO]: SfM output /tmp/sparse already exists; skipping (use --overwrite to rerun)",
+            "=============================",
+            "          FINISHED           ",
+            "=============================",
+            "Job 'demo': SUCCESS",
+        ]:
+            tracker.consume(line)
+
+        assert "VIDEO: done" in tracker.summary()
+        assert "SfM: skipped" in tracker.summary()
+        assert "EXPORT: pending" in tracker.summary()
+
+    def test_stage_tracker_uses_stage_prefix_not_path_substrings(self):
+        """A path containing another stage name must not redirect skip state."""
+        from webui import StageTracker
+
+        tracker = StageTracker()
+        for line in [
+            "          2. SfM             ",
+            (
+                "[INFO]: SfM output /tmp/video_demo/sparse already exists; "
+                "skipping (use --overwrite to rerun)"
+            ),
+        ]:
+            tracker.consume(line)
+
+        assert "VIDEO: pending" in tracker.summary()
+        assert "SfM: skipped" in tracker.summary()
+
+
+class FakeStdout:
+    """Minimal stdout iterable for fake subprocesses."""
+
+    def __init__(self, lines: list[str]) -> None:
+        self._lines = iter(lines)
+
+    def readline(self) -> str:
+        return next(self._lines, "")
+
+    def close(self) -> None:
+        return None
+
+
+class FakeProcess:
+    """Small fake Popen result for runner tests."""
+
+    def __init__(self, lines: list[str], returncode: int = 0) -> None:
+        self.stdout = FakeStdout(lines)
+        self.returncode = returncode
+        self.terminated = False
+        self.killed = False
+
+    def poll(self) -> int | None:
+        return self.returncode if self.terminated else None
+
+    def wait(self, timeout: float | None = None) -> int:
+        self.terminated = True
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.terminated = True
+        self.returncode = -15
+
+    def kill(self) -> None:
+        self.killed = True
+        self.terminated = True
+        self.returncode = -9
+
+
+class TestPipelineRunner:
+    """Tests for the local single-run subprocess wrapper."""
+
+    def test_runner_streams_output_and_records_success(self, tmp_path: Path):
+        """A run should yield streamed log text and final succeeded status."""
+        from webui import PipelineRunner
+
+        captured: dict[str, object] = {}
+
+        def factory(argv, **kwargs):
+            captured["argv"] = argv
+            captured["kwargs"] = kwargs
+            return FakeProcess(["line 1\n", "line 2\n"], returncode=0)
+
+        runner = PipelineRunner(repo_root=tmp_path, process_factory=factory)
+        updates = list(runner.run(["scripts/run.sh", "/tmp/input.mp4"]))
+
+        assert captured["argv"][-2:] == ["scripts/run.sh", "/tmp/input.mp4"]
+        assert captured["kwargs"]["shell"] is False
+        assert updates[-1].status == "succeeded"
+        assert updates[-1].exit_code == 0
+        assert "line 1" in updates[-1].log
+
+    def test_runner_uses_stdbuf_when_available(self, tmp_path: Path, monkeypatch):
+        """Linux stdbuf should make child logs line-buffered when available."""
+        import webui
+        from webui import PipelineRunner
+
+        captured: dict[str, object] = {}
+        monkeypatch.setattr(webui.shutil, "which", lambda name: "/usr/bin/stdbuf")
+
+        def factory(argv, **kwargs):
+            captured["argv"] = argv
+            return FakeProcess([], returncode=0)
+
+        runner = PipelineRunner(repo_root=tmp_path, process_factory=factory)
+        list(runner.run(["scripts/run.sh", "/tmp/input.mp4"]))
+
+        assert captured["argv"][:3] == ["stdbuf", "-oL", "-eL"]
+
+    def test_runner_reports_spawn_failures(self, tmp_path: Path):
+        """OSError from Popen should become a visible failed run update."""
+        from webui import PipelineRunner
+
+        def factory(argv, **kwargs):
+            raise PermissionError("cannot execute")
+
+        runner = PipelineRunner(repo_root=tmp_path, process_factory=factory)
+        updates = list(runner.run(["scripts/run.sh", "/tmp/input.mp4"]))
+
+        assert updates[-1].status == "failed"
+        assert "cannot execute" in updates[-1].log
+
+    def test_runner_caps_streamed_log_buffer(self, tmp_path: Path):
+        """Long runs should not resend an unbounded full log on every line."""
+        from webui import PipelineRunner
+
+        runner = PipelineRunner(
+            repo_root=tmp_path,
+            process_factory=lambda argv, **kwargs: FakeProcess(
+                [f"line {index}\n" for index in range(5)],
+                returncode=0,
+            ),
+            max_log_lines=3,
+        )
+        updates = list(runner.run(["scripts/run.sh", "/tmp/input.mp4"]))
+
+        assert "line 0" not in updates[-1].log
+        assert "line 2" in updates[-1].log
+
+    def test_runner_rejects_second_active_run(self, tmp_path: Path):
+        """Only one GPU-bound pipeline should be active from the Web UI."""
+        from webui import PipelineRunner
+
+        runner = PipelineRunner(
+            repo_root=tmp_path,
+            process_factory=lambda argv, **kwargs: FakeProcess([], returncode=0),
+        )
+        runner._process = FakeProcess([], returncode=None)  # noqa: SLF001
+
+        try:
+            updates = list(runner.run(["scripts/run.sh", "/tmp/input.mp4"]))
+        finally:
+            runner._process = None  # noqa: SLF001
+
+        assert updates[-1].status == "failed"
+        assert "already running" in updates[-1].log
+
+    def test_runner_stop_terminates_active_process(self, tmp_path: Path):
+        """Stop should terminate the active child process."""
+        from webui import PipelineRunner
+
+        fake = FakeProcess([], returncode=None)
+        runner = PipelineRunner(
+            repo_root=tmp_path,
+            process_factory=lambda argv, **kwargs: fake,
+        )
+        runner._process = fake  # noqa: SLF001
+
+        result = runner.stop()
+
+        assert result == "stopped"
+        assert fake.terminated is True
+
+
+class TestArtifactDiscovery:
+    """Tests for simple result artifact discovery."""
+
+    def test_find_mesh_artifacts_prefers_mesh_like_outputs(self, tmp_path: Path):
+        """The result panel should find common mesh/splat outputs after a run."""
+        from webui import find_mesh_artifacts
+
+        (tmp_path / "notes.txt").write_text("ignore", encoding="utf-8")
+        (tmp_path / "train" / "demo" / "neus" / "run").mkdir(parents=True)
+        mesh_dir = tmp_path / "train" / "demo" / "neus" / "run"
+        mesh = mesh_dir / "mesh.ply"
+        textured_mesh = mesh_dir / "mesh.obj"
+        mesh.write_text("ply\n", encoding="utf-8")
+        textured_mesh.write_text("obj\n", encoding="utf-8")
+
+        assert find_mesh_artifacts(tmp_path)[:2] == [str(textured_mesh), str(mesh)]
 
 
 class TestCreateUI:

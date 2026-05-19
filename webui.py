@@ -1,10 +1,81 @@
 """Web UI for mini-mesh video to 3D mesh pipeline."""
 
+from __future__ import annotations
+
+import os
 import re
 import shlex
-from typing import Optional
+import signal
+import shutil
+import subprocess
+import threading
+from collections import deque
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
 
 import gradio as gr  # type: ignore[import-not-found]
+
+REPO_ROOT = Path(__file__).resolve().parent
+STAGE_NAMES = ["VIDEO", "SfM", "DATA PROCESSING", "TRAIN", "EXPORT"]
+MESH_EXTENSIONS = {".ply", ".obj", ".glb", ".gltf"}
+APP_CSS = """
+:root {
+  --mini-bg: #f6f3ee;
+  --mini-panel: #fffdf8;
+  --mini-ink: #1f2933;
+  --mini-muted: #68737d;
+  --mini-line: #d6d1c8;
+  --mini-accent: #256f73;
+  --mini-warn: #b7791f;
+  --mini-bad: #b42318;
+}
+.gradio-container {
+  background: var(--mini-bg);
+  color: var(--mini-ink);
+}
+.mini-shell {
+  max-width: 1480px;
+  margin: 0 auto;
+}
+.mini-title h1 {
+  font-size: 1.45rem;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+.mini-title p {
+  color: var(--mini-muted);
+  margin-top: 0;
+}
+.mini-log textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  min-height: 420px;
+  background: #111827 !important;
+  color: #e5e7eb !important;
+}
+.mini-status textarea,
+.mini-stages textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+.mini-command textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+"""
+
+
+def quote_display_arg(arg: str) -> str:
+    """Format one argv item for display while preserving existing double-quote style."""
+    if not arg:
+        return '""'
+    if not re.search(r"\s", arg):
+        return arg
+    return '"' + arg.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def format_command(argv: list[str]) -> str:
+    """Format an argv list for copy/paste display."""
+    return " ".join(arg if index == 0 else quote_display_arg(arg) for index, arg in enumerate(argv))
 
 
 def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
@@ -158,7 +229,7 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
     return None
 
 
-def run_pipeline(
+def build_pipeline_argv(
     input_path: Optional[str] = None,
     mode: str = "local",
     # Global args
@@ -249,9 +320,9 @@ def run_pipeline(
     process_extra_args: Optional[str] = None,
     train_extra_args: Optional[str] = None,
     export_extra_args: Optional[str] = None,
-) -> str:
+) -> list[str]:
     """
-    Build command string for running the pipeline.
+    Build argv for running the pipeline.
 
     Args:
         input_path: Path to video file or image directory
@@ -335,17 +406,13 @@ def run_pipeline(
         export_extra_args: Additional export args (verbatim, expert use)
 
     Returns:
-        Command string to execute, or empty string if invalid
+        Command argv to execute, or an empty list if invalid.
     """
     if not input_path:
-        return ""
+        return []
 
     # Select run script based on mode
     run_script = "docker/run.sh" if mode == "docker" else "scripts/run.sh"
-
-    # Quote path if it contains spaces
-    if " " in input_path:
-        input_path = f'"{input_path}"'
 
     cmd_parts = [run_script, input_path]
 
@@ -595,28 +662,310 @@ def run_pipeline(
         if export_overwrite:
             cmd_parts.append("--overwrite")
 
-    return " ".join(cmd_parts)
+    return cmd_parts
 
 
-def create_ui() -> gr.Blocks:
-    """Create and return the Gradio UI."""
-    with gr.Blocks(title="Mini-Mesh: Video to 3D Pipeline") as demo:
-        gr.Markdown("# Mini-Mesh: Video to 3D Mesh Pipeline")
-        gr.Markdown(
-            "This interface runs the public **mini-mesh** pipeline "
-            "on your local machine or inside Docker."
+def run_pipeline(*args: Any, **kwargs: Any) -> str:
+    """Build command string for display/copy-paste compatibility."""
+    return format_command(build_pipeline_argv(*args, **kwargs))
+
+
+def validate_run_argv(argv: list[str]) -> Optional[str]:
+    """Validate launcher-only conflicts before spawning the shell script."""
+    if not argv:
+        return "No command to run"
+
+    current_context = "global"
+    global_overwrite = False
+    train_overwrite = False
+    train_resume = False
+    train_skip = False
+
+    for arg in argv[2:]:
+        if arg in {"video", "sfm", "process", "train", "export"}:
+            current_context = arg
+        elif arg == "--overwrite":
+            if current_context == "train":
+                train_overwrite = True
+            elif current_context == "global":
+                global_overwrite = True
+        elif arg == "--resume" or arg == "--resume-step":
+            if current_context == "train":
+                train_resume = True
+        elif arg == "--skip" and current_context == "train":
+            train_skip = True
+
+    if train_resume and train_skip:
+        return "train --resume cannot be combined with train --skip"
+    if train_resume and (global_overwrite or train_overwrite):
+        return "train --resume cannot be combined with --overwrite"
+    return None
+
+
+@dataclass
+class RunUpdate:
+    """State emitted while a pipeline subprocess runs."""
+
+    status: str
+    log: str
+    stages: str
+    exit_code: Optional[int] = None
+    mesh_path: Optional[str] = None
+
+
+class StageTracker:
+    """Track stage state from scripts/run.sh log banners."""
+
+    def __init__(self) -> None:
+        self._states = {name: "pending" for name in STAGE_NAMES}
+        self._current_stage: Optional[str] = None
+
+    def consume(self, line: str) -> None:
+        """Consume one log line and update known stage states."""
+        stripped = line.strip()
+        stage = self._parse_stage_header(stripped)
+        if stage == "FINISHED":
+            self._finish_running()
+            return
+        if stage:
+            self._finish_running()
+            self._current_stage = stage
+            if self._states[stage] == "pending":
+                self._states[stage] = "running"
+            return
+
+        stage_from_line = self._stage_from_status_line(stripped)
+        if stage_from_line:
+            lower = stripped.lower()
+            if "stage skipped" in lower or "already exists; skipping" in lower:
+                self._states[stage_from_line] = "skipped"
+                if self._current_stage == stage_from_line:
+                    self._current_stage = None
+        elif stripped.startswith("Job ") and stripped.endswith(": SUCCESS"):
+            self._finish_running()
+        elif stripped.startswith("Job ") and stripped.endswith(": FAILED"):
+            if stage_from_line:
+                self._states[stage_from_line] = "failed"
+            elif self._current_stage:
+                self._states[self._current_stage] = "failed"
+
+    def fail_current(self) -> None:
+        """Mark the active stage failed after a nonzero process exit."""
+        if self._current_stage:
+            self._states[self._current_stage] = "failed"
+
+    def summary(self) -> str:
+        """Return a compact stage status string for display."""
+        return "  |  ".join(f"{name}: {self._states[name]}" for name in STAGE_NAMES)
+
+    def _finish_running(self) -> None:
+        if self._current_stage and self._states[self._current_stage] == "running":
+            self._states[self._current_stage] = "done"
+        self._current_stage = None
+
+    @staticmethod
+    def _parse_stage_header(stripped: str) -> Optional[str]:
+        match = re.match(r"^(?:[1-5]\.\s+)?(.+?)\s*$", stripped)
+        if not match:
+            return None
+        label = match.group(1).strip()
+        label_map = {
+            "VIDEO": "VIDEO",
+            "SfM": "SfM",
+            "DATA PROCESSING": "DATA PROCESSING",
+            "TRAIN": "TRAIN",
+            "EXPORT": "EXPORT",
+            "FINISHED": "FINISHED",
+        }
+        return label_map.get(label)
+
+    @staticmethod
+    def _stage_from_status_line(stripped: str) -> Optional[str]:
+        match = re.match(
+            r"^\[INFO\]:\s+"
+            r"(Video|SfM|Data processing|Train|Export)\s+"
+            r"(?:stage skipped|output\b|stage\b)",
+            stripped,
         )
+        if not match:
+            return None
+        return {
+            "Video": "VIDEO",
+            "SfM": "SfM",
+            "Data processing": "DATA PROCESSING",
+            "Train": "TRAIN",
+            "Export": "EXPORT",
+        }[match.group(1)]
+
+
+ProcessFactory = Callable[..., subprocess.Popen[str]]
+
+
+class PipelineRunner:
+    """Single-run subprocess manager for the local Web UI."""
+
+    def __init__(
+        self,
+        repo_root: Path = REPO_ROOT,
+        process_factory: ProcessFactory = subprocess.Popen,
+        max_log_lines: int = 20_000,
+    ) -> None:
+        self.repo_root = repo_root
+        self._process_factory = process_factory
+        self._process: Optional[subprocess.Popen[str]] = None
+        self._lock = threading.Lock()
+        self._stop_requested = False
+        self._max_log_lines = max_log_lines
+
+    def run(self, argv: list[str], input_path: Optional[str] = None) -> Iterator[RunUpdate]:
+        """Run argv and stream merged stdout/stderr updates."""
+        validation = validate_run_argv(argv)
+        if validation:
+            yield RunUpdate("failed", validation, StageTracker().summary(), exit_code=None)
+            return
+
+        with self._lock:
+            if self._process is not None and self._process.poll() is None:
+                yield RunUpdate(
+                    "failed",
+                    "A mini-mesh run is already running.",
+                    StageTracker().summary(),
+                    exit_code=None,
+                )
+                return
+            self._stop_requested = False
+            try:
+                process = self._process_factory(
+                    self._line_buffered_argv(argv),
+                    cwd=self.repo_root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    shell=False,
+                    start_new_session=True,
+                    bufsize=1,
+                )
+            except OSError as exc:
+                yield RunUpdate("failed", str(exc), StageTracker().summary(), exit_code=None)
+                return
+            self._process = process
+
+        log_lines: deque[str] = deque(maxlen=self._max_log_lines)
+        tracker = StageTracker()
+        yield RunUpdate("running", "", tracker.summary(), exit_code=None)
+
+        stdout = process.stdout
+        if stdout is not None:
+            while True:
+                line = stdout.readline()
+                if line == "":
+                    break
+                clean_line = _strip_ansi(line.rstrip("\n"))
+                tracker.consume(clean_line)
+                log_lines.append(clean_line)
+                yield RunUpdate(
+                    "running",
+                    "\n".join(log_lines),
+                    tracker.summary(),
+                    exit_code=None,
+                )
+
+        exit_code = process.wait()
+        with self._lock:
+            self._process = None
+
+        if self._stop_requested or (exit_code is not None and exit_code < 0):
+            status = "stopped"
+        elif exit_code == 0:
+            status = "succeeded"
+        else:
+            tracker.fail_current()
+            status = "failed"
+
+        mesh_path = None
+        if status == "succeeded" and input_path:
+            mesh_artifacts = find_mesh_artifacts(_input_root(input_path))
+            mesh_path = mesh_artifacts[0] if mesh_artifacts else None
+
+        yield RunUpdate(
+            status,
+            "\n".join(log_lines),
+            tracker.summary(),
+            exit_code=exit_code,
+            mesh_path=mesh_path,
+        )
+
+    @staticmethod
+    def _line_buffered_argv(argv: list[str]) -> list[str]:
+        if shutil.which("stdbuf"):
+            return ["stdbuf", "-oL", "-eL", *argv]
+        return argv
+
+    def stop(self) -> str:
+        """Stop the active subprocess if one exists."""
+        with self._lock:
+            process = self._process
+            self._stop_requested = True
+        if process is None or process.poll() is not None:
+            return "idle"
+
+        try:
+            pid = getattr(process, "pid", None)
+            if pid is not None:
+                os.killpg(os.getpgid(pid), signal.SIGTERM)
+            else:
+                process.terminate()
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pid = getattr(process, "pid", None)
+            if pid is not None:
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
+            else:
+                process.kill()
+            process.wait()
+        except ProcessLookupError:
+            pass
+        return "stopped"
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)
+
+
+def _input_root(input_path: str | Path) -> Path:
+    path = Path(input_path)
+    return path.parent if path.is_file() else path
+
+
+def find_mesh_artifacts(root: str | Path) -> list[str]:
+    """Find common mesh artifacts under a completed input directory."""
+    root_path = Path(root)
+    if not root_path.exists():
+        return []
+    artifacts = [
+        path
+        for path in root_path.rglob("*")
+        if path.is_file() and path.suffix.lower() in MESH_EXTENSIONS
+    ]
+    priority = {
+        "mesh.obj": 0,
+        "mesh.ply": 1,
+        "poisson_mesh.ply": 2,
+        "tsdf_mesh.ply": 3,
+        "splat.ply": 4,
+    }
+    artifacts.sort(key=lambda path: (priority.get(path.name, 50), len(path.parts), str(path)))
+    return [str(path) for path in artifacts]
+
+
+def create_ui() -> gr.Blocks:  # pragma: no cover
+    """Create and return the Gradio UI."""
+    runner = PipelineRunner()
+    with gr.Blocks(title="Mini-Mesh: Video to 3D Pipeline") as demo:
+        gr.Markdown("# Mini-Mesh", elem_classes=["mini-title"])
         gr.Markdown(
-            "The workflow consists of:\n"
-            "1. 🎬 Frame extraction from video input (optional, via the *Video* context).\n"
-            "2. 📸 Structure-from-Motion (SfM) to estimate camera poses.\n"
-            "3. 🖼️ Data processing and optional background masking.\n"
-            "4. 🧠 Neural surface / NeRF training.\n"
-            "5. ✨ Mesh extraction and texturing.\n\n"
-            "Use the accordions below to tune each context. "
-            "Per-stage *Skip* checkboxes let you disable individual steps.\n\n"
-            "For detailed flag descriptions, VRAM tips, and example commands, see the project "
-            "[README](https://github.com/hummat/mini-mesh#readme)."
+            "Configure one reconstruction run, launch it locally or through Docker, "
+            "watch the log, and inspect the resulting mesh."
         )
 
         with gr.Row():
@@ -1067,24 +1416,52 @@ def create_ui() -> gr.Blocks:
                         export_skip = gr.Checkbox(label="Skip")
                         export_overwrite = gr.Checkbox(label="Overwrite")
 
-                # Submit button
-                submit_btn = gr.Button("Build Command", variant="primary", size="lg")
+                with gr.Row():
+                    submit_btn = gr.Button("Preview Command", variant="secondary", size="lg")
+                    start_btn = gr.Button("Start Run", variant="primary", size="lg")
+                    stop_btn = gr.Button("Stop Run", variant="secondary", size="lg")
 
             # Output column
             with gr.Column(scale=1):
-                gr.Markdown("## Command Output")
+                gr.Markdown("## Run")
+                status_output = gr.Textbox(
+                    label="Status",
+                    value="idle",
+                    lines=2,
+                    interactive=False,
+                    elem_classes=["mini-status"],
+                )
+                stage_output = gr.Textbox(
+                    label="Stages",
+                    value=StageTracker().summary(),
+                    lines=3,
+                    interactive=False,
+                    elem_classes=["mini-stages"],
+                )
                 command_output = gr.Textbox(
                     label="Generated Command",
-                    lines=10,
-                    max_lines=20,
+                    lines=4,
+                    max_lines=8,
                     interactive=False,
                     info="Command that will be executed",
+                    elem_classes=["mini-command"],
                 )
                 validation_output = gr.Textbox(
                     label="Validation",
                     lines=2,
                     interactive=False,
                     info="Command validation result",
+                )
+                log_output = gr.Textbox(
+                    label="Live Log",
+                    lines=18,
+                    max_lines=30,
+                    interactive=False,
+                    elem_classes=["mini-log"],
+                )
+                mesh_output = gr.Model3D(
+                    label="Mesh Preview",
+                    clear_color=(0.97, 0.96, 0.93, 1.0),
                 )
 
         # Build command function
@@ -1504,92 +1881,167 @@ def create_ui() -> gr.Blocks:
 
             return cmd, validation_msg
 
-        # Wire submit button
+        def start_run(*values):
+            """Build command, launch it, and stream runner updates."""
+            cmd, validation_msg = build_command(*values)
+            if not cmd:
+                yield (
+                    cmd,
+                    validation_msg,
+                    "failed: no input path",
+                    StageTracker().summary(),
+                    "",
+                    None,
+                )
+                return
+            if validation_msg.startswith("✗"):
+                yield (
+                    cmd,
+                    validation_msg,
+                    "failed: command validation error",
+                    StageTracker().summary(),
+                    validation_msg,
+                    None,
+                )
+                return
+
+            argv = shlex.split(cmd)
+            launcher_validation = validate_run_argv(argv)
+            if launcher_validation:
+                yield (
+                    cmd,
+                    f"✗ {launcher_validation}",
+                    "failed: command validation error",
+                    StageTracker().summary(),
+                    launcher_validation,
+                    None,
+                )
+                return
+
+            input_arg = argv[1] if len(argv) > 1 else None
+            for update in runner.run(argv, input_arg):
+                status = update.status
+                if update.exit_code is not None:
+                    status = f"{status} (exit {update.exit_code})"
+                yield (
+                    cmd,
+                    validation_msg,
+                    status,
+                    update.stages,
+                    update.log,
+                    update.mesh_path,
+                )
+
+        def stop_run():
+            """Stop the active run."""
+            status = runner.stop()
+            return f"{status}"
+
+        build_inputs = [
+            input_path,
+            input_video_file,
+            input_images_path,
+            mode,
+            global_show,
+            global_verbose,
+            global_overwrite,
+            video_fps,
+            video_frames,
+            video_max_frames,
+            video_time_slice,
+            video_hdr,
+            video_skip,
+            video_overwrite,
+            sfm_method,
+            sfm_matcher,
+            sfm_camera_model,
+            sfm_extra,
+            sfm_refine_principal_point,
+            sfm_num_threads,
+            sfm_hloc_feature,
+            sfm_hloc_matcher,
+            sfm_hloc_weights,
+            sfm_hloc_camera,
+            sfm_vggsfm_max_points,
+            sfm_vggsfm_max_tri_points,
+            sfm_skip,
+            sfm_overwrite,
+            process_mask,
+            process_crop_factor,
+            process_min_match_ratio,
+            process_skip,
+            process_overwrite,
+            train_model,
+            train_config,
+            train_name,
+            train_vis,
+            train_downscale_factor,
+            train_scale_factor,
+            train_center_method,
+            train_orientation_method,
+            train_auto_scale_poses,
+            train_split_fraction,
+            train_eval_num_rays_per_chunk,
+            train_train_num_rays_per_batch,
+            train_eval_num_rays_per_batch,
+            train_camera_optimizer_mode,
+            train_use_reflections,
+            train_use_diffuse_specular,
+            train_enable_pred_roughness,
+            train_orientation_loss_mult,
+            train_distortion_loss_mult,
+            train_disable_appearance_embedding,
+            train_viewer_quit_on_completion,
+            train_resume,
+            train_resume_step,
+            train_extra_args,
+            train_skip,
+            train_overwrite,
+            export_resolution,
+            export_method,
+            export_marching_cube_threshold,
+            export_num_pixels_per_side,
+            export_target_num_faces,
+            export_px_per_uv_triangle,
+            export_mesh_only,
+            export_texture_only,
+            export_input_mesh_filename,
+            export_obb_center_x,
+            export_obb_center_y,
+            export_obb_center_z,
+            export_obb_scale_x,
+            export_obb_scale_y,
+            export_obb_scale_z,
+            export_downscale_factor,
+            sfm_extra_args,
+            process_extra_args,
+            export_extra_args,
+            export_skip,
+            export_overwrite,
+        ]
+
+        # Wire controls
         submit_btn.click(
             build_command,
-            inputs=[
-                input_path,
-                input_video_file,
-                input_images_path,
-                mode,
-                global_show,
-                global_verbose,
-                global_overwrite,
-                video_fps,
-                video_frames,
-                video_max_frames,
-                video_time_slice,
-                video_hdr,
-                video_skip,
-                video_overwrite,
-                sfm_method,
-                sfm_matcher,
-                sfm_camera_model,
-                sfm_extra,
-                sfm_refine_principal_point,
-                sfm_num_threads,
-                sfm_hloc_feature,
-                sfm_hloc_matcher,
-                sfm_hloc_weights,
-                sfm_hloc_camera,
-                sfm_vggsfm_max_points,
-                sfm_vggsfm_max_tri_points,
-                sfm_skip,
-                sfm_overwrite,
-                process_mask,
-                process_crop_factor,
-                process_min_match_ratio,
-                process_skip,
-                process_overwrite,
-                train_model,
-                train_config,
-                train_name,
-                train_vis,
-                train_downscale_factor,
-                train_scale_factor,
-                train_center_method,
-                train_orientation_method,
-                train_auto_scale_poses,
-                train_split_fraction,
-                train_eval_num_rays_per_chunk,
-                train_train_num_rays_per_batch,
-                train_eval_num_rays_per_batch,
-                train_camera_optimizer_mode,
-                train_use_reflections,
-                train_use_diffuse_specular,
-                train_enable_pred_roughness,
-                train_orientation_loss_mult,
-                train_distortion_loss_mult,
-                train_disable_appearance_embedding,
-                train_viewer_quit_on_completion,
-                train_resume,
-                train_resume_step,
-                train_extra_args,
-                train_skip,
-                train_overwrite,
-                export_resolution,
-                export_method,
-                export_marching_cube_threshold,
-                export_num_pixels_per_side,
-                export_target_num_faces,
-                export_px_per_uv_triangle,
-                export_mesh_only,
-                export_texture_only,
-                export_input_mesh_filename,
-                export_obb_center_x,
-                export_obb_center_y,
-                export_obb_center_z,
-                export_obb_scale_x,
-                export_obb_scale_y,
-                export_obb_scale_z,
-                export_downscale_factor,
-                sfm_extra_args,
-                process_extra_args,
-                export_extra_args,
-                export_skip,
-                export_overwrite,
-            ],
+            inputs=build_inputs,
             outputs=[command_output, validation_output],
+        )
+        start_btn.click(
+            start_run,
+            inputs=build_inputs,
+            outputs=[
+                command_output,
+                validation_output,
+                status_output,
+                stage_output,
+                log_output,
+                mesh_output,
+            ],
+        )
+        stop_btn.click(
+            stop_run,
+            inputs=None,
+            outputs=status_output,
         )
 
     return demo
@@ -1597,4 +2049,4 @@ def create_ui() -> gr.Blocks:
 
 if __name__ == "__main__":
     demo = create_ui()
-    demo.launch()
+    demo.launch(css=APP_CSS)
