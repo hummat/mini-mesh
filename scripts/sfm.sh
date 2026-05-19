@@ -25,6 +25,118 @@ MKL_NUM_THREADS="$NUM_THREADS"
 OMP_NUM_THREADS="$NUM_THREADS"
 TBB_NUM_THREADS="$NUM_THREADS"
 
+valid_colmap_model() {
+  local model_path="$1"
+  [[ -f "$model_path/cameras.bin" && -f "$model_path/images.bin" && -f "$model_path/points3D.bin" ]]
+}
+
+registered_image_count() {
+  local model_path="$1"
+  colmap model_analyzer --path "$model_path" 2>&1 \
+    | awk '/Registered images:/ { print $NF; found=1 } END { if (!found) exit 1 }'
+}
+
+promote_colmap_model() {
+  local source_path="$1"
+  local target_path="$2"
+  local tmp_path
+  tmp_path="$(dirname "$target_path")/.$(basename "$target_path").canonical.$$"
+  rm -rf "$tmp_path"
+  mkdir -p "$tmp_path"
+  cp -a "$source_path"/. "$tmp_path"/
+  rm -rf "$target_path"
+  mv "$tmp_path" "$target_path"
+}
+
+canonicalize_sparse_model() {
+  local sparse_path="$1"
+  local components=()
+  local component
+  local component_count
+  local largest_component=""
+  local largest_count=-1
+  local merge_candidate
+  local merge_output
+  local candidate_count
+  local merged_count
+  local failed_merges=0
+
+  if valid_colmap_model "$sparse_path"; then
+    return
+  fi
+
+  for component in "$sparse_path"/*; do
+    if [[ -d "$component" ]] && valid_colmap_model "$component"; then
+      components+=("$component")
+    fi
+  done
+
+  if [[ ${#components[@]} -eq 0 ]]; then
+    echo "[ERROR]: COLMAP did not produce a valid sparse model in $sparse_path" >&2
+    exit 1
+  fi
+
+  for component in "${components[@]}"; do
+    if ! component_count="$(registered_image_count "$component")"; then
+      echo "[ERROR]: Failed to inspect COLMAP submodel $component" >&2
+      exit 1
+    fi
+    echo "[INFO]: COLMAP submodel $(basename "$component") registered $component_count images"
+    if (( component_count > largest_count )); then
+      largest_count="$component_count"
+      largest_component="$component"
+    fi
+  done
+
+  if [[ ${#components[@]} -eq 1 ]]; then
+    echo "[INFO]: Promoting COLMAP submodel $(basename "$largest_component") as canonical sparse model"
+    promote_colmap_model "$largest_component" "$sparse_path"
+    return
+  fi
+
+  echo "[WARN]: COLMAP produced ${#components[@]} disconnected sparse submodels; trying to merge them"
+  merge_candidate="$(dirname "$sparse_path")/.sparse-merge-candidate.$$"
+  rm -rf "$merge_candidate"
+  mkdir -p "$merge_candidate"
+  cp -a "$largest_component"/. "$merge_candidate"/
+  candidate_count="$largest_count"
+
+  for component in "${components[@]}"; do
+    if [[ "$component" = "$largest_component" ]]; then
+      continue
+    fi
+    merge_output="$(dirname "$sparse_path")/.sparse-merge-output.$$"
+    rm -rf "$merge_output"
+    mkdir -p "$merge_output"
+    if colmap model_merger \
+      --input_path1 "$merge_candidate" \
+      --input_path2 "$component" \
+      --output_path "$merge_output" \
+      && valid_colmap_model "$merge_output"; then
+      if merged_count="$(registered_image_count "$merge_output")" && (( merged_count > candidate_count )); then
+        rm -rf "$merge_candidate"
+        mv "$merge_output" "$merge_candidate"
+        candidate_count="$merged_count"
+        echo "[INFO]: Merged COLMAP submodel $(basename "$component"); canonical model has $candidate_count images"
+      else
+        failed_merges=$((failed_merges + 1))
+        rm -rf "$merge_output"
+        echo "[WARN]: Model merge for submodel $(basename "$component") did not increase registered image count; keeping current canonical candidate"
+      fi
+    else
+      failed_merges=$((failed_merges + 1))
+      rm -rf "$merge_output"
+      echo "[WARN]: Model merge did not produce a valid model for submodel $(basename "$component"); keeping current canonical candidate"
+    fi
+  done
+
+  if (( failed_merges > 0 )); then
+    echo "[WARN]: Using largest mergeable COLMAP component with $candidate_count images; $failed_merges submodel(s) were left out"
+  fi
+  promote_colmap_model "$merge_candidate" "$sparse_path"
+  rm -rf "$merge_candidate"
+}
+
 function show_help {
   echo "Usage: $0 <path-to-images> [options]"
   echo
@@ -185,15 +297,7 @@ $MAPPER_CMD \
   --image_path "$IMAGES" \
   --output_path "$SPARSE"
 
-if [ -d "$SPARSE/1" ]; then
-  colmap model_merger \
-    --input_path1 "$SPARSE/0" \
-    --input_path2 "$SPARSE/1" \
-    --output_path "$SPARSE"
-elif [ -d "$SPARSE/0" ]; then
-  mv "$SPARSE/0/"* "$SPARSE"
-  rm -d "$SPARSE/0"
-fi
+canonicalize_sparse_model "$SPARSE"
 
 colmap bundle_adjuster \
   --input_path "$SPARSE" \

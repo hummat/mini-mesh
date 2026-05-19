@@ -911,6 +911,93 @@ class TestSceneScript:
 class TestSfmScript:
     """Tests for scripts/sfm.sh with stubbed COLMAP."""
 
+    @staticmethod
+    def _make_colmap_multimodel_stub(
+        bin_dir: Path,
+        log_path: Path,
+        *,
+        merge_writes_model: bool,
+    ) -> None:
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        colmap = bin_dir / "colmap"
+        merge_block = (
+            """
+      mkdir -p "$output_path"
+      printf "merged-cameras" > "$output_path/cameras.bin"
+      printf "merged-images" > "$output_path/images.bin"
+      printf "merged-points" > "$output_path/points3D.bin"
+      """
+            if merge_writes_model
+            else """
+      input_path2="$(value_for --input_path2 "$@")"
+      mkdir -p "$output_path"
+      cp -a "$input_path2"/. "$output_path"/
+      echo "=> Merge failed" >&2
+      """
+        )
+        colmap.write_text(
+            f"""#!/usr/bin/env bash
+set -euo pipefail
+echo "$0 $*" >> "{log_path}"
+cmd="$1"
+shift
+value_for() {{
+  local key="$1"
+  shift
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" = "$key" ]]; then
+      echo "$2"
+      return 0
+    fi
+    shift
+  done
+  return 1
+}}
+case "$cmd" in
+  mapper)
+    output_path="$(value_for --output_path "$@")"
+    mkdir -p "$output_path/0" "$output_path/1"
+    printf "small-cameras" > "$output_path/0/cameras.bin"
+    printf "small-images" > "$output_path/0/images.bin"
+    printf "small-points" > "$output_path/0/points3D.bin"
+    printf "large-cameras" > "$output_path/1/cameras.bin"
+    printf "large-images" > "$output_path/1/images.bin"
+    printf "large-points" > "$output_path/1/points3D.bin"
+    ;;
+  model_analyzer)
+    path="$(value_for --path "$@")"
+    if [[ -f "$path/images.bin" ]]; then
+      case "$(cat "$path/images.bin")" in
+        small-images) echo "Registered images: 185" ;;
+        large-images) echo "Registered images: 230" ;;
+        merged-images) echo "Registered images: 415" ;;
+        *) echo "Registered images: 1" ;;
+      esac
+    else
+      case "$path" in
+        */0) echo "Registered images: 185" ;;
+        */1) echo "Registered images: 230" ;;
+        *) echo "Registered images: 415" ;;
+      esac
+    fi
+    ;;
+  model_merger)
+    output_path="$(value_for --output_path "$@")"
+{merge_block}
+    ;;
+  bundle_adjuster)
+    input_path="$(value_for --input_path "$@")"
+    if [[ ! -f "$input_path/images.bin" ]]; then
+      echo "bundle_adjuster received non-canonical input: $input_path" >&2
+      exit 2
+    fi
+    ;;
+esac
+""",
+            encoding="utf-8",
+        )
+        colmap.chmod(0o755)
+
     def test_sfm_calls_colmap_pipeline(self, tmp_path: Path) -> None:
         """sfm.sh should drive the expected COLMAP subcommands."""
         repo_root = Path(__file__).resolve().parents[1]
@@ -919,7 +1006,7 @@ class TestSfmScript:
 
         log_path = tmp_path / "stub_colmap.log"
         bin_dir = tmp_path / "bin"
-        _make_simple_stub(bin_dir, "colmap", log_path)
+        self._make_colmap_multimodel_stub(bin_dir, log_path, merge_writes_model=True)
 
         env_overrides = {
             "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
@@ -946,6 +1033,56 @@ class TestSfmScript:
         assert "colmap exhaustive_matcher" in log
         assert "colmap mapper" in log
         assert "colmap bundle_adjuster" in log
+
+    def test_sfm_failed_merge_promotes_largest_component(self, tmp_path: Path) -> None:
+        """A failed COLMAP model merge should fall back to the largest component."""
+        repo_root = Path(__file__).resolve().parents[1]
+        images_dir = tmp_path / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_colmap_multimodel.log"
+        bin_dir = tmp_path / "bin"
+        self._make_colmap_multimodel_stub(bin_dir, log_path, merge_writes_model=False)
+
+        result = _run_script(
+            repo_root,
+            "scripts/sfm.sh",
+            [str(images_dir), "--overwrite"],
+            {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"},
+        )
+
+        assert result.returncode == 0, result.stderr
+        sparse_dir = tmp_path / "sparse"
+        assert (sparse_dir / "images.bin").read_text(encoding="utf-8") == "large-images"
+        assert not (sparse_dir / "0").exists()
+        assert not (sparse_dir / "1").exists()
+        assert (
+            "Merge failed" in result.stderr
+            or "Model merge did not produce a valid model" in result.stdout
+        )
+
+    def test_sfm_successful_merge_promotes_merged_model(self, tmp_path: Path) -> None:
+        """A successful COLMAP model merge should become the canonical sparse model."""
+        repo_root = Path(__file__).resolve().parents[1]
+        images_dir = tmp_path / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_colmap_merge.log"
+        bin_dir = tmp_path / "bin"
+        self._make_colmap_multimodel_stub(bin_dir, log_path, merge_writes_model=True)
+
+        result = _run_script(
+            repo_root,
+            "scripts/sfm.sh",
+            [str(images_dir), "--overwrite"],
+            {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"},
+        )
+
+        assert result.returncode == 0, result.stderr
+        sparse_dir = tmp_path / "sparse"
+        assert (sparse_dir / "images.bin").read_text(encoding="utf-8") == "merged-images"
+        assert not (sparse_dir / "0").exists()
+        assert not (sparse_dir / "1").exists()
 
 
 class TestDlSfmScript:
@@ -1534,6 +1671,33 @@ class TestRunScript:
                         "#!/usr/bin/env bash",
                         f'echo "$0 $*" >> "{log_path}"',
                         'echo "GPU 0"',
+                    ]
+                )
+            elif name == "colmap":
+                body = "\n".join(
+                    [
+                        "#!/usr/bin/env bash",
+                        f'echo "$0 $*" >> "{log_path}"',
+                        'cmd="$1"',
+                        "shift",
+                        "value_for() {",
+                        '  key="$1"',
+                        "  shift",
+                        "  while [ $# -gt 0 ]; do",
+                        '    if [ "$1" = "$key" ]; then echo "$2"; return 0; fi',
+                        "    shift",
+                        "  done",
+                        "  return 1",
+                        "}",
+                        'if [ "$cmd" = "mapper" ]; then',
+                        '  output_path="$(value_for --output_path "$@")"',
+                        '  mkdir -p "$output_path/0"',
+                        '  echo "cameras" > "$output_path/0/cameras.bin"',
+                        '  echo "images" > "$output_path/0/images.bin"',
+                        '  echo "points" > "$output_path/0/points3D.bin"',
+                        'elif [ "$cmd" = "model_analyzer" ]; then',
+                        '  echo "Registered images: 1"',
+                        "fi",
                     ]
                 )
             elif name == "sdf-process-data":
