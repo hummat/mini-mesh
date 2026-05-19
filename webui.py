@@ -107,6 +107,8 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--pipeline.model.distortion-loss-mult",
         "--logging.local-writer.enable",
         "--viewer.quit-on-train-completion",
+        "--resume",
+        "--resume-step",
         "--skip",
         "--overwrite",
     ]
@@ -208,6 +210,8 @@ def run_pipeline(
     train_distortion_loss_mult: Optional[float] = None,
     train_disable_appearance_embedding: bool = False,
     train_viewer_quit_on_completion: bool = False,
+    train_resume: bool = False,
+    train_resume_step: Optional[int] = None,
     train_skip: bool = False,
     train_overwrite: bool = False,
     # Export context
@@ -294,6 +298,8 @@ def run_pipeline(
         train_distortion_loss_mult: Mip-NeRF 360 distortion loss multiplier
         train_disable_appearance_embedding: Disable appearance embedding
         train_viewer_quit_on_completion: Close viewer when training ends
+        train_resume: Resume training from existing checkpoint
+        train_resume_step: Specific checkpoint step to resume from
         train_skip: Skip training
         train_overwrite: Overwrite training outputs
         export_enable: Enable export context
@@ -506,6 +512,10 @@ def run_pipeline(
                     "True",
                 ]
             )
+        if train_resume:
+            cmd_parts.append("--resume")
+        if train_resume_step is not None:
+            cmd_parts.extend(["--resume-step", str(train_resume_step)])
         if train_extra_args:
             cmd_parts.extend(shlex.split(train_extra_args))
         if train_skip:
@@ -911,6 +921,17 @@ def create_ui() -> gr.Blocks:
                             label="Close viewer when training ends",
                             info="Sets --viewer.quit-on-train-completion True.",
                         )
+                        with gr.Row():
+                            train_resume = gr.Checkbox(
+                                label="Resume from checkpoint",
+                                info="Sets train --resume; incompatible with overwrite.",
+                            )
+                            train_resume_step = gr.Number(
+                                label="Resume step",
+                                value=None,
+                                precision=0,
+                                info="Optional checkpoint step for --resume-step.",
+                            )
                         train_extra_args = gr.Textbox(
                             label="Extra train arguments",
                             placeholder="Advanced: additional ns-train / sdf-train flags",
@@ -1092,6 +1113,8 @@ def create_ui() -> gr.Blocks:
             train_distortion_loss_mult_val,
             train_disable_appearance_embedding_val,
             train_viewer_quit_on_completion_val,
+            train_resume_val,
+            train_resume_step_val,
             train_extra_args_val,
             train_skip_val,
             train_overwrite_val,
@@ -1160,6 +1183,7 @@ def create_ui() -> gr.Blocks:
             train_eval_num_rays_per_batch_val = _norm_num(train_eval_num_rays_per_batch_val)
             train_orientation_loss_mult_val = _norm_num(train_orientation_loss_mult_val)
             train_distortion_loss_mult_val = _norm_num(train_distortion_loss_mult_val)
+            train_resume_step_val = _norm_num(train_resume_step_val)
             export_resolution_val = _norm_num(export_resolution_val)
             export_marching_cube_threshold_val = _norm_num(export_marching_cube_threshold_val)
             export_num_pixels_per_side_val = _norm_num(export_num_pixels_per_side_val)
@@ -1261,6 +1285,8 @@ def create_ui() -> gr.Blocks:
                     train_distortion_loss_mult_val,
                     train_disable_appearance_embedding_val,
                     train_viewer_quit_on_completion_val,
+                    train_resume_val,
+                    train_resume_step_val,
                     train_skip_val,
                     train_overwrite_val,
                     train_extra_args_val,
@@ -1367,6 +1393,10 @@ def create_ui() -> gr.Blocks:
                 else None,
                 train_disable_appearance_embedding=bool(train_disable_appearance_embedding_val),
                 train_viewer_quit_on_completion=bool(train_viewer_quit_on_completion_val),
+                train_resume=bool(train_resume_val),
+                train_resume_step=int(train_resume_step_val)
+                if train_resume_step_val is not None
+                else None,
                 train_extra_args=train_extra_args_val or None,
                 train_skip=train_skip_val,
                 train_overwrite=train_overwrite_val,
@@ -1496,6 +1526,8 @@ def create_ui() -> gr.Blocks:
                 train_distortion_loss_mult,
                 train_disable_appearance_embedding,
                 train_viewer_quit_on_completion,
+                train_resume,
+                train_resume_step,
                 train_extra_args,
                 train_skip,
                 train_overwrite,

@@ -73,6 +73,61 @@ experiment_model_dir_name() {
   esac
 }
 
+uses_nerfstudio_trainer() {
+  [[ "$1" == *nerf* ]] || [[ "$1" == *splat* ]] || [[ "$1" == *ngp* ]]
+}
+
+training_checkpoint_dir() {
+  local model_name="$1"
+  local experiment_path="$2"
+  if uses_nerfstudio_trainer "$model_name"; then
+    echo "$experiment_path/nerfstudio_models"
+  else
+    echo "$experiment_path/sdfstudio_models"
+  fi
+}
+
+require_resume_checkpoints() {
+  local checkpoint_dir="$1"
+  local checkpoint_step="$2"
+  if [ ! -d "$checkpoint_dir" ]; then
+    echo "[ERROR]: Checkpoint directory $checkpoint_dir not found for --resume" >&2
+    exit 1
+  fi
+  if [ -n "$checkpoint_step" ]; then
+    local checkpoint_path
+    checkpoint_path="$checkpoint_dir/step-$(printf '%09d' "$checkpoint_step").ckpt"
+    if [ ! -f "$checkpoint_path" ]; then
+      echo "[ERROR]: Checkpoint $checkpoint_path not found for --resume-step $checkpoint_step" >&2
+      exit 1
+    fi
+    return
+  fi
+  if ! compgen -G "$checkpoint_dir/step-*.ckpt" >/dev/null; then
+    echo "[ERROR]: No checkpoint files found for --resume in $checkpoint_dir" >&2
+    exit 1
+  fi
+}
+
+append_resume_args() {
+  local -n target_args="$1"
+  local model_name="$2"
+  local checkpoint_dir="$3"
+  local checkpoint_step="$4"
+
+  if uses_nerfstudio_trainer "$model_name"; then
+    target_args+=("--load-dir" "$checkpoint_dir")
+    if [ -n "$checkpoint_step" ]; then
+      target_args+=("--load-step" "$checkpoint_step")
+    fi
+  else
+    target_args+=("--trainer.load-dir" "$checkpoint_dir")
+    if [ -n "$checkpoint_step" ]; then
+      target_args+=("--trainer.load-step" "$checkpoint_step")
+    fi
+  fi
+}
+
 function show_help {
   echo "Usage: $0 <input_path> [options] [contexts] [args...]"
   echo
@@ -101,6 +156,8 @@ function show_help {
   echo "                       --model <str>                          Model name (default: neus)"
   echo "                       --name <str>                           Experiment name (default: input directory name)"
   echo "                       --config <str>                         Configuration file or name (default: neus-grid-short)"
+  echo "                       --resume                               Resume from existing checkpoint directory"
+  echo "                       --resume-step <int>                    Resume from a specific checkpoint step"
   echo "                     Data processing flags (passed to nerfstudio-data):"
   echo "                       --downscale-factor <int>               Downscale factor for images"
   echo "                       --scale-factor <float>                 Scale factor for scene"
@@ -184,6 +241,8 @@ sfm_overwrite=false
 process_overwrite=false
 train_overwrite=false
 export_overwrite=false
+train_resume=false
+train_resume_step=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -277,6 +336,29 @@ while [ $# -gt 0 ]; do
         exit 1
       fi
       ;;
+    --resume)
+      if [ "$current_context" = "train" ]; then
+        train_resume=true
+        shift
+      else
+        echo "Error: --resume can only be used with the train context"
+        exit 1
+      fi
+      ;;
+    --resume-step)
+      if [ "$current_context" = "train" ]; then
+        if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ ]]; then
+          echo "Error: --resume-step requires a non-negative integer"
+          exit 1
+        fi
+        train_resume=true
+        train_resume_step="$2"
+        shift 2
+      else
+        echo "Error: --resume-step can only be used with the train context"
+        exit 1
+      fi
+      ;;
      --skip)
       case "$current_context" in
         video) video_skip=true ;;
@@ -311,6 +393,17 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+if [ "$train_resume" = true ]; then
+  if [ "$train_skip" = true ]; then
+    echo "[ERROR]: train --resume cannot be combined with train --skip" >&2
+    exit 1
+  fi
+  if [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
+    echo "[ERROR]: train --resume cannot be combined with --overwrite" >&2
+    exit 1
+  fi
+fi
 
 # Set up logging if --mail is specified
 if [ -n "$mail_addr" ]; then
@@ -462,8 +555,14 @@ exp_path="$input_dir/train/$name/$exp_model/run"
 if [ "$train_skip" = true ]; then
   stage_skip "Train" "by --skip"
 else
-  if ! [ -f "$exp_path/config.yml" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
+  if ! [ -f "$exp_path/config.yml" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ] || [ "$train_resume" = true ]; then
     stage_run "train"
+    if [ "$train_resume" = true ]; then
+      resume_checkpoint_dir="$(training_checkpoint_dir "$model" "$exp_path")"
+      require_resume_checkpoints "$resume_checkpoint_dir" "$train_resume_step"
+      echo "[INFO]: Resuming train stage from $resume_checkpoint_dir"
+      append_resume_args train_args "$model" "$resume_checkpoint_dir" "$train_resume_step"
+    fi
     if [[ ${#train_args[@]} -gt 0 ]]; then
       echo "Train args: ${train_args[*]}"
     fi

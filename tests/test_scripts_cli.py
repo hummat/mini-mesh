@@ -1409,6 +1409,204 @@ class TestRunScript:
         assert "sdf-train neus-facto" not in log
         assert "sdf-extract-mesh" in log
 
+    def test_run_script_resumes_sdf_training_from_existing_checkpoint(self, tmp_path: Path) -> None:
+        """train --resume should run sdf-train without deleting the existing run dir."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        exp_path = scene_dir / "train" / "be_prepared" / "neus-facto" / "run"
+        checkpoint_dir = exp_path / "sdfstudio_models"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_dir.mkdir(parents=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        (scene_dir / "transforms.json").write_text("{}", encoding="utf-8")
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (checkpoint_dir / "step-000001000.ckpt").write_text("ckpt\n", encoding="utf-8")
+        sentinel = exp_path / "keep.txt"
+        sentinel.write_text("keep\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_resume_sdf.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "train",
+                "--model",
+                "neus-facto",
+                "--name",
+                "be_prepared",
+                "--config",
+                "neus-facto-short",
+                "--resume",
+                "export",
+                "--skip",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-train neus-facto" in log
+        assert f"--trainer.load-dir {checkpoint_dir}" in log
+        assert "--trainer.load-step" not in log
+        assert sentinel.read_text(encoding="utf-8") == "keep\n"
+        assert f"[INFO]: Resuming train stage from {checkpoint_dir}" in result.stdout
+
+    def test_run_script_resumes_nerfstudio_training_from_requested_step(
+        self, tmp_path: Path
+    ) -> None:
+        """train --resume-step should pass Nerfstudio's load-dir/load-step flags."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        exp_path = scene_dir / "train" / "sf" / "nerfacto" / "run"
+        checkpoint_dir = exp_path / "nerfstudio_models"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_dir.mkdir(parents=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        (scene_dir / "transforms.json").write_text("{}", encoding="utf-8")
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (checkpoint_dir / "step-000003000.ckpt").write_text("ckpt\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_resume_ns.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "train",
+                "--model",
+                "nerfacto",
+                "--name",
+                "sf",
+                "--config",
+                "nerfacto-short",
+                "--resume-step",
+                "3000",
+                "export",
+                "--skip",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-train nerfacto" in log
+        assert f"--load-dir {checkpoint_dir}" in log
+        assert "--load-step 3000" in log
+        assert f"[INFO]: Resuming train stage from {checkpoint_dir}" in result.stdout
+
+    def test_run_script_resume_fails_without_checkpoint(self, tmp_path: Path) -> None:
+        """train --resume should fail before invoking the trainer when checkpoints are absent."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        exp_path = scene_dir / "train" / "be_prepared" / "neus-facto" / "run"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        exp_path.mkdir(parents=True)
+        (exp_path / "sdfstudio_models").mkdir()
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        (scene_dir / "transforms.json").write_text("{}", encoding="utf-8")
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_resume_missing.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "train",
+                "--model",
+                "neus-facto",
+                "--name",
+                "be_prepared",
+                "--config",
+                "neus-facto-short",
+                "--resume",
+                "export",
+                "--skip",
+            ],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "No checkpoint files found for --resume" in result.stderr
+
+        log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        assert "sdf-train neus-facto" not in log
+
+    def test_run_script_resume_rejects_overwrite(self, tmp_path: Path) -> None:
+        """Resume must not be combined with overwrite, which deletes the run directory."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        checkpoint_dir = (
+            scene_dir / "train" / "be_prepared" / "neus-facto" / "run" / "sdfstudio_models"
+        )
+        images_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_dir.mkdir(parents=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        (checkpoint_dir / "step-000001000.ckpt").write_text("ckpt\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_resume_overwrite.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "train",
+                "--model",
+                "neus-facto",
+                "--name",
+                "be_prepared",
+                "--resume",
+                "--overwrite",
+            ],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "train --resume cannot be combined with --overwrite" in result.stderr
+
+        log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        assert "sdf-train neus-facto" not in log
+
     def test_run_script_exports_splatfacto_mcmc_from_nerfstudio_method_dir(
         self, tmp_path: Path
     ) -> None:

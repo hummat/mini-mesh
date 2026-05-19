@@ -331,6 +331,8 @@ class TestTrainContextValidation:
             "scripts/run.sh /path/to/video.mp4 train --train-split-fraction 0.9",
             "scripts/run.sh /path/to/video.mp4 train --skip",
             "scripts/run.sh /path/to/video.mp4 train --overwrite",
+            "scripts/run.sh /path/to/video.mp4 train --resume",
+            "scripts/run.sh /path/to/video.mp4 train --resume-step 3000",
             (
                 "scripts/run.sh /path/to/video.mp4 train "
                 "--pipeline.model.eval-num-rays-per-chunk 4096"
@@ -1461,6 +1463,18 @@ class TestRunPipelineEdgeCases:
             train_overwrite=True,
         )
         assert "train --overwrite" in cmd
+
+    def test_train_resume_flags(self):
+        """Test train resume flags."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/test.mp4",
+            train_enable=True,
+            train_resume=True,
+            train_resume_step=3000,
+        )
+        assert cmd == "scripts/run.sh /test.mp4 train --resume --resume-step 3000"
 
     def test_export_skip_flag(self):
         """Test export with skip flag."""

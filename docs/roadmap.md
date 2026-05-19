@@ -19,7 +19,7 @@ Tracked on the [project board](https://github.com/users/hummat/projects/4).
                     │               mini-mesh                       │
                     │                                               │
                     │  Phase 1 ─────────────────────────────────── │
-                    │  #10 resume training             P1           │
+                    │  #10 resume training             done         │
                     │                                               │
                     │  Phase 2 ─────────────────────────────────── │
                     │  #11 PBR textures    ← sdfstudio #10   P2    │
@@ -45,13 +45,11 @@ Independent work streams that unblock everything downstream.
 | [#7](https://github.com/hummat/mini-mesh/issues/7) | mini-mesh | Added nvdiffrast to Docker image for GPU-accelerated texturing |
 | [#8](https://github.com/hummat/mini-mesh/issues/8) | mini-mesh | Added gsplat to Docker image (built as a wheel in the builder stage) |
 
-### Pipeline UX
+### Completed on main
 
 | Issue | Repo | Summary |
 |-------|------|---------|
-| [#10](https://github.com/hummat/mini-mesh/issues/10) | mini-mesh | Support resuming interrupted training runs (`--resume` flag) |
-
-Biggest user-facing improvement. Long training runs (hours) currently lose all progress on interruption.
+| [#10](https://github.com/hummat/mini-mesh/issues/10) | mini-mesh | Added `train --resume` / `--resume-step` for SDFStudio and Nerfstudio checkpoints |
 
 ### SDFStudio quality fixes
 
@@ -67,7 +65,7 @@ Three upstream PR ports (#11-#13) that improve SDF reconstruction quality. #14 i
 ### Suggested order (if sequential)
 
 1. sdfstudio #11, #12, #13 — small, well-scoped upstream ports
-2. mini-mesh #10 (resume) — pipeline logic change
+2. mini-mesh #10 (resume) — done on main
 
 The remaining tracks are independent and can be parallelized.
 

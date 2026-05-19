@@ -172,7 +172,18 @@ Pass arguments to specific steps using sub-commands:
 docker/run.sh /path/to/input video --fps 1 sfm --method glomap process --mask rembg train --model neus-facto
 ```
 
-The final mesh appears next to your input. Steps already completed are skipped (use `--overwrite` to re-run).
+The final mesh appears next to your input. Steps already completed are skipped
+(use `--overwrite` to re-run).
+
+Interrupted training can be resumed without deleting checkpoints:
+
+```bash
+docker/run.sh /path/to/input train --model neus-facto --config neus-facto-short --name my-run --resume
+```
+
+Use `--resume-step <step>` to load a specific checkpoint. Resume uses
+`sdfstudio_models/` for SDF models and `nerfstudio_models/` for NeRF/splat
+models; it fails if no checkpoint is present instead of silently starting over.
 
 ### Batch processing
 
