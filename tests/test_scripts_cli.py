@@ -165,6 +165,119 @@ class TestEnvBootstrap:
         assert f"MINI_MESH_LOCAL_PREFIX is set but missing: {missing_prefix}" in result.stderr
         assert "Run 'make build' or unset MINI_MESH_LOCAL_PREFIX." in result.stderr
 
+    def test_env_bootstrap_enables_python_startup_hooks(self, tmp_path: Path) -> None:
+        """env.sh should expose mini-mesh Python startup hooks to child commands."""
+        repo_root = Path(__file__).resolve().parents[1]
+        existing_pythonpath = tmp_path / "existing-pythonpath"
+
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "source scripts/env.sh; printf '%s' \"$PYTHONPATH\"",
+            ],
+            cwd=repo_root,
+            env={
+                **os.environ,
+                "MINI_MESH_LOCAL_PREFIX": str(tmp_path / "missing-prefix"),
+                "MINI_MESH_VENV_BIN": str(tmp_path / "missing-venv" / "bin"),
+                "PYTHONPATH": str(existing_pythonpath),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0
+        assert result.stdout.startswith(f"{repo_root / 'scripts' / 'python'}:")
+        assert result.stdout.endswith(str(existing_pythonpath))
+
+    def test_python_startup_sets_torch_matmul_precision(self, tmp_path: Path) -> None:
+        """Python commands launched through env.sh should enable TF32 matmul by default."""
+        repo_root = Path(__file__).resolve().parents[1]
+        fake_torch_dir = tmp_path / "fake" / "torch"
+        fake_torch_dir.mkdir(parents=True)
+        precision_log = tmp_path / "precision.log"
+        (fake_torch_dir / "__init__.py").write_text(
+            "\n".join(
+                [
+                    "import os",
+                    "from pathlib import Path",
+                    "",
+                    "def set_float32_matmul_precision(precision):",
+                    "    Path(os.environ['MINI_MESH_TORCH_PRECISION_LOG']).write_text(precision)",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "source scripts/env.sh; python -c 'pass'",
+            ],
+            cwd=repo_root,
+            env={
+                **os.environ,
+                "MINI_MESH_LOCAL_PREFIX": str(tmp_path / "missing-prefix"),
+                "MINI_MESH_VENV_BIN": str(tmp_path / "missing-venv" / "bin"),
+                "MINI_MESH_TORCH_PRECISION_LOG": str(precision_log),
+                "PYTHONPATH": str(tmp_path / "fake"),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert precision_log.read_text(encoding="utf-8") == "high"
+
+    def test_python_startup_can_disable_torch_matmul_precision(self, tmp_path: Path) -> None:
+        """Users should be able to opt out of the default matmul precision hook."""
+        repo_root = Path(__file__).resolve().parents[1]
+        fake_torch_dir = tmp_path / "fake" / "torch"
+        fake_torch_dir.mkdir(parents=True)
+        precision_log = tmp_path / "precision.log"
+        (fake_torch_dir / "__init__.py").write_text(
+            "\n".join(
+                [
+                    "import os",
+                    "from pathlib import Path",
+                    "",
+                    "def set_float32_matmul_precision(precision):",
+                    "    Path(os.environ['MINI_MESH_TORCH_PRECISION_LOG']).write_text(precision)",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "source scripts/env.sh; python -c 'pass'",
+            ],
+            cwd=repo_root,
+            env={
+                **os.environ,
+                "MINI_MESH_FLOAT32_MATMUL_PRECISION": "default",
+                "MINI_MESH_LOCAL_PREFIX": str(tmp_path / "missing-prefix"),
+                "MINI_MESH_VENV_BIN": str(tmp_path / "missing-venv" / "bin"),
+                "MINI_MESH_TORCH_PRECISION_LOG": str(precision_log),
+                "PYTHONPATH": str(tmp_path / "fake"),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert not precision_log.exists()
+
 
 class TestBatchScript:
     """Tests for scripts/batch.sh video batching."""
@@ -672,6 +785,48 @@ class TestTrainScript:
         assert "nerfstudio-data" in log
         assert f"--data {data_dir}" in log
 
+    def test_train_sdf_exposes_python_startup_hooks(self, tmp_path: Path) -> None:
+        """sdf-train should inherit the Python startup hook path from env.sh."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_sdf_pythonpath.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+        sdf_train = bin_dir / "sdf-train"
+        sdf_train.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    f'echo "$0 $*" >> "{log_path}"',
+                    f'echo "PYTHONPATH=${{PYTHONPATH-}}" >> "{log_path}"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        sdf_train.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "neus-facto",
+                "my_exp",
+                str(data_dir),
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-train neus-facto" in log
+        assert f"PYTHONPATH={repo_root / 'scripts' / 'python'}" in log
+
     def test_train_nerf_uses_ns_train(self, tmp_path: Path) -> None:
         """NeRF models should use ns-train with NS_DATA_DEFAULTS."""
         repo_root = Path(__file__).resolve().parents[1]
@@ -1097,6 +1252,69 @@ class TestRunScript:
         # Export stage with --mesh-only should call sdf-extract-mesh but not sdf-texture-mesh.
         assert "sdf-extract-mesh" in log
         assert "sdf-texture-mesh" not in log
+
+        assert "[INFO]: Video stage skipped: input is not a video file" in result.stdout
+        assert "[INFO]: Running SfM stage" in result.stdout
+        assert "[INFO]: Running data processing stage" in result.stdout
+        assert "[INFO]: Running train stage" in result.stdout
+        assert "[INFO]: Running export stage" in result.stdout
+
+    def test_run_script_reports_stage_skip_reasons(self, tmp_path: Path) -> None:
+        """run.sh should make stage decisions visible in stdout."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        sparse_dir = scene_dir / "sparse"
+        exp_path = scene_dir / "train" / "be_prepared" / "neus-facto" / "run"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        sparse_dir.mkdir()
+        exp_path.mkdir(parents=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+        (scene_dir / "transforms.json").write_text("{}", encoding="utf-8")
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_stage_info.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "train",
+                "--model",
+                "neus-facto",
+                "--name",
+                "be_prepared",
+                "--config",
+                "neus-facto-short",
+                "export",
+                "--skip",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        assert "[INFO]: Video stage skipped: input is not a video file" in result.stdout
+        assert "[INFO]: SfM stage skipped by --skip" in result.stdout
+        process_skip = (
+            f"[INFO]: Data processing output {scene_dir / 'transforms.json'} "
+            "already exists; skipping"
+        )
+        assert process_skip in result.stdout
+        assert (
+            f"[INFO]: Train output {exp_path / 'config.yml'} already exists; skipping"
+            in result.stdout
+        )
+        assert "[INFO]: Export stage skipped by --skip" in result.stdout
 
     def test_run_script_retrains_existing_experiment_dir_without_config(
         self, tmp_path: Path

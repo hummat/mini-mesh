@@ -8,9 +8,14 @@ if [[ -n "${MINI_MESH_LOCAL_PREFIX+x}" ]]; then
 fi
 mini_mesh_local_prefix="${MINI_MESH_LOCAL_PREFIX:-$mini_mesh_repo_root/.local/mini-mesh}"
 mini_mesh_venv_bin="${MINI_MESH_VENV_BIN:-$mini_mesh_repo_root/.venv/bin}"
+mini_mesh_python_startup="$mini_mesh_script_dir/python"
 
 if [[ -d "$mini_mesh_venv_bin" ]]; then
   export PATH="$mini_mesh_venv_bin${PATH:+:$PATH}"
+fi
+
+if [[ -d "$mini_mesh_python_startup" ]]; then
+  export PYTHONPATH="$mini_mesh_python_startup${PYTHONPATH:+:$PYTHONPATH}"
 fi
 
 if [[ -d "$mini_mesh_local_prefix" ]]; then
@@ -22,4 +27,4 @@ elif [[ "$mini_mesh_local_prefix_was_set" = ON ]]; then
   echo "         Run 'make build' or unset MINI_MESH_LOCAL_PREFIX." >&2
 fi
 
-unset mini_mesh_script_dir mini_mesh_repo_root mini_mesh_local_prefix_was_set mini_mesh_local_prefix mini_mesh_venv_bin
+unset mini_mesh_script_dir mini_mesh_repo_root mini_mesh_local_prefix_was_set mini_mesh_local_prefix mini_mesh_venv_bin mini_mesh_python_startup

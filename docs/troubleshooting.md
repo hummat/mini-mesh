@@ -45,6 +45,12 @@ Try these `train` sub-command arguments:
 1. `--pipeline.model.near-plane 0.1` and/or `--pipeline.model.far-plane 10` — Adjust reconstruction volume
 2. `--model neus-facto --config neus-facto-short` — Use neus-facto instead of neus
 
+mini-mesh sets PyTorch float32 matmul precision to `high` by default. On Ampere
+and newer NVIDIA GPUs this enables TF32 matmul, which is usually faster but not
+bit-identical to strict FP32. For comparison runs, set
+`MINI_MESH_FLOAT32_MATMUL_PRECISION=highest`; to leave PyTorch's default alone,
+set `MINI_MESH_FLOAT32_MATMUL_PRECISION=default`.
+
 ### 5. Mesh is incomplete or wrong scale
 
 Your object of interest should fill a bounding box of ±1. If you were too close during capture, the object is very small, or you were far away, adjust `--scale-factor` (default: 2.5) in the `train` sub-command.

@@ -38,6 +38,22 @@ verbose_echo() {
   fi
 }
 
+stage_run() {
+  echo "[INFO]: Running $1 stage"
+}
+
+stage_skip() {
+  if [[ "$2" == by\ * ]]; then
+    echo "[INFO]: $1 stage skipped $2"
+  else
+    echo "[INFO]: $1 stage skipped: $2"
+  fi
+}
+
+output_skip() {
+  echo "[INFO]: $1 output $2 already exists; skipping (use --overwrite to rerun)"
+}
+
 # Run a command, logging it first if verbose mode is enabled
 run_cmd() {
   if [ "$verbose" = true ]; then
@@ -316,6 +332,7 @@ echo "============================="
 
 # Warn if video-related flags are set but input is not a video file
 if ! [ -f "$input_path" ]; then
+  stage_skip "Video" "input is not a video file"
   if [ "$video_overwrite" = true ]; then
     echo "[WARN]: --overwrite in video context ignored: input is not a video file"
   fi
@@ -324,14 +341,19 @@ if ! [ -f "$input_path" ]; then
   fi
 fi
 
-if [ "$video_skip" != true ] && [ -f "$input_path" ]; then
+if [ "$video_skip" = true ]; then
+  stage_skip "Video" "by --skip"
+elif [ -f "$input_path" ]; then
   if ! [ -d "$input_dir/images" ] || [ "$overwrite" = true ] || [ "$video_overwrite" = true ]; then
+    stage_run "video"
     echo "Video args: ${video_args[*]}"
     if [ -d "$input_dir/images" ]; then
       verbose_echo "Removing: $input_dir/images $input_dir/images_orig"
       rm -rf "$input_dir/images" "$input_dir/images_orig"
     fi
     run_cmd "$script_dir"/ffmpeg.sh "$input_path" "${video_args[@]}"
+  else
+    output_skip "Video" "$input_dir/images"
   fi
 fi
 
@@ -339,8 +361,11 @@ echo "============================="
 echo "          2. SfM             "
 echo "============================="
 
-if [ "$sfm_skip" != true ]; then
+if [ "$sfm_skip" = true ]; then
+  stage_skip "SfM" "by --skip"
+else
   if ! [ -d "$input_dir/sparse" ] || [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; then
+    stage_run "SfM"
     echo "SFM args: ${sfm_args[*]}"
     if [ -d "$input_dir/sparse" ] && { [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; }; then
       verbose_echo "Removing: $input_dir/sparse $input_dir/database.db $input_dir/colmap $input_dir/hloc"
@@ -361,6 +386,8 @@ if [ "$sfm_skip" != true ]; then
         exit 1
         ;;
     esac
+  else
+    output_skip "SfM" "$input_dir/sparse"
   fi
 fi
 
@@ -374,8 +401,11 @@ echo "============================="
 echo "     3. DATA PROCESSING      "
 echo "============================="
 
-if [ "$process_skip" != true ]; then
+if [ "$process_skip" = true ]; then
+  stage_skip "Data processing" "by --skip"
+else
   if ! [ -f "$input_dir/transforms.json" ] || [ "$overwrite" = true ] || [ "$process_overwrite" = true ]; then
+    stage_run "data processing"
     if [[ ${#process_args[@]} -gt 0 ]]; then
       echo "Process args: ${process_args[*]}"
     fi
@@ -418,6 +448,8 @@ if [ "$process_skip" != true ]; then
       echo "[ERROR]: transforms.json not generated"
       exit 1
     fi
+  else
+    output_skip "Data processing" "$input_dir/transforms.json"
   fi
 fi
 
@@ -427,8 +459,11 @@ echo "============================="
 
 exp_model=$(experiment_model_dir_name "$model")
 exp_path="$input_dir/train/$name/$exp_model/run"
-if [ "$train_skip" != true ]; then
+if [ "$train_skip" = true ]; then
+  stage_skip "Train" "by --skip"
+else
   if ! [ -f "$exp_path/config.yml" ] || [ "$overwrite" = true ] || [ "$train_overwrite" = true ]; then
+    stage_run "train"
     if [[ ${#train_args[@]} -gt 0 ]]; then
       echo "Train args: ${train_args[*]}"
     fi
@@ -445,6 +480,8 @@ if [ "$train_skip" != true ]; then
     fi
     run_cmd "$script_dir"/train.sh "$model" "$name" "$input_dir" "$config" \
       "${train_args[@]}" --timestamp run
+  else
+    output_skip "Train" "$exp_path/config.yml"
   fi
 fi
 
@@ -452,7 +489,10 @@ echo "============================="
 echo "         5. EXPORT           "
 echo "============================="
 
-if [ "$export_skip" != true ]; then
+if [ "$export_skip" = true ]; then
+  stage_skip "Export" "by --skip"
+else
+  stage_run "export"
   export_cmd_args=("${export_args[@]}")
   if [ "$overwrite" = true ] || [ "$export_overwrite" = true ]; then
     export_cmd_args+=("--overwrite")

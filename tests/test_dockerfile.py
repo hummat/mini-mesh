@@ -106,6 +106,12 @@ class TestDockerfileCudaWheels:
         )
         assert '"pillow==${PILLOW_VERSION}"' in dockerfile[core_deps:]
 
+    def test_runtime_copies_python_startup_hook(self) -> None:
+        """Runtime images should inherit mini-mesh Python process defaults."""
+        dockerfile = _dockerfile_text()
+
+        assert "COPY scripts /opt/mini-mesh/scripts" in dockerfile
+
     def test_runtime_asserts_cuda_wheel_presence(self) -> None:
         """Missing copied wheels should fail before pip sees an unresolved glob."""
         dockerfile = _dockerfile_text()
