@@ -36,6 +36,9 @@ uv run <command>             # run in uv environment
 - Tests are in `tests/test_webui.py` (≈100 tests)
 - Tests cover command construction/validation for `webui.py`
 - `conftest.py` contains shared fixtures
+- Core CI installs only the default/dev dependency set. Tests that need optional
+  ML packages such as Torch must import them lazily with `pytest.importorskip`
+  inside the specific test or fixture, never at module import time.
 
 ## What Gets Tested
 - `webui.py` command line argument construction

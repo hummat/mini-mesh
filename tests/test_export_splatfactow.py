@@ -6,9 +6,10 @@ import importlib.util
 from collections import OrderedDict
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import numpy as np
-import torch
+import pytest
 
 
 def _load_exporter_module() -> ModuleType:
@@ -27,10 +28,16 @@ _add_sh_coefficients = _exporter_module._add_sh_coefficients
 _finite_and_opacity_filter = _exporter_module._finite_and_opacity_filter
 
 
+def _torch_module() -> ModuleType:
+    return pytest.importorskip("torch")
+
+
 class _FakeColorNetwork:
-    def __call__(
-        self, appearance_embed: torch.Tensor, appearance_features: torch.Tensor
-    ) -> torch.Tensor:
+    def __init__(self, torch_module: ModuleType) -> None:
+        self._torch = torch_module
+
+    def __call__(self, appearance_embed: Any, appearance_features: Any) -> Any:
+        torch = self._torch
         count = appearance_features.shape[0]
         coeffs = torch.zeros((count, 4, 3), dtype=torch.float32)
         coeffs[:, 0, 0] = appearance_embed[:, 0] + appearance_features[:, 0]
@@ -39,13 +46,14 @@ class _FakeColorNetwork:
 
 
 class _FakeSplatfactoWModel:
-    def __init__(self) -> None:
+    def __init__(self, torch_module: ModuleType) -> None:
+        torch = torch_module
         self.appearance_features = torch.tensor([[1.0, 0.0], [3.0, 0.0]])
         self.appearance_embeds = torch.nn.Embedding.from_pretrained(
             torch.tensor([[10.0, 0.0], [20.0, 0.0], [30.0, 0.0]]),
             freeze=False,
         )
-        self.color_nn = _FakeColorNetwork()
+        self.color_nn = _FakeColorNetwork(torch)
         self.config = type("Config", (), {"sh_degree": 1})()
 
 
@@ -53,7 +61,7 @@ def test_sh_export_bakes_mean_appearance_embedding() -> None:
     """Mean mode should bake the average embedding into standard SH coefficients."""
     tensors: OrderedDict[str, np.ndarray] = OrderedDict()
 
-    _add_sh_coefficients(_FakeSplatfactoWModel(), tensors, 2, "mean", None)
+    _add_sh_coefficients(_FakeSplatfactoWModel(_torch_module()), tensors, 2, "mean", None)
 
     assert tensors["f_dc_0"].reshape(-1).tolist() == [21.0, 23.0]
     assert tensors["f_rest_3"].reshape(-1).tolist() == [19.0, 17.0]
@@ -63,7 +71,7 @@ def test_sh_export_bakes_indexed_appearance_embedding() -> None:
     """Index mode should bake the requested training-image embedding."""
     tensors: OrderedDict[str, np.ndarray] = OrderedDict()
 
-    _add_sh_coefficients(_FakeSplatfactoWModel(), tensors, 2, "index", 2)
+    _add_sh_coefficients(_FakeSplatfactoWModel(_torch_module()), tensors, 2, "index", 2)
 
     assert tensors["f_dc_0"].reshape(-1).tolist() == [31.0, 33.0]
 
