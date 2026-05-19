@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/hummat/mini-mesh/compare/v0.4.2..v0.5.0) - 2026-05-19
+
+### Bug Fixes
+
+- *(docker)* Stabilize torch compile cache
+- *(run)* Print invoked command
+- *(run)* Clarify stage decisions
+- *(sfm)* Canonicalize sparse model outputs
+
+
+### Features
+
+- *(batch)* Add video batch runner
+- *(pipeline)* Add multi-video scene assembly
+- *(splat)* Add splatfacto-w-light support
+- *(splats)* Add web embedding preset
+- *(train)* Resume interrupted runs
+- *(video)* Add frame-count sampling
+- *(webui)* Launch pipeline runs from UI
+
+## [0.4.2](https://github.com/hummat/mini-mesh/compare/v0.4.1..v0.4.2) - 2026-05-18
+
+### Bug Fixes
+
+- *(runtime)* Stabilize docker and viewer runs
+
+## [0.4.1](https://github.com/hummat/mini-mesh/compare/v0.4.0..v0.4.1) - 2026-05-18
+
+### Bug Fixes
+
+- *(export)* Avoid torch import during test collection
+- Prepare v0.4.1 release
+
 ## [0.4.0](https://github.com/hummat/mini-mesh/compare/v0.3.1..v0.4.0) - 2026-05-18
 
 ### Bug Fixes
