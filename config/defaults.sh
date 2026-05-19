@@ -18,6 +18,7 @@ DEFAULTS=(
   --pipeline.model.sdf-field.bias 0.1
   --pipeline.model.sdf-field.beta-init 0.3
   --pipeline.model.sdf-field.use-appearance-embedding True
+  --pipeline.model.use-average-appearance-embedding True
   --pipeline.model.sdf-field.appearance-embedding-dim 16
   # === Ref-NeRF-style BRDF flags (uncomment based on material) ===
   # Core flags (most scenes):

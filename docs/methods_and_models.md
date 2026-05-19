@@ -510,8 +510,14 @@ preemptively trades visible quality for an artifact you may not have had.
 does not run TSDF or Poisson auto-meshing for splat models; mesh extraction is a separate step. The exported PLY is
 the deliverable, so the portability considerations in 6.3 apply directly.
 
-`splatfacto-w-light` uses `scripts/export_splatfactow.py` for export, which carries the appearance-embedding
-handling needed by the in-the-wild variant.
+`splatfacto-w-light` uses `scripts/export_splatfactow.py` for export. The exporter runs the W-light appearance MLP
+once and writes a standard SH PLY, so web viewers do not need Splatfacto-W support. By default it bakes the mean
+appearance embedding, matching the light config's inference behavior. To freeze a specific training-image appearance,
+use `export --appearance-mode index --appearance-idx <N>`.
+
+The same "mean rather than image 0" default is set in mini-mesh's supported NeuS/SDF and Nerfacto-style configs when
+the upstream method exposes an average-appearance flag. It is not set for regular splatfacto, splatfacto-mcmc, or
+instant-ngp, where that control is absent.
 
 ### 6.6 Blog and web embedding recipe
 

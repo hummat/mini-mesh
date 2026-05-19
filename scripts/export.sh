@@ -91,6 +91,7 @@ function show_help {
   echo "                              --texture-method <string>                 Texturing method: legacy, cpu, gpu, open3d (default: gpu)"
   echo "                              --pad-px <int>                            Chart edge dilation pixels (default: 32)"
   echo "                              --normal-map-convention <string>          Normal map convention: opengl, directx (default: opengl)"
+  echo "                              --appearance-mode <mean|index>            Appearance bake mode for splatfacto-w-light (default: mean)"
   echo "                              --appearance-idx <int>                    Camera index for appearance embedding"
   echo "                              --method <string>                         NeRF export method: poisson, tsdf, pointcloud (default: poisson)"
   echo "                              --obb-center <float float float>          Center of oriented bounding-box (default: 0 0 0)"
@@ -125,6 +126,7 @@ extract_mesh_args=()
 texture_mesh_args=("${EXPORT_DEFAULTS[@]}")
 nerf_args=()
 nerf_tsdf_args=()
+splatfactow_args=()
 method=poisson
 nerf_obb_center=(0 0 0)
 nerf_obb_rotation=(0 0 0)
@@ -153,10 +155,26 @@ while [ $i -lt ${#export_args[@]} ]; do
       nerf_tsdf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
       i=$((i+4))
       ;;
-    --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces|--num-directions|--pad-px|--appearance-idx)
+    --px-per-uv-triangle|--num-pixels-per-side|--target-num-faces|--num-directions|--pad-px)
       require_args "${export_args[$i]}" 1 "$remaining"
       texture_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       nerf_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      i=$((i+2))
+      ;;
+    --appearance-idx|--appearance-index)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      texture_mesh_args+=("--appearance-idx" "${export_args[$((i+1))]}")
+      splatfactow_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
+      i=$((i+2))
+      ;;
+    --appearance-mode)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      val="${export_args[$((i+1))]}"
+      case "$val" in
+        mean|index) ;;
+        *) echo "[ERROR]: --appearance-mode must be one of: mean, index"; exit 1 ;;
+      esac
+      splatfactow_args+=("${export_args[$i]}" "$val")
       i=$((i+2))
       ;;
     --normal-map-convention)
@@ -267,6 +285,10 @@ if [ -f "$exp_path/config.yml" ]; then
       echo "[ERROR]: --mesh-only/--texture-only/--input-mesh-filename are only supported for SDF experiments."
       exit 1
     fi
+    if [ "$model_name" != splatfacto-w-light ] && [[ ${#splatfactow_args[@]} -gt 0 ]]; then
+      echo "[ERROR]: --appearance-mode/--appearance-index are only supported for splatfacto-w-light exports."
+      exit 1
+    fi
     nerf_output_path="$(nerf_export_output_path "$exp_path" "$model_name" "$method")"
     if should_run_export "$nerf_output_path"; then
       if [[ "$model_name" == *splat* ]]; then
@@ -277,6 +299,7 @@ if [ -f "$exp_path/config.yml" ]; then
             --obb-center "${nerf_obb_center[@]}" \
             --obb-rotation "${nerf_obb_rotation[@]}" \
             --obb-scale "${nerf_obb_scale[@]}" \
+            "${splatfactow_args[@]}" \
             "${nerf_args[@]}"
         else
           run_cmd ns-export gaussian-splat \

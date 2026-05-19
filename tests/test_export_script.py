@@ -436,6 +436,67 @@ class TestExportScriptNerfWorkflow:
         assert "ns-export gaussian-splat" not in log
         assert "sdf-extract-mesh" not in log
 
+    def test_splatfacto_w_light_forwards_appearance_bake_selection(self, tmp_path: Path) -> None:
+        """The W-light exporter should let users choose which appearance to bake."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto-w-light" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+        python_stub = bin_dir / "python"
+        python_stub.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        python_stub.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--appearance-mode", "index", "--appearance-idx", "2"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "--appearance-mode index --appearance-idx 2" in log
+
+    def test_nerf_export_rejects_splatfactow_appearance_selection(self, tmp_path: Path) -> None:
+        """Appearance bake selection is only defined for the W-light exporter."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--appearance-mode", "mean"], env_overrides
+        )
+
+        assert result.returncode != 0
+        assert "only supported for splatfacto-w-light exports" in result.stdout
+
     def test_poisson_export_does_not_forward_bounding_box_args(self, tmp_path: Path) -> None:
         """Poisson export does not accept bounding-box min/max arguments."""
         repo_root = Path(__file__).resolve().parents[1]

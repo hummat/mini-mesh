@@ -24,6 +24,7 @@ set -euo pipefail
 CMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES:-75;80;86;89}"
 TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-7.5;8.0;8.6;8.9+PTX}"
 PILLOW_VERSION="${PILLOW_VERSION:-12.1.0}"
+SPLATFACTOW_REF="${SPLATFACTOW_REF:-119a3bfb3aa03669278e174ff11c4dfdcbcf97d7}"
 CXXFLAGS="${CXXFLAGS:--O3 -DNDEBUG}"
 MAX_JOBS="${MAX_JOBS:-8}"
 WORKDIR="${WORKDIR:-$PWD}"
@@ -56,6 +57,7 @@ echo "WORKDIR               = ${WORKDIR}"
 echo "CMAKE_CUDA_ARCHITECTURES = ${CMAKE_CUDA_ARCHITECTURES}"
 echo "TORCH_CUDA_ARCH_LIST  = ${TORCH_CUDA_ARCH_LIST}"
 echo "PILLOW_VERSION        = ${PILLOW_VERSION}"
+echo "SPLATFACTOW_REF       = ${SPLATFACTOW_REF}"
 echo "CXXFLAGS              = ${CXXFLAGS}"
 echo "MAX_JOBS              = ${MAX_JOBS}"
 echo "INSTALL_OPTIONAL_DEPS = ${INSTALL_OPTIONAL_DEPS}"
@@ -326,6 +328,10 @@ if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then
   echo "=== Step 8b: nerfstudio ==="
   run_step 8b "pip install nerfstudio" pip install --no-cache-dir --no-build-isolation \
     git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
+
+  echo "=== Step 8b1: splatfacto-w ==="
+  run_step 8b1 "pip install splatfacto-w" pip install --no-cache-dir --no-build-isolation --no-deps \
+    "git+https://github.com/KevinXu02/splatfacto-w.git@${SPLATFACTOW_REF}"
 
   echo "=== Step 8c: sam2 ==="
   run_step 8c "pip install sam2" pip install --no-cache-dir --no-build-isolation \

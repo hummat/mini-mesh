@@ -55,6 +55,11 @@ rembg = ["rembg[gpu,cli]==2.0.69"]
 nerf = [
     "nerfstudio @ git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4",
 ]
+# Gaussian splatting plugins
+splat = [
+    "mini-mesh[nerf]",
+    "splatfacto-w @ git+https://github.com/KevinXu02/splatfacto-w.git@119a3bfb3aa03669278e174ff11c4dfdcbcf97d7",
+]
 # SAM2 segmentation
 sam = [
     "sam2 @ git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c",
@@ -69,7 +74,7 @@ vggsfm = [
 #   pip install git+https://github.com/hummat/hloc-cli.git@1b714e1183bbc3cb6f4031ddedcc4bd5190ece29
 # All optional deps for local install (excludes hloc; CUDA extensions are built by scripts/build.sh)
 local = [
-    "mini-mesh[core,rembg,nerf,sam,vggsfm]",
+    "mini-mesh[core,rembg,splat,sam,vggsfm]",
 ]
 
 [project.urls]

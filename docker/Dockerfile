@@ -225,6 +225,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
 
 # Build tools only if optional deps enabled (SAM2 JIT-compiles CUDA extension at runtime)
 ARG INSTALL_OPTIONAL_DEPS=ON
+ARG SPLATFACTOW_REF=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7
 RUN if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
     build-essential \
@@ -252,6 +253,13 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
     pip install --no-build-isolation -c /tmp/constraints.txt \
     git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4; \
+    fi
+
+# splatfacto-w plugin for splatfacto-w-light
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "$INSTALL_OPTIONAL_DEPS" = "ON" ]; then \
+    pip install --no-build-isolation --no-deps -c /tmp/constraints.txt \
+    git+https://github.com/KevinXu02/splatfacto-w.git@${SPLATFACTOW_REF}; \
     fi
 
 # sam2 for segmentation

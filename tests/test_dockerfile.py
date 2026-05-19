@@ -77,6 +77,30 @@ class TestDockerfileCudaWheels:
         assert nvdiffrast_install < sdfstudio_install
         assert gsplat_install < nerfstudio_install
 
+    def test_runtime_installs_splatfactow_after_nerfstudio(self) -> None:
+        """splatfacto-w-light needs the Splatfacto-W plugin in full images."""
+        dockerfile = _dockerfile_text()
+
+        nerfstudio_install = dockerfile.index(
+            "git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4"
+        )
+        splatfactow_ref = dockerfile.index(
+            "ARG SPLATFACTOW_REF=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7"
+        )
+        splatfactow_install = dockerfile.index(
+            "git+https://github.com/KevinXu02/splatfacto-w.git@${SPLATFACTOW_REF}"
+        )
+        sam2_install = dockerfile.index(
+            "git+https://github.com/hummat/sam2.git@98f488a540f87260b8e51146dc3ab15694dd174c"
+        )
+
+        assert splatfactow_ref < splatfactow_install
+        assert nerfstudio_install < splatfactow_install < sam2_install
+        assert (
+            "--no-deps -c /tmp/constraints.txt"
+            in dockerfile[splatfactow_install - 200 : sam2_install]
+        )
+
     def test_constraints_generation_fails_closed(self) -> None:
         """The torch constraints file must not become silently empty."""
         dockerfile = _dockerfile_text()

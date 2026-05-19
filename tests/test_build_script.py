@@ -88,6 +88,15 @@ def test_build_script_has_no_dead_shell_function_wrapper() -> None:
     assert "declare -F" not in text
 
 
+def test_build_script_installs_pinned_splatfactow_plugin() -> None:
+    """Local optional setup should include the plugin for splatfacto-w-light."""
+    repo_root = Path(__file__).resolve().parents[1]
+    text = repo_root.joinpath("scripts", "build.sh").read_text(encoding="utf-8")
+
+    assert ': "${SPLATFACTOW_REF:=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7}"' in text
+    assert "git+https://github.com/KevinXu02/splatfacto-w.git@$SPLATFACTOW_REF" in text
+
+
 def test_build_script_strips_ptx_suffix_for_cmake_arches(tmp_path: Path) -> None:
     """Local PTX fallback syntax is PyTorch-only; CMake needs bare numeric archs."""
     repo_root = Path(__file__).resolve().parents[1]

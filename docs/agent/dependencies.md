@@ -12,6 +12,7 @@ mini-mesh (scripts/*.sh, webui.py)
 │   └── tiny-cuda-nn .......... multi-resolution hash encoding (built from source)
 ├── hummat/nerfstudio .......... NeRF/splat methods (ns-train, ns-export)
 │   └── gsplat ................. CUDA Gaussian splatting kernels (built locally/Docker wheel)
+├── KevinXu02/splatfacto-w ..... Splatfacto-W plugin for splatfacto-w-light
 ├── COLMAP ..................... classical SfM (feature extraction, matching, mapping)
 ├── GLOMAP ..................... global SfM mapper (alternative to COLMAP's incremental mapper)
 ├── PoseLib .................... C++ pose estimation library (used by COLMAP/GLOMAP)
@@ -57,6 +58,19 @@ Key fork changes:
 - Fixed deprecated PyTorch imports (GradScaler, amp decorators)
 - Added method documentation
 - Minor exporter fixes
+
+### KevinXu02/splatfacto-w
+
+| | |
+|---|---|
+| **Upstream** | [KevinXu02/splatfacto-w](https://github.com/KevinXu02/splatfacto-w) |
+| **Pinned ref** | `119a3bfb3aa03669278e174ff11c4dfdcbcf97d7` |
+| **Role** | Splatfacto-W plugin used by the mini-mesh-compatible `splatfacto-w-light` method |
+
+mini-mesh intentionally does not expose full `splatfacto-w` because that path
+expects the plugin's Phototourism/Nerf-W dataparser and dataset layout. The
+supported path is `splatfacto-w-light`, which uses Nerfstudio data and the
+local exporter in `scripts/export_splatfactow.py`.
 
 ### hummat/sam2
 
@@ -138,9 +152,9 @@ need rebasing onto current `main` and re-evaluation of the integration approach.
 
 ## Version Pins
 
-All Python fork dependencies are pinned to specific commits in `pyproject.toml`.
-C/C++ and CUDA extension dependencies are pinned in `docker/Dockerfile` and
-`scripts/build.sh`.
+All Python source dependencies are pinned to specific commits in
+`pyproject.toml`. C/C++ and CUDA extension dependencies are pinned in
+`docker/Dockerfile` and `scripts/build.sh`.
 
 When updating a pin, check:
 1. The fork's commit history for breaking changes

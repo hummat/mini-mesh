@@ -882,6 +882,7 @@ class TestTrainScript:
 
         log = log_path.read_text(encoding="utf-8")
         assert "sdf-train neus-facto" in log
+        assert "--pipeline.model.use-average-appearance-embedding True" in log
         assert "--output-dir" in log
         assert str(data_dir / "train") in log
         assert "nerfstudio-data" in log
@@ -957,6 +958,7 @@ class TestTrainScript:
 
         log = log_path.read_text(encoding="utf-8")
         assert "ns-train nerfacto" in log
+        assert "--pipeline.model.use-average-appearance-embedding True" in log
         assert "--output-dir" in log
         assert str(data_dir / "train") in log
         assert "nerfstudio-data" in log
@@ -1165,6 +1167,7 @@ class TestTrainScript:
 
         log = log_path.read_text(encoding="utf-8")
         assert "ns-train splatfacto-w-light" in log
+        assert "--pipeline.model.use-avg-appearance True" in log
         assert "--max-num-iterations 30001" in log
         assert "--steps-per-save 2000" in log
         assert "--vis viewer" in log

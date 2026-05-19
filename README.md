@@ -125,7 +125,8 @@ Manual setup requires:
 <summary><strong>Optional dependencies</strong></summary>
 
 `make build` installs the local optional stack used by Web UI `local` mode:
-nerfstudio, rembg, SAM2, VGGSfM, HLoc, tiny-cuda-nn, nvdiffrast, and gsplat.
+nerfstudio, Splatfacto-W, rembg, SAM2, VGGSfM, HLoc, tiny-cuda-nn,
+nvdiffrast, and gsplat.
 The CUDA extension sources are pinned to the same refs as the Docker image.
 
 For custom environments, install from the pinned refs used by `scripts/build.sh`
@@ -134,6 +135,7 @@ and `pyproject.toml` instead of upstream HEAD. For example:
 ```bash
 # NeRF/splat models
 uv pip install git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4
+uv pip install git+https://github.com/KevinXu02/splatfacto-w.git@119a3bfb3aa03669278e174ff11c4dfdcbcf97d7
 
 # Background masking
 uv pip install "rembg[gpu,cli]==2.0.69"
@@ -266,7 +268,8 @@ Phototourism/Nerf-W dataparser and dataset layout, not mini-mesh's processed
 - `poisson` — Reconstructs smooth surface from rendered point cloud (default)
 - `tsdf` — Fuses depth maps into a volume, then extracts mesh
 - `pointcloud` — Export as point cloud (no mesh)
-- `gaussian-splat` — For splatfacto
+- `gaussian-splat` — For splatfacto; `splatfacto-w-light` bakes its mean appearance embedding by default. Use
+  `export --appearance-mode index --appearance-idx <N>` to bake a specific training image appearance.
 
 </details>
 

@@ -4,6 +4,7 @@ CONFIG=(
   --pipeline.datamanager.train-num-rays-per-batch 8192
   --pipeline.datamanager.eval-num-rays-per-batch 8192
   --pipeline.model.predict-normals True
+  --pipeline.model.use-average-appearance-embedding True
   --use-grad-scaler True
   --steps-per-save 1000
   --max-num-iterations 10001

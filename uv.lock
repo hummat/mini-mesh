@@ -1679,6 +1679,7 @@ local = [
     { name = "sam2", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "scikit-build-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sdfstudio", extra = ["cuda", "export"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "splatfacto-w", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "vggsfm", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 nerf = [
@@ -1689,6 +1690,10 @@ rembg = [
 ]
 sam = [
     { name = "sam2", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+splat = [
+    { name = "nerfstudio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "splatfacto-w", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 vggsfm = [
     { name = "vggsfm", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -1706,7 +1711,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "gradio", specifier = ">=4.0.0" },
-    { name = "mini-mesh", extras = ["core", "rembg", "nerf", "sam", "vggsfm"], marker = "extra == 'local'" },
+    { name = "mini-mesh", extras = ["core", "rembg", "splat", "sam", "vggsfm"], marker = "extra == 'local'" },
+    { name = "mini-mesh", extras = ["nerf"], marker = "extra == 'splat'" },
     { name = "nerfstudio", marker = "extra == 'nerf'", git = "https://github.com/hummat/nerfstudio.git?rev=55a1f83025bb28cbf792760c9b79f9eb22c3a2e4" },
     { name = "numpy", marker = "extra == 'core'", specifier = "<2" },
     { name = "pillow", marker = "extra == 'core'", specifier = "==12.1.0" },
@@ -1715,9 +1721,10 @@ requires-dist = [
     { name = "sam2", marker = "extra == 'sam'", git = "https://github.com/hummat/sam2.git?rev=98f488a540f87260b8e51146dc3ab15694dd174c" },
     { name = "scikit-build-core", marker = "extra == 'core'", specifier = ">=0.11" },
     { name = "sdfstudio", extras = ["cuda", "export"], marker = "extra == 'core'", git = "https://github.com/hummat/sdfstudio.git?rev=v0.8.0" },
+    { name = "splatfacto-w", marker = "extra == 'splat'", git = "https://github.com/KevinXu02/splatfacto-w.git?rev=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7" },
     { name = "vggsfm", marker = "extra == 'vggsfm'", git = "https://github.com/hummat/vggsfm.git?rev=d597df629a312a662544006ac3bdbc2782b82834" },
 ]
-provides-extras = ["core", "rembg", "nerf", "sam", "vggsfm", "local"]
+provides-extras = ["core", "rembg", "nerf", "splat", "sam", "vggsfm", "local"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3312,6 +3319,14 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7b/ae/2d9c981590ed9999a0d91755b47fc74f74de286b0f5cee14c9269041e6c4/soupsieve-2.8.3.tar.gz", hash = "sha256:3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349", size = 118627, upload-time = "2026-01-20T04:27:02.457Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/46/2c/1462b1d0a634697ae9e55b3cecdcb64788e8b7d63f54d923fcd0bb140aed/soupsieve-2.8.3-py3-none-any.whl", hash = "sha256:ed64f2ba4eebeab06cc4962affce381647455978ffc1e36bb79a545b91f45a95", size = 37016, upload-time = "2026-01-20T04:27:01.012Z" },
+]
+
+[[package]]
+name = "splatfacto-w"
+version = "0.1.5"
+source = { git = "https://github.com/KevinXu02/splatfacto-w.git?rev=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7#119a3bfb3aa03669278e174ff11c4dfdcbcf97d7" }
+dependencies = [
+    { name = "nerfstudio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [[package]]

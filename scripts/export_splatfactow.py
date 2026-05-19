@@ -21,23 +21,82 @@ def _console_print(message: str) -> None:
 
 
 def _add_sh_coefficients(
-    model: object, map_to_tensors: OrderedDict[str, np.ndarray], count: int
+    model: object,
+    map_to_tensors: OrderedDict[str, np.ndarray],
+    count: int,
+    appearance_mode: Literal["mean", "index"],
+    appearance_index: int | None,
 ) -> None:
-    shs_0 = model.shs_0.contiguous().cpu().numpy()  # type: ignore[attr-defined]
+    if (
+        hasattr(model, "color_nn")
+        and hasattr(model, "appearance_embeds")
+        and hasattr(model, "appearance_features")
+    ):
+        appearance_features = model.appearance_features  # type: ignore[attr-defined]
+        appearance_embed = _select_appearance_embedding(model, appearance_mode, appearance_index)
+        sh_coeffs = model.color_nn(  # type: ignore[attr-defined]
+            appearance_embed.repeat(appearance_features.shape[0], 1),
+            appearance_features,
+        ).float()
+        shs_0_tensor = sh_coeffs[:, 0, :]
+        shs_rest_tensor = sh_coeffs[:, 1:, :]
+    else:
+        if appearance_mode != "index" or appearance_index is not None:
+            raise TypeError("Appearance bake selection requires a Splatfacto-W-style model")
+        shs_0_tensor = model.shs_0  # type: ignore[attr-defined]
+        shs_rest_tensor = model.shs_rest  # type: ignore[attr-defined]
+
+    shs_0 = shs_0_tensor.detach().contiguous().cpu().numpy()
     for i in range(shs_0.shape[1]):
         map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
 
     if getattr(model.config, "sh_degree", 0) > 0:  # type: ignore[attr-defined]
-        shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()  # type: ignore[attr-defined]
+        shs_rest = shs_rest_tensor.detach().transpose(1, 2).contiguous().cpu().numpy()
         shs_rest = shs_rest.reshape((count, -1))
         for i in range(shs_rest.shape[-1]):
             map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
 
 
-def _add_rgb(model: object, map_to_tensors: OrderedDict[str, np.ndarray]) -> None:
+def _select_appearance_embedding(
+    model: object, appearance_mode: Literal["mean", "index"], appearance_index: int | None
+):
     import torch
 
-    if hasattr(model, "colors"):
+    embeddings = model.appearance_embeds  # type: ignore[attr-defined]
+    if appearance_mode == "mean":
+        return embeddings.weight.mean(dim=0)
+
+    if appearance_index is None:
+        raise ValueError("--appearance-index is required when --appearance-mode index is used")
+    if appearance_index < 0 or appearance_index >= embeddings.weight.shape[0]:
+        raise ValueError(
+            "--appearance-index must be in "
+            f"[0, {embeddings.weight.shape[0] - 1}], got {appearance_index}"
+        )
+    return embeddings(torch.tensor(appearance_index, device=embeddings.weight.device))
+
+
+def _add_rgb(
+    model: object,
+    map_to_tensors: OrderedDict[str, np.ndarray],
+    appearance_mode: Literal["mean", "index"],
+    appearance_index: int | None,
+) -> None:
+    import torch
+
+    if (
+        hasattr(model, "color_nn")
+        and hasattr(model, "appearance_embeds")
+        and hasattr(model, "appearance_features")
+    ):
+        appearance_features = model.appearance_features  # type: ignore[attr-defined]
+        appearance_embed = _select_appearance_embedding(model, appearance_mode, appearance_index)
+        shs_0 = model.color_nn(  # type: ignore[attr-defined]
+            appearance_embed.repeat(appearance_features.shape[0], 1),
+            appearance_features,
+        ).float()[:, 0, :]
+        colors_tensor = shs_0 * 0.28209479177387814 + 0.5
+    elif hasattr(model, "colors"):
         colors_tensor = model.colors  # type: ignore[attr-defined]
     else:
         colors_tensor = model.base_colors  # type: ignore[attr-defined]
@@ -92,6 +151,8 @@ def export_splatfactow(
     output_dir: Path,
     output_filename: str,
     ply_color_mode: Literal["sh_coeffs", "rgb"],
+    appearance_mode: Literal["mean", "index"],
+    appearance_index: int | None,
     obb_center: tuple[float, float, float] | None,
     obb_rotation: tuple[float, float, float] | None,
     obb_scale: tuple[float, float, float] | None,
@@ -125,13 +186,13 @@ def export_splatfactow(
         map_to_tensors["nz"] = np.zeros(count, dtype=np.float32)
 
         if ply_color_mode == "rgb":
-            _add_rgb(model, map_to_tensors)
+            _add_rgb(model, map_to_tensors, appearance_mode, appearance_index)
             if getattr(model.config, "sh_degree", 0) > 0:
                 _console_print(
                     "Warning: model has SH colors; exporting RGB ignores higher-order SH."
                 )
         else:
-            _add_sh_coefficients(model, map_to_tensors, count)
+            _add_sh_coefficients(model, map_to_tensors, count, appearance_mode, appearance_index)
 
         map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
@@ -161,6 +222,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--output-filename", default="splat.ply")
     parser.add_argument("--ply-color-mode", choices=("sh_coeffs", "rgb"), default="sh_coeffs")
+    parser.add_argument("--appearance-mode", choices=("mean", "index"), default="mean")
+    parser.add_argument("--appearance-index", type=int)
+    parser.add_argument("--appearance-idx", type=int)
     parser.add_argument("--obb-center", nargs=3, type=float)
     parser.add_argument("--obb-rotation", nargs=3, type=float)
     parser.add_argument("--obb-scale", nargs=3, type=float)
@@ -169,11 +233,19 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
+    appearance_index = (
+        args.appearance_index if args.appearance_index is not None else args.appearance_idx
+    )
+    appearance_mode = (
+        "index" if args.appearance_mode == "index" or appearance_index is not None else "mean"
+    )
     export_splatfactow(
         load_config=args.load_config,
         output_dir=args.output_dir,
         output_filename=args.output_filename,
         ply_color_mode=args.ply_color_mode,
+        appearance_mode=appearance_mode,
+        appearance_index=appearance_index,
         obb_center=tuple(args.obb_center) if args.obb_center is not None else None,
         obb_rotation=tuple(args.obb_rotation) if args.obb_rotation is not None else None,
         obb_scale=tuple(args.obb_scale) if args.obb_scale is not None else None,

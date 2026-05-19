@@ -13,6 +13,7 @@ cd "$repo_root"
 : "${TCNN_REF:=32507f059d7abc8c13f5df81ea9597b70923ee44}"
 : "${NVDIFFRAST_REF:=253ac4fcea7de5f396371124af597e6cc957bfae}"
 : "${GSPLAT_VERSION:=1.4.0}"
+: "${SPLATFACTOW_REF:=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7}"
 : "${BUILD_SFM:=ON}"
 : "${INSTALL_PYTHON_DEPS:=ON}"
 : "${INSTALL_HLOC:=ON}"
@@ -285,7 +286,8 @@ install_python_deps() {
 
   uv pip install --no-build-isolation --no-deps \
     "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0" \
-    "nerfstudio @ git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4"
+    "nerfstudio @ git+https://github.com/hummat/nerfstudio.git@55a1f83025bb28cbf792760c9b79f9eb22c3a2e4" \
+    "splatfacto-w @ git+https://github.com/KevinXu02/splatfacto-w.git@$SPLATFACTOW_REF"
 }
 
 install_hloc() {

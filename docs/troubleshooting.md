@@ -301,6 +301,13 @@ For `-facto` methods, extremely wide near/far bounds make training unstable.
 
 `use-appearance-embedding` lets each image have its own color/brightness adjustment. For smartphone videos where lighting or white balance varies frame-to-frame, this prevents the model from baking those variations into the geometry. For controlled studio lighting, you can disable it.
 
+For supported NeuS/SDF and Nerfacto-style configs, mini-mesh also enables the mean appearance embedding by default
+for inference/export. That is usually a better neutral choice than training image 0, whose embedding may just encode
+the first frame's exposure or white balance. `splatfacto-w-light` follows the same policy with its own
+`use-avg-appearance` flag and bakes the mean appearance into exported standard SH splats unless you pass
+`export --appearance-mode index --appearance-idx <N>`. Regular `splatfacto`, `splatfacto-mcmc`, and `instant-ngp` do
+not have this switch.
+
 ### Practical tuning order
 
 1. Fix SfM and poses (stronger `sfm` settings, then camera-optimizer in `train`)
