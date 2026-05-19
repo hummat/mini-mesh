@@ -107,6 +107,8 @@ class TestVideoContextValidation:
 
         valid_commands = [
             "scripts/run.sh /path/to/video.mp4 video --fps 2",
+            "scripts/run.sh /path/to/video.mp4 video --frames 300",
+            "scripts/run.sh /path/to/video.mp4 video --max-frames 300",
             "scripts/run.sh /path/to/video.mp4 video --time_slice 0:10",
             "scripts/run.sh /path/to/video.mp4 video --hdr",
             "scripts/run.sh /path/to/video.mp4 video --skip",
@@ -581,6 +583,20 @@ class TestRunPipelineVideoContext:
 
         cmd = run_pipeline(input_path="/path/to/video.mp4", video_enable=True, video_fps=2)
         assert cmd == "scripts/run.sh /path/to/video.mp4 video --fps 2"
+
+    def test_video_frames(self):
+        """Test video --frames argument."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(input_path="/path/to/video.mp4", video_enable=True, video_frames=300)
+        assert cmd == "scripts/run.sh /path/to/video.mp4 video --frames 300"
+
+    def test_video_max_frames(self):
+        """Test video --max-frames argument."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(input_path="/path/to/video.mp4", video_enable=True, video_max_frames=300)
+        assert cmd == "scripts/run.sh /path/to/video.mp4 video --max-frames 300"
 
     def test_video_time_slice(self):
         """Test video --time_slice argument."""

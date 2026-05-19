@@ -172,6 +172,10 @@ Pass arguments to specific steps using sub-commands:
 docker/run.sh /path/to/input video --fps 1 sfm --method glomap process --mask rembg train --model neus-facto
 ```
 
+Use `video --frames <N>` instead of `--fps` when you want a fixed frame budget
+sampled across the whole video or `--time_slice`. Use `video --max-frames <N>`
+to keep the requested FPS unless it would exceed that frame budget.
+
 The final mesh appears next to your input. Steps already completed are skipped
 (use `--overwrite` to re-run).
 
@@ -345,7 +349,7 @@ Common issues and solutions:
 | Problem | Quick fix |
 |---------|-----------|
 | Bad results | Improve input: 30-120s video, good lighting, cover all angles |
-| CUDA OOM | Reduce ray batch sizes, add `--downscale-factor 2` |
+| CUDA OOM | Reduce ray batch sizes; for full-image or 4K training, use `--downscale-factor 2` or higher |
 | Few SfM poses | Try `--matcher exhaustive`, `--method glomap`, or `--method hloc` |
 | Training diverges | Adjust `near-plane`/`far-plane`, try `neus-facto` |
 | Wrong mesh scale | Adjust `--scale-factor` (default 2.5) |

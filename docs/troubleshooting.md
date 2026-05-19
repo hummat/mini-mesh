@@ -26,7 +26,10 @@ If you have less than 12 GB of VRAM (target) or are running on the 6 GB minimum,
 --pipeline.datamanager.eval-num-rays-per-batch 1024
 ```
 
-Decrease these values based on your available VRAM. For images larger than 1080p, try `--downscale-factor 2`.
+Decrease these values based on your available VRAM. For 4K input images,
+mini-mesh automatically trains with `--downscale-factor 2` unless a config or
+CLI argument already sets `--downscale-factor`. For full-image methods, this
+downscale flag matters more than ray batch size.
 
 ### 3. Few or no camera poses estimated during SfM
 

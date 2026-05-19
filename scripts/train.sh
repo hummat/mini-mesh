@@ -140,6 +140,66 @@ find_array_option_value() {
   printf '%s\n' "$value"
 }
 
+set_array_option_value() {
+  local -n array_ref="$1"
+  local option="$2"
+  local new_value="$3"
+  local i=0
+  while [[ $i -lt ${#array_ref[@]} ]]; do
+    if [[ "${array_ref[$i]}" = "$option" && $((i + 1)) -lt ${#array_ref[@]} ]]; then
+      array_ref[i + 1]="$new_value"
+      return
+    fi
+    i=$((i + 1))
+  done
+  array_ref+=("$option" "$new_value")
+}
+
+find_training_image() {
+  local candidate_dir
+  for candidate_dir in "$DATA_DIR/images_orig" "$DATA_DIR/images"; do
+    if [[ -d "$candidate_dir" ]]; then
+      find "$candidate_dir" -maxdepth 1 -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
+        | sort \
+        | head -n 1
+      return
+    fi
+  done
+}
+
+image_max_dimension() {
+  python - "$1" <<'PY'
+from pathlib import Path
+import sys
+
+from PIL import Image
+
+with Image.open(Path(sys.argv[1])) as image:
+    print(max(image.size))
+PY
+}
+
+add_large_image_downscale_default() {
+  if [[ -n "$(find_array_option_value --downscale-factor "${DATA_CONFIG_ARGS[@]}" "${DATA_ARGS[@]}")" ]]; then
+    return
+  fi
+
+  local image_path
+  local image_max_dimension
+  image_path="$(find_training_image)"
+  if [[ -z "$image_path" ]]; then
+    return
+  fi
+  if image_max_dimension="$(image_max_dimension "$image_path" 2>/dev/null)" \
+    && [[ "$image_max_dimension" =~ ^[0-9]+$ ]] \
+    && [[ "$image_max_dimension" -ge 3840 ]]; then
+    set_array_option_value DATA_DEFAULTS "--downscale-factor" "2"
+    set_array_option_value NS_DATA_DEFAULTS "--downscale-factor" "2"
+    echo "[INFO] Auto-selected --downscale-factor 2 for 4K input images ($image_path, max dimension $image_max_dimension)."
+  fi
+}
+
 ARGS=()
 DATA_ARGS=()
 route_args ARGS DATA_ARGS "$@"
@@ -148,6 +208,8 @@ route_args ARGS DATA_ARGS "$@"
 CONFIG_ARGS=()
 DATA_CONFIG_ARGS=()
 route_args CONFIG_ARGS DATA_CONFIG_ARGS "${CONFIG[@]}"
+
+add_large_image_downscale_default
 
 if [[ "$(find_array_option_value --vis "${CONFIG_ARGS[@]}" "${ARGS[@]}")" = viewer ]] \
   && [[ -z "$(find_array_option_value --viewer.quit-on-train-completion "${CONFIG_ARGS[@]}" "${ARGS[@]}")" ]]; then

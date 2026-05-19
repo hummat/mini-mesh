@@ -91,6 +91,108 @@ class TestFfmpegScript:
         assert "fps=3" in log
         assert "between(t,1,2)" in log
 
+    def test_ffmpeg_frames_target_uses_video_duration(self, tmp_path: Path) -> None:
+        """--frames should convert a target frame count to an ffmpeg fps filter."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_path = tmp_path / "video.mp4"
+        video_path.write_bytes(b"dummy")
+
+        log_path = tmp_path / "stub_ffmpeg_frames.log"
+        bin_dir = tmp_path / "bin"
+        _make_simple_stub(bin_dir, "ffmpeg", log_path)
+        ffprobe = bin_dir / "ffprobe"
+        ffprobe.write_text("#!/usr/bin/env bash\necho 10.000000\n", encoding="utf-8")
+        ffprobe.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/ffmpeg.sh",
+            [str(video_path), "--frames", "30", "--overwrite"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "fps=3.000000" in log
+
+    def test_ffmpeg_rejects_fps_and_frames_together(self, tmp_path: Path) -> None:
+        """--fps and --frames describe the same sampling choice and should not be combined."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_path = tmp_path / "video.mp4"
+        video_path.write_bytes(b"dummy")
+
+        log_path = tmp_path / "stub_ffmpeg_reject_frames.log"
+        bin_dir = tmp_path / "bin"
+        _make_simple_stub(bin_dir, "ffmpeg", log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/ffmpeg.sh",
+            [str(video_path), "--fps", "2", "--frames", "30", "--overwrite"],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "--fps and --frames cannot be used together" in result.stderr
+
+    def test_ffmpeg_max_frames_caps_requested_fps(self, tmp_path: Path) -> None:
+        """--max-frames should lower FPS only when the requested FPS would exceed the cap."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_path = tmp_path / "video.mp4"
+        video_path.write_bytes(b"dummy")
+
+        log_path = tmp_path / "stub_ffmpeg_max_frames.log"
+        bin_dir = tmp_path / "bin"
+        _make_simple_stub(bin_dir, "ffmpeg", log_path)
+        ffprobe = bin_dir / "ffprobe"
+        ffprobe.write_text("#!/usr/bin/env bash\necho 10.000000\n", encoding="utf-8")
+        ffprobe.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/ffmpeg.sh",
+            [str(video_path), "--fps", "10", "--max-frames", "30", "--overwrite"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "fps=3.000000" in log
+
+    def test_ffmpeg_rejects_frames_and_max_frames_together(self, tmp_path: Path) -> None:
+        """--frames and --max-frames are two frame-budget modes and should not be combined."""
+        repo_root = Path(__file__).resolve().parents[1]
+        video_path = tmp_path / "video.mp4"
+        video_path.write_bytes(b"dummy")
+
+        log_path = tmp_path / "stub_ffmpeg_reject_max_frames.log"
+        bin_dir = tmp_path / "bin"
+        _make_simple_stub(bin_dir, "ffmpeg", log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/ffmpeg.sh",
+            [str(video_path), "--frames", "30", "--max-frames", "60", "--overwrite"],
+            env_overrides,
+        )
+        assert result.returncode != 0
+        assert "--frames and --max-frames cannot be used together" in result.stderr
+
 
 class TestEnvBootstrap:
     """Tests for scripts/env.sh local dependency bootstrap."""
@@ -859,6 +961,79 @@ class TestTrainScript:
         assert str(data_dir / "train") in log
         assert "nerfstudio-data" in log
         assert f"--data {data_dir}" in log
+
+    def test_train_auto_downscales_4k_images_when_unspecified(self, tmp_path: Path) -> None:
+        """4K inputs should default to 2x training downscale unless config/CLI override it."""
+        from PIL import Image
+
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        images_dir = data_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (3840, 2160), color="white").save(images_dir / "0001.jpg")
+
+        log_path = tmp_path / "stub_train_4k.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-mcmc",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-mcmc-short",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "--downscale-factor 2" in log
+        assert log.count("--downscale-factor") == 1
+        assert "Auto-selected --downscale-factor 2 for 4K input images" in result.stdout
+
+    def test_train_keeps_explicit_downscale_for_4k_images(self, tmp_path: Path) -> None:
+        """Explicit downscale settings should win over the 4K default."""
+        from PIL import Image
+
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        images_dir = data_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (3840, 2160), color="white").save(images_dir / "0001.jpg")
+
+        log_path = tmp_path / "stub_train_4k_explicit.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "splatfacto-mcmc",
+                "my_exp",
+                str(data_dir),
+                "splatfacto-mcmc-short",
+                "--downscale-factor",
+                "1",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "--downscale-factor 1" in log
+        assert "--downscale-factor 2" not in log
 
     def test_train_consumes_missing_implicit_model_config(self, tmp_path: Path) -> None:
         """If the default model-name config is absent, it should not become a CLI arg."""

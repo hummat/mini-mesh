@@ -29,7 +29,15 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
                 return f"Invalid global argument: {arg}"
 
     # Validate video context arguments
-    allowed_video_args = ["--fps", "--time_slice", "--hdr", "--skip", "--overwrite"]
+    allowed_video_args = [
+        "--fps",
+        "--frames",
+        "--max-frames",
+        "--time_slice",
+        "--hdr",
+        "--skip",
+        "--overwrite",
+    ]
     video_pattern = r"video\s+(.*?)(?=\s+(sfm|process|train|export)\b|$)"
     video_match = re.search(video_pattern, cmd)
     if video_match:
@@ -160,6 +168,8 @@ def run_pipeline(
     # Video context
     video_enable: bool = False,
     video_fps: Optional[int] = None,
+    video_frames: Optional[int] = None,
+    video_max_frames: Optional[int] = None,
     video_time_slice: Optional[str] = None,
     video_hdr: bool = False,
     video_skip: bool = False,
@@ -251,6 +261,8 @@ def run_pipeline(
         global_overwrite: Overwrite existing outputs
         video_enable: Enable video context
         video_fps: Frames per second for video extraction
+        video_frames: Target number of frames to extract
+        video_max_frames: Maximum number of frames to extract
         video_time_slice: Time slice for video (e.g., "0:10")
         video_hdr: Enable HDR processing
         video_skip: Skip video processing
@@ -350,6 +362,10 @@ def run_pipeline(
         cmd_parts.append("video")
         if video_fps is not None:
             cmd_parts.extend(["--fps", str(video_fps)])
+        if video_frames is not None:
+            cmd_parts.extend(["--frames", str(video_frames)])
+        if video_max_frames is not None:
+            cmd_parts.extend(["--max-frames", str(video_max_frames)])
         if video_time_slice:
             cmd_parts.extend(["--time_slice", video_time_slice])
         if video_hdr:
@@ -646,6 +662,18 @@ def create_ui() -> gr.Blocks:
                 with gr.Accordion("1. Video", open=False):
                     video_fps = gr.Number(
                         label="FPS", value=None, precision=0, info="Frames per second to extract"
+                    )
+                    video_frames = gr.Number(
+                        label="Frames",
+                        value=None,
+                        precision=0,
+                        info="Target number of frames to extract",
+                    )
+                    video_max_frames = gr.Number(
+                        label="Max frames",
+                        value=None,
+                        precision=0,
+                        info="Maximum number of frames to extract",
                     )
                     video_time_slice = gr.Textbox(
                         label="Time Slice", placeholder="0:10", info="Time range (e.g., 0:10)"
@@ -1069,6 +1097,8 @@ def create_ui() -> gr.Blocks:
             global_verbose_val,
             global_overwrite_val,
             video_fps_val,
+            video_frames_val,
+            video_max_frames_val,
             video_time_slice_val,
             video_hdr_val,
             video_skip_val,
@@ -1171,6 +1201,8 @@ def create_ui() -> gr.Blocks:
 
             # Normalize numeric inputs: drop zero/empty to avoid overriding defaults
             video_fps_val = _norm_num(video_fps_val)
+            video_frames_val = _norm_num(video_frames_val)
+            video_max_frames_val = _norm_num(video_max_frames_val)
             sfm_num_threads_val = _norm_num(sfm_num_threads_val)
             sfm_vggsfm_max_points_val = _norm_num(sfm_vggsfm_max_points_val)
             sfm_vggsfm_max_tri_points_val = _norm_num(sfm_vggsfm_max_tri_points_val)
@@ -1322,6 +1354,8 @@ def create_ui() -> gr.Blocks:
                 global_overwrite=global_overwrite_val,
                 video_enable=video_enable,
                 video_fps=int(video_fps_val) if video_fps_val else None,
+                video_frames=int(video_frames_val) if video_frames_val else None,
+                video_max_frames=int(video_max_frames_val) if video_max_frames_val else None,
                 video_time_slice=video_time_slice_val if video_time_slice_val else None,
                 video_hdr=video_hdr_val,
                 video_skip=video_skip_val,
@@ -1482,6 +1516,8 @@ def create_ui() -> gr.Blocks:
                 global_verbose,
                 global_overwrite,
                 video_fps,
+                video_frames,
+                video_max_frames,
                 video_time_slice,
                 video_hdr,
                 video_skip,
