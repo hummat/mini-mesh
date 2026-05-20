@@ -292,7 +292,8 @@ Phototourism/Nerf-W dataparser and dataset layout, not mini-mesh's processed
 - `pointcloud` — Export as point cloud (no mesh)
 - `orbit-frames` — Render a spiral RGB image sequence to `orbit_frames/` for frame-snapping web/blog viewers
 - Gaussian splats are automatic for splatfacto models; `splatfacto-w-light` bakes its mean appearance embedding by
-  default. Use `export --appearance-mode index --appearance-idx <N>` to bake a specific training image appearance.
+  default and uses classic rasterization plus denser splatfacto-style culling/splitting thresholds for portable PLY
+  output. Use `export --appearance-mode index --appearance-idx <N>` to bake a specific training image appearance.
 
 For NeRF/ngp models, request several exporters by repeating `--method` or using
 a comma-separated value, for example `export --method poisson,orbit-frames`. For SDF and splat models,

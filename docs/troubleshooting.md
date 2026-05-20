@@ -305,8 +305,9 @@ For supported NeuS/SDF and Nerfacto-style configs, mini-mesh also enables the me
 for inference/export. That is usually a better neutral choice than training image 0, whose embedding may just encode
 the first frame's exposure or white balance. `splatfacto-w-light` follows the same policy with its own
 `use-avg-appearance` flag and bakes the mean appearance into exported standard SH splats unless you pass
-`export --appearance-mode index --appearance-idx <N>`. Regular `splatfacto`, `splatfacto-mcmc`, and `instant-ngp` do
-not have this switch.
+`export --appearance-mode index --appearance-idx <N>`. Its mini-mesh preset also uses classic rasterization plus denser
+splatfacto-style culling/splitting thresholds so exported PLYs behave more like regular splatfacto outputs in common
+viewers. Regular `splatfacto`, `splatfacto-mcmc`, and `instant-ngp` do not have this appearance switch.
 
 ### Practical tuning order
 

@@ -515,6 +515,11 @@ once and writes a standard SH PLY, so web viewers do not need Splatfacto-W suppo
 appearance embedding, matching the light config's inference behavior. To freeze a specific training-image appearance,
 use `export --appearance-mode index --appearance-idx <N>`.
 
+Mini-mesh's W-light preset intentionally overrides several upstream W-light defaults: it trains with classic
+rasterization for portable PLY viewing, lowers `cull_alpha_thresh` to `0.005`, lowers `densify_grad_thresh` to
+`0.0005`, and extends `stop_split_at` to `25000`. This makes it closer to `splatfacto-big` / `splatfacto-mcmc` density
+behavior instead of W-light's smaller, more aggressively culled default splats.
+
 The same "mean rather than image 0" default is set in mini-mesh's supported NeuS/SDF and Nerfacto-style configs when
 the upstream method exposes an average-appearance flag. It is not set for regular splatfacto, splatfacto-mcmc, or
 instant-ngp, where that control is absent.

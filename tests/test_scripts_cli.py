@@ -1515,6 +1515,10 @@ class TestTrainScript:
         log = log_path.read_text(encoding="utf-8")
         assert "ns-train splatfacto-w-light" in log
         assert "--pipeline.model.use-avg-appearance True" in log
+        assert "--pipeline.model.rasterize-mode classic" in log
+        assert "--pipeline.model.cull-alpha-thresh 0.005" in log
+        assert "--pipeline.model.densify-grad-thresh 0.0005" in log
+        assert "--pipeline.model.stop-split-at 25000" in log
         assert "--max-num-iterations 30001" in log
         assert "--steps-per-save 2000" in log
         assert "--vis viewer" in log
