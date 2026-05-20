@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import os
 import subprocess
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import SimpleNamespace
 
 
 def _make_stub_binaries(bin_dir: Path, log_path: Path) -> None:
@@ -23,7 +25,7 @@ def _make_stub_binaries(bin_dir: Path, log_path: Path) -> None:
             'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
         ]
     )
-    for name in ("sdf-extract-mesh", "sdf-texture-mesh", "ns-export"):
+    for name in ("sdf-extract-mesh", "sdf-texture-mesh", "sdf-render", "ns-export", "ns-render"):
         script_path = bin_dir / name
         script_path.write_text(script_body, encoding="utf-8")
         script_path.chmod(0o755)
@@ -55,6 +57,77 @@ def _run_export_script(
         text=True,
         check=False,
     )
+
+
+def test_render_nerfstudio_orbit_rewrites_data_and_checkpoint_roots(tmp_path: Path) -> None:
+    """The Nerfstudio render wrapper should make Docker-written paths portable."""
+    repo_root = Path(__file__).resolve().parents[1]
+    spec = spec_from_file_location(
+        "render_nerfstudio_orbit", repo_root / "scripts" / "render_nerfstudio_orbit.py"
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    scene_dir = tmp_path / "scene"
+    load_config = scene_dir / "train" / "sfmcmc" / "splatfacto" / "run" / "config.yml"
+    load_config.parent.mkdir(parents=True)
+    config = SimpleNamespace(
+        data=Path("/data"),
+        output_dir=Path("/data/train"),
+        pipeline=SimpleNamespace(
+            datamanager=SimpleNamespace(
+                data=None,
+                dataparser=SimpleNamespace(data=Path("/data")),
+            )
+        ),
+    )
+
+    patched = module._override_portable_paths(config, load_config, scene_dir)
+
+    assert patched.data == scene_dir
+    assert patched.output_dir == scene_dir / "train"
+    assert patched.pipeline.datamanager.data == scene_dir
+    assert patched.pipeline.datamanager.dataparser.data == scene_dir
+
+
+def test_render_nerfstudio_orbit_uses_full_image_datamanager_camera(tmp_path: Path) -> None:
+    """The Nerfstudio render wrapper should support splatfacto's FullImageDatamanager."""
+    repo_root = Path(__file__).resolve().parents[1]
+    spec = spec_from_file_location(
+        "render_nerfstudio_orbit", repo_root / "scripts" / "render_nerfstudio_orbit.py"
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class FakeCameras:
+        def __init__(self) -> None:
+            self.selected = False
+            self.device = None
+
+        def __getitem__(self, key: slice) -> "FakeCameras":
+            assert key == slice(0, 1)
+            self.selected = True
+            return self
+
+        def to(self, device: str) -> "FakeCameras":
+            self.device = device
+            return self
+
+    cameras = FakeCameras()
+    pipeline = SimpleNamespace(
+        device="cuda",
+        datamanager=SimpleNamespace(eval_dataset=SimpleNamespace(cameras=cameras)),
+    )
+
+    camera = module._get_spiral_seed_camera(pipeline)
+
+    assert camera is cameras
+    assert cameras.selected
+    assert cameras.device == "cuda"
 
 
 class TestExportScriptSdfWorkflow:
@@ -353,6 +426,214 @@ class TestExportScriptNerfWorkflow:
         assert result.returncode == 0, result.stderr
         assert not log_path.exists()
 
+    def test_nerf_export_runs_repeated_methods_in_order(self, tmp_path: Path) -> None:
+        """Repeated --method flags should run each requested NeRF exporter."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "pointcloud", "--method", "poisson"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export pointcloud" in log
+        assert "ns-export poisson" in log
+        assert log.index("ns-export pointcloud") < log.index("ns-export poisson")
+        assert "ns-export tsdf" not in log
+
+    def test_nerf_export_runs_comma_separated_methods(self, tmp_path: Path) -> None:
+        """A single --method value may request multiple NeRF exporters."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "poisson,pointcloud"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export poisson" in log
+        assert "ns-export pointcloud" in log
+
+    def test_nerf_multi_export_skips_existing_outputs_independently(self, tmp_path: Path) -> None:
+        """Existing output for one requested method should not skip the other methods."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "poisson_mesh.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "poisson,pointcloud"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "poisson_mesh.ply already exists" in result.stdout
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export pointcloud" in log
+        assert "ns-export poisson" not in log
+
+    def test_nerf_export_renders_orbit_frames_without_default_poisson(self, tmp_path: Path) -> None:
+        """`orbit-frames` should render frames without also running the default Poisson export."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-render spiral" in log
+        assert f"--output-path {exp_path / 'orbit_frames'}" in log
+        assert "--output-format images" in log
+        assert "--seconds 30" in log
+        assert "--frame-rate 1" in log
+        assert "ns-export poisson" not in log
+
+    def test_nerf_export_combines_mesh_and_orbit_frames(self, tmp_path: Path) -> None:
+        """`orbit-frames` should compose with other requested NeRF export methods."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "poisson,orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export poisson" in log
+        assert "ns-render spiral" in log
+
+    def test_orbit_frames_skip_existing_frame_dir_without_overwrite(self, tmp_path: Path) -> None:
+        """Existing orbit frame output should be idempotent like mesh and splat outputs."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        orbit_frames = exp_path / "orbit_frames"
+        orbit_frames.mkdir()
+        (orbit_frames / "00000.png").write_text("png\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+        assert "orbit_frames already exists" in result.stdout
+        assert not log_path.exists()
+
+    def test_orbit_frames_infers_data_path_for_run_directory(self, tmp_path: Path) -> None:
+        """Orbit rendering should recover from Docker-style /data paths in saved configs."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        exp_path = scene_dir / "train" / "sfmcmc" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (scene_dir / "transforms.json").write_text("{}", encoding="utf-8")
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "splat.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+        python_stub = bin_dir / "python"
+        python_stub.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
+                ]
+            ),
+            encoding="utf-8",
+        )
+        python_stub.chmod(0o755)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert f"python {repo_root / 'scripts' / 'render_nerfstudio_orbit.py'}" in log
+        assert f"--data {scene_dir}" in log
+        assert "ns-render spiral" not in log
+
     def test_splat_export_uses_parent_model_name_for_run_timestamp(self, tmp_path: Path) -> None:
         """Pipeline paths end in /run, but the model name is the parent directory."""
         repo_root = Path(__file__).resolve().parents[1]
@@ -375,6 +656,31 @@ class TestExportScriptNerfWorkflow:
         log = log_path.read_text(encoding="utf-8")
         assert "ns-export gaussian-splat" in log
         assert "sdf-extract-mesh" not in log
+
+    def test_splat_export_can_add_orbit_frames(self, tmp_path: Path) -> None:
+        """Splat exports should be able to add the same orbit frame sequence."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "ns-export gaussian-splat" in log
+        assert "ns-render spiral" in log
 
     def test_splat_mcmc_export_uses_parent_model_name_for_run_timestamp(
         self, tmp_path: Path
@@ -764,3 +1070,38 @@ class TestExportScriptNerfWorkflow:
         assert "--obb-center 1 2 3" in log
         assert "--obb-rotation 4 5 6" in log
         assert "--obb-scale 7 8 9" in log
+
+
+class TestExportScriptOrbitFramesSdfWorkflow:
+    """Tests for image-sequence render export on SDF-style methods."""
+
+    def test_sdf_export_can_add_orbit_frames(self, tmp_path: Path) -> None:
+        """SDF exports should add an orbit frame sequence after the normal mesh workflow."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "neus-facto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "mesh.ply").write_text("ply\n", encoding="utf-8")
+        (exp_path / "mesh.obj").write_text("obj\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-render" in log
+        assert "--traj spiral" in log
+        assert f"--output-path {exp_path / 'orbit_frames'}" in log
+        assert "--output-format images" in log
+        assert "sdf-extract-mesh" not in log
+        assert "sdf-texture-mesh" not in log

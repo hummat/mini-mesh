@@ -387,7 +387,7 @@ def build_pipeline_argv(
         train_overwrite: Overwrite training outputs
         export_enable: Enable export context
         export_resolution: Export resolution
-        export_method: NeRF export method (poisson, tsdf, pointcloud, gaussian-splat)
+        export_method: Export method (poisson, tsdf, pointcloud, orbit-frames)
         export_marching_cube_threshold: Marching cubes isosurface threshold
         export_num_pixels_per_side: Texture resolution in pixels per side
         export_target_num_faces: Target number of faces for simplification
@@ -1327,10 +1327,10 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                         info="Mesh resolution",
                     )
                     export_method = gr.Dropdown(
-                        label="NeRF Export Method",
-                        choices=["poisson", "tsdf", "pointcloud", "gaussian-splat"],
+                        label="Export Method",
+                        choices=["poisson", "tsdf", "pointcloud", "orbit-frames"],
                         value="poisson",
-                        info="NeRF export method (ignored for SDF models)",
+                        info="NeRF mesh/point export, or orbit image frames for any model.",
                     )
                     export_marching_cube_threshold = gr.Number(
                         label="Marching Cube Threshold",

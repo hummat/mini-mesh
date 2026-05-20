@@ -530,8 +530,17 @@ docker/run.sh /path/to/input \
   export
 ```
 
-`scripts/export.sh` auto-routes splat models through `ns-export gaussian-splat`, so do not pass `--method` — the
-flag only accepts `poisson|tsdf|pointcloud` and would fail at the parser.
+`scripts/export.sh` auto-routes splat models through `ns-export gaussian-splat`, so do not pass
+`--method poisson|tsdf|pointcloud` for splat models. The flag accepts those values for NeRF/ngp exporters and
+`orbit-frames` as an image-sequence render artifact.
+For NeRF/ngp models, repeat the flag or use a comma-separated value when you want multiple outputs, e.g.
+`export --method poisson,orbit-frames`.
+
+`export --method orbit-frames` writes a finite RGB frame sequence to `orbit_frames/` for simple web widgets that snap
+between views while the reader drags around the object. It uses Nerfstudio's `ns-render spiral --output-format images`
+for NeRF/splat/ngp methods and SDFStudio's `sdf-render --traj spiral --output-format images` for NeuS/SDF methods. For
+splat and SDF methods this is additive to the normal export; for NeRF/ngp methods it can be combined with mesh or point
+exports using repeated or comma-separated `--method` values.
 
 On the Spark side, keep the defaults (`blurAmount=0.3, preBlurAmount=0.0`); they already apply the opacity
 compensation the AA-trained PLY expects. After export, compress `splat.ply` via SuperSplat’s compressed-PLY export

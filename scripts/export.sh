@@ -61,6 +61,23 @@ nerf_export_output_path() {
   fi
 }
 
+orbit_frames_output_path() {
+  local exp_path="$1"
+  echo "$exp_path/orbit_frames"
+}
+
+infer_data_path() {
+  local candidate="$1"
+
+  while [ "$candidate" != "/" ] && [ -n "$candidate" ]; do
+    if [ -f "$candidate/transforms.json" ]; then
+      echo "$candidate"
+      return 0
+    fi
+    candidate="$(dirname "$candidate")"
+  done
+}
+
 should_run_export() {
   local output_path="$1"
   if [ -f "$output_path" ] && [ "${overwrite:-false}" != true ]; then
@@ -68,6 +85,93 @@ should_run_export() {
     return 1
   fi
   return 0
+}
+
+should_run_export_dir() {
+  local output_path="$1"
+  local existing_output
+
+  if [ -d "$output_path" ]; then
+    existing_output="$(find "$output_path" -mindepth 1 -maxdepth 1 -print -quit)"
+    if [ -n "$existing_output" ] && [ "${overwrite:-false}" != true ]; then
+      echo "[INFO]: Export output $output_path already exists; skipping (use --overwrite to rerun)"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+run_nerfstudio_orbit_frames_export() {
+  local exp_path="$1"
+  local output_path
+  output_path="$(orbit_frames_output_path "$exp_path")"
+
+  if should_run_export_dir "$output_path"; then
+    if [ -n "$data_path" ]; then
+      run_cmd python "$script_dir/render_nerfstudio_orbit.py" \
+        --load-config "$exp_path/config.yml" \
+        --output-path "$output_path" \
+        --data "$data_path" \
+        --seconds 30 \
+        --frame-rate 1
+    else
+      run_cmd ns-render spiral \
+        --load-config "$exp_path/config.yml" \
+        --output-path "$output_path" \
+        --output-format images \
+        --seconds 30 \
+        --frame-rate 1
+    fi
+  fi
+}
+
+run_sdf_orbit_frames_export() {
+  local exp_path="$1"
+  local output_path
+  local sdf_render_args=()
+  output_path="$(orbit_frames_output_path "$exp_path")"
+
+  if [ -n "$data_path" ]; then
+    sdf_render_args+=("--data" "$data_path")
+  fi
+
+  if should_run_export_dir "$output_path"; then
+    run_cmd sdf-render \
+      --load-config "$exp_path/config.yml" \
+      --traj spiral \
+      --output-path "$output_path" \
+      --output-format images \
+      "${sdf_render_args[@]}"
+  fi
+}
+
+validate_export_method() {
+  local method_name="$1"
+  case "$method_name" in
+    poisson|tsdf|pointcloud|orbit-frames) ;;
+    "") echo "[ERROR]: --method requires at least one value"; exit 1 ;;
+    *) echo "[ERROR]: --method must be one of: poisson, tsdf, pointcloud, orbit-frames"; exit 1 ;;
+  esac
+}
+
+add_export_methods() {
+  local raw="$1"
+  local method_name
+
+  method_requested=true
+  while true; do
+    method_name="${raw%%,*}"
+    validate_export_method "$method_name"
+    if [ "$method_name" = orbit-frames ]; then
+      orbit_frames_requested=true
+    else
+      nerf_methods+=("$method_name")
+    fi
+    if [[ "$raw" != *,* ]]; then
+      break
+    fi
+    raw="${raw#*,}"
+  done
 }
 
 function show_help {
@@ -93,7 +197,7 @@ function show_help {
   echo "                              --normal-map-convention <string>          Normal map convention: opengl, directx (default: opengl)"
   echo "                              --appearance-mode <mean|index>            Appearance bake mode for splatfacto-w-light (default: mean)"
   echo "                              --appearance-idx <int>                    Camera index for appearance embedding"
-  echo "                              --method <string>                         NeRF export method: poisson, tsdf, pointcloud (default: poisson)"
+  echo "                              --method <string[,string...]>             Export method(s): poisson, tsdf, pointcloud, orbit-frames (default: poisson for NeRF)"
   echo "                              --obb-center <float float float>          Center of oriented bounding-box (default: 0 0 0)"
   echo "                              --obb-rotation <float float float>        Rotation of oriented bounding-box (default: 0 0 0)"
   echo "                              --obb-scale <float float float>           Scale of oriented bounding-box (default: 1 1 1)"
@@ -127,13 +231,16 @@ texture_mesh_args=("${EXPORT_DEFAULTS[@]}")
 nerf_args=()
 nerf_tsdf_args=()
 splatfactow_args=()
-method=poisson
+nerf_methods=()
+method_requested=false
+orbit_frames_requested=false
 nerf_obb_center=(0 0 0)
 nerf_obb_rotation=(0 0 0)
 nerf_obb_scale=(1 1 1)
 mesh_only=false
 texture_only=false
 input_mesh_filename=""
+data_path=""
 
 i=0
 while [ $i -lt ${#export_args[@]} ]; do
@@ -219,11 +326,7 @@ while [ $i -lt ${#export_args[@]} ]; do
     --method)
       require_args "${export_args[$i]}" 1 "$remaining"
       val="${export_args[$((i+1))]}"
-      case "$val" in
-        poisson|tsdf|pointcloud) ;;
-        *) echo "[ERROR]: --method must be one of: poisson, tsdf, pointcloud"; exit 1 ;;
-      esac
-      method="$val"
+      add_export_methods "$val"
       i=$((i+2))
       ;;
     --obb-center|--obb-rotation|--obb-scale)
@@ -264,6 +367,7 @@ while [ $i -lt ${#export_args[@]} ]; do
       ;;
     --data)
       require_args "${export_args[$i]}" 1 "$remaining"
+      data_path="${export_args[$((i+1))]}"
       extract_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       texture_mesh_args+=("${export_args[$i]}" "${export_args[$((i+1))]}")
       i=$((i+2))
@@ -279,6 +383,12 @@ if [ -f "$exp_path/config.yml" ]; then
   if [[ ${#export_args[@]} -gt 0 ]]; then
     echo "[INFO]: Export args: ${export_args[*]}"
   fi
+  if [ -z "$data_path" ]; then
+    data_path="$(infer_data_path "$exp_path")"
+  fi
+  if [ "$method_requested" != true ] && [[ ${#nerf_methods[@]} -eq 0 ]]; then
+    nerf_methods=(poisson)
+  fi
   model_name="$(experiment_model_name "$exp_path")"
   if [[ "$model_name" == *nerf* ]] || [[ "$model_name" == *splat* ]] || [[ "$model_name" == *ngp* ]]; then
     if [ "$mesh_only" = true ] || [ "$texture_only" = true ] || [ -n "$input_mesh_filename" ]; then
@@ -289,9 +399,9 @@ if [ -f "$exp_path/config.yml" ]; then
       echo "[ERROR]: --appearance-mode/--appearance-index are only supported for splatfacto-w-light exports."
       exit 1
     fi
-    nerf_output_path="$(nerf_export_output_path "$exp_path" "$model_name" "$method")"
-    if should_run_export "$nerf_output_path"; then
-      if [[ "$model_name" == *splat* ]]; then
+    if [[ "$model_name" == *splat* ]]; then
+      nerf_output_path="$(nerf_export_output_path "$exp_path" "$model_name" poisson)"
+      if should_run_export "$nerf_output_path"; then
         if [ "$model_name" = splatfacto-w-light ]; then
           run_cmd python "$script_dir/export_splatfactow.py" \
             --load-config "$exp_path/config.yml" \
@@ -310,34 +420,47 @@ if [ -f "$exp_path/config.yml" ]; then
             --obb-scale "${nerf_obb_scale[@]}" \
             "${nerf_args[@]}"
         fi
-      elif [ "$method" = pointcloud ]; then
-        run_cmd ns-export pointcloud \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --obb-center "${nerf_obb_center[@]}" \
-          --obb-rotation "${nerf_obb_rotation[@]}" \
-          --obb-scale "${nerf_obb_scale[@]}" \
-          --std-ratio 1 \
-          "${nerf_args[@]}"
-      elif [ "$method" = tsdf ]; then
-        run_cmd ns-export tsdf \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --batch-size 1 \
-          --resolution 256 256 256 \
-          "${nerf_tsdf_args[@]}" \
-          "${nerf_args[@]}"
-      else
-        run_cmd ns-export poisson \
-          --load-config "$exp_path/config.yml" \
-          --output-dir "$exp_path" \
-          --save-point-cloud True \
-          --obb-center "${nerf_obb_center[@]}" \
-          --obb-rotation "${nerf_obb_rotation[@]}" \
-          --obb-scale "${nerf_obb_scale[@]}" \
-          --std-ratio 1 \
-          --density-quantile 0.01 \
-          "${nerf_args[@]}"
+      fi
+      if [ "$orbit_frames_requested" = true ]; then
+        run_nerfstudio_orbit_frames_export "$exp_path"
+      fi
+    else
+      for method in "${nerf_methods[@]}"; do
+        nerf_output_path="$(nerf_export_output_path "$exp_path" "$model_name" "$method")"
+        if should_run_export "$nerf_output_path"; then
+          if [ "$method" = pointcloud ]; then
+            run_cmd ns-export pointcloud \
+              --load-config "$exp_path/config.yml" \
+              --output-dir "$exp_path" \
+              --obb-center "${nerf_obb_center[@]}" \
+              --obb-rotation "${nerf_obb_rotation[@]}" \
+              --obb-scale "${nerf_obb_scale[@]}" \
+              --std-ratio 1 \
+              "${nerf_args[@]}"
+          elif [ "$method" = tsdf ]; then
+            run_cmd ns-export tsdf \
+              --load-config "$exp_path/config.yml" \
+              --output-dir "$exp_path" \
+              --batch-size 1 \
+              --resolution 256 256 256 \
+              "${nerf_tsdf_args[@]}" \
+              "${nerf_args[@]}"
+          else
+            run_cmd ns-export poisson \
+              --load-config "$exp_path/config.yml" \
+              --output-dir "$exp_path" \
+              --save-point-cloud True \
+              --obb-center "${nerf_obb_center[@]}" \
+              --obb-rotation "${nerf_obb_rotation[@]}" \
+              --obb-scale "${nerf_obb_scale[@]}" \
+              --std-ratio 1 \
+              --density-quantile 0.01 \
+              "${nerf_args[@]}"
+          fi
+        fi
+      done
+      if [ "$orbit_frames_requested" = true ]; then
+        run_nerfstudio_orbit_frames_export "$exp_path"
       fi
     fi
   else
@@ -395,6 +518,9 @@ if [ -f "$exp_path/config.yml" ]; then
           exit 1
         fi
       fi
+    fi
+    if [ "$orbit_frames_requested" = true ]; then
+      run_sdf_orbit_frames_export "$exp_path"
     fi
   fi
 else

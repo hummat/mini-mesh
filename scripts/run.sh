@@ -192,7 +192,7 @@ function show_help {
   echo "                       --pad-px <int>                             Chart edge dilation pixels (default: 32)"
   echo "                       --normal-map-convention <str>              Normal map convention: opengl, directx (default: opengl)"
   echo "                       --appearance-idx <int>                     Camera index for appearance embedding"
-  echo "                       --method <str>                             NeRF export: poisson, tsdf, pointcloud (default: poisson)"
+  echo "                       --method <str[,str...]>                    Export: poisson, tsdf, pointcloud, orbit-frames (repeatable)"
   echo "                       --obb-rotation <float float float>          Rotation of oriented bounding-box (default: 0 0 0)"
   echo "                       --mesh-only                                Extract mesh but skip texturing (SDF only)"
   echo "                       --texture-only                             Texture existing mesh, skip extraction (SDF only)"
@@ -611,6 +611,16 @@ if [ "$export_skip" = true ]; then
 else
   stage_run "export"
   export_cmd_args=("${export_args[@]}")
+  has_export_data=false
+  for export_arg in "${export_cmd_args[@]}"; do
+    if [ "$export_arg" = "--data" ]; then
+      has_export_data=true
+      break
+    fi
+  done
+  if [ "$has_export_data" != true ]; then
+    export_cmd_args+=("--data" "$input_dir")
+  fi
   if [ "$overwrite" = true ] || [ "$export_overwrite" = true ]; then
     export_cmd_args+=("--overwrite")
   fi
