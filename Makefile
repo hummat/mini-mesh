@@ -9,7 +9,7 @@ help:
 	@echo "  type    Type check (pyright)"
 	@echo "  test    Tests (pytest)"
 	@echo "  check   fmt + lint + type + test"
-	@echo "  release Create a GitHub Release via gh (VERSION optional)"
+	@echo "  release Run checks and push release tag (VERSION optional)"
 
 deps:
 	@bash scripts/deps.sh

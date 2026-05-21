@@ -12,19 +12,21 @@ git-cliff --version || cargo install git-cliff  # or: brew install git-cliff
 ```bash
 # 1. Bump version in pyproject.toml
 # 2. Generate changelog
-git cliff -o CHANGELOG.md
+git cliff --tag v0.X.Y -o CHANGELOG.md
 
 # 3. Commit version bump and changelog
 git add pyproject.toml CHANGELOG.md
 git commit -m "chore(release): prepare v0.X.Y"
 
-# 4. Create and push tag
-git tag v0.X.Y
-git push origin main --tags
-
-# 5. Create GitHub release with generated notes
-git cliff --latest --strip header | gh release create v0.X.Y --notes-file -
+# 4. Run checks and push the release tag
+make release VERSION=0.X.Y
 ```
+
+The `make release` target runs `scripts/release.sh`, which verifies a clean tree,
+checks that `VERSION` matches `pyproject.toml`, runs `make check`, creates the
+`v0.X.Y` tag if needed, and pushes the commit and tag. The tag push triggers
+`.github/workflows/release.yml`, which creates the GitHub release from
+`git-cliff`.
 
 ## Changelog Generation
 
@@ -178,4 +180,5 @@ The script tags and pushes `latest`, `VERSION`, `slim`, and `VERSION-slim` to bo
 
 - "Working tree is dirty" → commit or stash first
 - "Tag exists" → `git tag -d vX.Y.Z` then `git push --delete origin vX.Y.Z`
+- "Tag signing hangs" → fix local GPG/pinentry, or create the tag with `git -c tag.gpgSign=false tag vX.Y.Z`
 - Docker push fails → run `docker login` first
