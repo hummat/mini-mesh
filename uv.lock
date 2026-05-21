@@ -3160,7 +3160,7 @@ wheels = [
 [[package]]
 name = "sdfstudio"
 version = "0.9.0"
-source = { git = "https://github.com/hummat/sdfstudio.git?rev=v0.9.0#2db08582dbb5221407d078b808379af5675b6628" }
+source = { git = "https://github.com/hummat/sdfstudio.git?rev=v0.9.0#c28955b52bf429a2d518f5119a81e0457c4f52c1" }
 dependencies = [
     { name = "appdirs", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "imageio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
