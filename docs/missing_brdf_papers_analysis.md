@@ -4,7 +4,12 @@ This document identifies influential BRDF/PBR papers from the papi database that
 
 ## Executive Summary
 
-The papi database contains primarily **recent neural rendering and inverse rendering papers (2020-2025)** rather than classic foundational BRDF literature from the 1970s-2000s. The database appears optimized for neural field-based research rather than traditional graphics/rendering fundamentals.
+Updated 2026-05-21: all explicit arXiv IDs referenced in this repo's tracked docs now exist in the local `papi`
+database. The coverage pass also added project-used SfM/matching papers and public-PDF entries for several classic
+BRDF/PBR references.
+
+Remaining gaps are mostly non-arXiv classics or resources that are books, course pages, tutorials, or datasets rather
+than normal paper entries. Those need manual source selection before ingestion.
 
 ## Papers Already Referenced in the Document
 
@@ -25,6 +30,7 @@ The papi database contains primarily **recent neural rendering and inverse rende
 - Oren-Nayar (Generalization of Lambert's Reflectance Model)
 - Torrance-Sparrow (Theory for Off-Specular Reflection)
 - Disney BRDF (Burley - Physically-Based Shading at Disney)
+- Disney BSDF (Burley - Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering)
 - Heitz (Understanding Masking-Shadowing, Microfacet surveys)
 - Walter et al. (Microfacet Models for Refraction through Rough Surfaces)
 - Schlick (Inexpensive BRDF Model for Physically-based Rendering)
@@ -100,20 +106,46 @@ The papi database contains primarily **recent neural rendering and inverse rende
 - **Relevance**: Early work on neural reflectance acquisition
 - **Citation**: Sai Bi, Zexiang Xu, Pratul Srinivasan, Ben Mildenhall, Kalyan Sunkavalli, Miloš Hašan, Yannick Hold-Geoffroy, David Kriegman, and Ravi Ramamoorthi. Neural Reflectance Fields for Appearance Acquisition. arXiv 2020.
 
-## Notable Gaps in the Database
+## Current Coverage Added for mini-mesh
 
-The following **classic foundational papers** are frequently cited in the modern papers but do NOT appear to be directly available in the papi database:
+### Neural rendering and Gaussian splatting
+- **nerfren** (`2111.15234`) - NeRFReN: Neural Radiance Fields with Reflections
+- **nerv** (`2012.03927`) - NeRV: Neural Reflectance and Visibility Fields for Relighting and View Synthesis
+- **nrvf** (`2008.03824`) - Neural Reflectance Fields for Appearance Acquisition
+- **gcmc** (`2404.09591`) - 3D Gaussian Splatting as Markov Chain Monte Carlo
 
-### Missing Classic Papers (Pre-2000)
+### SfM and feature matching dependencies
+- **colmap-sfm** - Structure-from-Motion Revisited
+- **superpoint** (`1712.07629`) - SuperPoint: Self-Supervised Interest Point Detection and Description
+- **superglue** (`1911.11763`) - SuperGlue: Learning Feature Matching with Graph Neural Networks
+- **lightglue** (`2306.13643`) - LightGlue: Local Feature Matching at Light Speed
+- **vg-sfm** (`2312.04563`) - Visual Geometry Grounded Deep Structure From Motion
+- **hf-net** (`1812.03506`) - From Coarse to Fine: Robust Hierarchical Localization at Large Scale
+
+### Classic/public-PDF BRDF and rendering references
+- **oren-nayar** - Generalization of Lambert's Reflectance Model
+- **nicodemus-reflectance** - Geometrical Considerations and Nomenclature for Reflectance
+- **debevec-ibl** - Rendering Synthetic Objects into Real Scenes
+- **subsurface-light-transport** - A Practical Model for Subsurface Light Transport
+- **microfacet-survey** - A Survey of Microfacet Models for Rough Surfaces
+- **disney-bsdf** - Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering
+
+## Remaining Gaps in the Database
+
+The following named references still need manual source selection or are not normal paper entries:
+
+### Missing or unresolved classic papers/resources
+- **PBRT book** - book/online reference, not a paper entry
+- **Torrance-Sparrow** - Theory for Off-Specular Reflection
+- **Schlick** - An Inexpensive BRDF Model for Physically-based Rendering
+- **Kajiya and Von Herzen** - Ray Tracing Volume Densities
+- **NeILF++** - mentioned in PBR-NeRF context; full citation still needs verification
 - **Phong (1975)** - Original specular reflection model
 - **Blinn (1977)** - Modified specular model
 - **Lambert** - Original diffuse reflectance work
-- **Cook-Torrance (1982)** - Seminal microfacet BRDF model
 - **Ward (1992)** - Anisotropic BRDF model
 - **Ashikhmin-Shirley (2000)** - Anisotropic Phong BRDF
 - **He et al. (1991)** - Comprehensive physical BRDF model
-- **Kajiya (1986)** - The Rendering Equation
-- **Nicodemus et al.** - Geometrical Considerations and Nomenclature for Reflectance
 
 ### Missing Measured BRDF Datasets
 - **MERL BRDF Database** (100 materials) - Mentioned extensively in papers but original database papers not in index
@@ -153,17 +185,9 @@ Consider adding a new section:
 
 ## Database Characteristics
 
-The papi database is heavily weighted toward:
-- Neural rendering (NeRF-based methods): **~70% of results**
-- Inverse rendering and material estimation: **~25% of results**
-- Recent papers (2020-2025): **~95% of results**
-
-The database has minimal coverage of:
-- Classic BRDF models (pre-2000): **~5% or less**
-- Traditional computer graphics fundamentals
-- Original foundational papers (mostly available only via citations in modern papers)
-
-This suggests the database is curated for neural field research rather than general graphics/rendering education.
+After the 2026-05-21 update, `papi` covers the repo's explicit arXiv references and the main public-PDF BRDF/PBR
+references used by the docs. It is still stronger on neural rendering and inverse rendering than on older graphics
+literature, because several classic references need manual PDF/DOI handling.
 
 ---
 
@@ -246,9 +270,10 @@ This suggests the database is curated for neural field research rather than gene
 
 ## Summary
 
-Successfully added **11 papers** to the papi database:
+The January 2025 pass added **11 papers** to the papi database:
 - 2 survey/review papers on differentiable rendering and machine learning in production
 - 7 neural BRDF representation papers covering algebra, comparison, importance sampling, and invertible methods
 - 2 technical BRDF papers on derivatives and energy preservation
 
-The database now contains **42 papers** related to BRDF/reflectance/material modeling, but classic foundational work remains unavailable through arXiv due to historical timing (most pre-1991).
+The May 2026 pass closed the repo-visible arXiv gaps and added public-PDF entries for the most directly cited classic
+references. Remaining gaps are manual-source classics, books, tutorials, or datasets rather than missing arXiv papers.
