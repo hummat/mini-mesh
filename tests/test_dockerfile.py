@@ -64,7 +64,7 @@ class TestDockerfileCudaWheels:
             "pip install --no-cache-dir --no-deps -c /tmp/constraints.txt /tmp/tinycudann*.whl"
         )
         sdfstudio_install = dockerfile.index(
-            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"'
+            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.9.0"'
         )
         gsplat_install = dockerfile.index(
             "pip install --no-cache-dir --no-deps -c /tmp/constraints.txt "
@@ -172,7 +172,7 @@ class TestDockerfileCudaWheels:
         dockerfile = _dockerfile_text()
 
         sdfstudio_install = dockerfile.index(
-            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"'
+            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.9.0"'
         )
         optional_build_tools = dockerfile.index(
             "# Build tools only if optional deps enabled",
@@ -208,7 +208,7 @@ class TestDockerfileCudaWheels:
         )
         runtime_apt = dockerfile.index("# Core COLMAP/GLOMAP runtime deps")
         sdfstudio_install = dockerfile.index(
-            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"'
+            '"sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.9.0"'
         )
         optional_build_tools = dockerfile.index("# Build tools only if optional deps enabled")
 
