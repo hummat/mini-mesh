@@ -658,6 +658,18 @@ class TestRunPipelineSfmContext:
         )
         assert cmd == "scripts/run.sh /path/to/video.mp4 sfm --matcher superglue"
 
+    def test_sfm_auto_method_and_matcher_are_omitted(self):
+        """Auto SfM selections should be left for scripts/run.sh to resolve."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            sfm_enable=True,
+            sfm_method="auto",
+            sfm_matcher="auto",
+        )
+        assert cmd == "scripts/run.sh /path/to/video.mp4 sfm"
+
     def test_sfm_multiple_args(self):
         """Test sfm context with multiple arguments."""
         from webui import run_pipeline
@@ -1573,16 +1585,16 @@ class TestStructuredCommandBuilder:
         text = Path(__file__).resolve().parents[1].joinpath("webui.py").read_text(encoding="utf-8")
 
         assert 'label="Method",' in text
-        assert 'value="glomap",' in text
+        assert 'value="auto",' in text
         assert 'label="Matcher",' in text
-        assert 'value="exhaustive",' in text
+        assert 'value="auto",' in text
         assert 'label="Model",' in text
         assert 'value="neus-facto",' in text
         assert 'label="Config",' in text
         assert 'value="neus-facto-short",' in text
 
-        assert 'if sfm_method_val == "glomap":' in text
-        assert 'if sfm_matcher_val == "exhaustive":' in text
+        assert 'if sfm_method_val == "auto":' in text
+        assert 'if sfm_matcher_val == "auto":' in text
         assert 'if train_model_val == "neus-facto":' in text
         assert 'if train_config_val == "neus-facto-short":' in text
 

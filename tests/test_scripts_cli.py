@@ -1654,6 +1654,12 @@ class TestTrainScript:
 class TestRunScript:
     """Tests for scripts/run.sh with stubbed pipeline tools."""
 
+    @staticmethod
+    def _make_images(images_dir: Path, count: int) -> None:
+        images_dir.mkdir(parents=True, exist_ok=True)
+        for index in range(1, count + 1):
+            (images_dir / f"{index:04d}.jpg").write_text("dummy", encoding="utf-8")
+
     def _make_pipeline_stubs(self, bin_dir: Path, log_path: Path) -> None:
         """Create stubs for external tools used by run.sh sub-scripts."""
         bin_dir.mkdir(parents=True, exist_ok=True)
@@ -1761,6 +1767,97 @@ class TestRunScript:
                 )
             script_path.write_text(body, encoding="utf-8")
             script_path.chmod(0o755)
+
+    def _run_sfm_default_selection(
+        self,
+        tmp_path: Path,
+        image_count: int,
+        sfm_args: list[str] | None = None,
+        input_is_video: bool = False,
+    ) -> str:
+        repo_root = Path(__file__).resolve().parents[1]
+        input_kind = "video" if input_is_video else "images"
+        scene_dir = tmp_path / f"scene-{input_kind}-{image_count}"
+        images_dir = scene_dir / "images"
+        self._make_images(images_dir, image_count)
+        input_path = scene_dir / "capture.mp4" if input_is_video else images_dir
+        if input_is_video:
+            input_path.write_bytes(b"dummy")
+
+        log_path = tmp_path / f"stub_run_sfm_defaults_{input_kind}_{image_count}.log"
+        bin_dir = tmp_path / f"bin-{input_kind}-{image_count}"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(input_path),
+                "sfm",
+                *(sfm_args or []),
+                "process",
+                "--skip",
+                "train",
+                "--skip",
+                "export",
+                "--skip",
+            ],
+            {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"},
+        )
+        assert result.returncode == 0, result.stderr
+        return log_path.read_text(encoding="utf-8")
+
+    def test_run_script_defaults_to_colmap_exhaustive_for_150_images(self, tmp_path: Path) -> None:
+        """Small image sets should use COLMAP with exhaustive matching by default."""
+        log = self._run_sfm_default_selection(tmp_path, 150)
+
+        assert "colmap exhaustive_matcher" in log
+        assert "colmap mapper" in log
+        assert "glomap mapper" not in log
+
+    def test_run_script_defaults_to_glomap_exhaustive_for_151_to_500_images(
+        self, tmp_path: Path
+    ) -> None:
+        """Medium image sets should use GLOMAP with exhaustive matching by default."""
+        log_151 = self._run_sfm_default_selection(tmp_path, 151)
+        log_500 = self._run_sfm_default_selection(tmp_path, 500)
+
+        assert "colmap exhaustive_matcher" in log_151
+        assert "glomap mapper" in log_151
+        assert "colmap exhaustive_matcher" in log_500
+        assert "glomap mapper" in log_500
+
+    def test_run_script_defaults_to_glomap_exhaustive_above_500_image_directory_inputs(
+        self, tmp_path: Path
+    ) -> None:
+        """Large unordered image directories should still use exhaustive matching by default."""
+        log = self._run_sfm_default_selection(tmp_path, 501)
+
+        assert "colmap exhaustive_matcher" in log
+        assert "glomap mapper" in log
+
+    def test_run_script_defaults_to_glomap_sequential_above_500_video_frames(
+        self, tmp_path: Path
+    ) -> None:
+        """Large video-derived image sets should use sequential matching by default."""
+        log = self._run_sfm_default_selection(tmp_path, 501, input_is_video=True)
+
+        assert "colmap sequential_matcher" in log
+        assert "glomap mapper" in log
+
+    def test_run_script_sfm_defaults_do_not_override_explicit_method_or_matcher(
+        self, tmp_path: Path
+    ) -> None:
+        """Explicit SfM method and matcher arguments should win over size defaults."""
+        log = self._run_sfm_default_selection(
+            tmp_path,
+            501,
+            ["--method", "colmap", "--matcher", "exhaustive"],
+        )
+
+        assert "colmap exhaustive_matcher" in log
+        assert "colmap mapper" in log
+        assert "glomap mapper" not in log
 
     def test_run_script_uses_recommended_sdf_defaults(self, tmp_path: Path) -> None:
         """Bare train runs should use the documented mini-mesh mesh defaults."""

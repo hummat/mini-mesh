@@ -445,9 +445,9 @@ def build_pipeline_argv(
     # Add sfm context
     if sfm_enable:
         cmd_parts.append("sfm")
-        if sfm_method:
+        if sfm_method and sfm_method != "auto":
             cmd_parts.extend(["--method", sfm_method])
-        if sfm_matcher and sfm_matcher != "sequential":
+        if sfm_matcher and sfm_matcher != "auto":
             cmd_parts.extend(["--matcher", sfm_matcher])
         if sfm_camera_model and sfm_camera_model != "OPENCV":
             cmd_parts.extend(["--camera_model", sfm_camera_model])
@@ -1036,14 +1036,14 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                 with gr.Accordion("2. SfM", open=False):
                     sfm_method = gr.Dropdown(
                         label="Method",
-                        choices=["colmap", "glomap", "hloc", "vggsfm"],
-                        value="glomap",
+                        choices=["auto", "colmap", "glomap", "hloc", "vggsfm"],
+                        value="auto",
                         info="SfM reconstruction method",
                     )
                     sfm_matcher = gr.Dropdown(
                         label="Matcher",
-                        choices=["exhaustive", "sequential", "vocab_tree", "superglue"],
-                        value="exhaustive",
+                        choices=["auto", "exhaustive", "sequential", "vocab_tree", "superglue"],
+                        value="auto",
                         info="Feature matching method",
                     )
                     with gr.Accordion("Advanced SfM options", open=False):
@@ -1607,9 +1607,9 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
             export_downscale_factor_val = _norm_num(export_downscale_factor_val)
 
             # Drop values that match script defaults to keep command short
-            if sfm_method_val == "glomap":
+            if sfm_method_val == "auto":
                 sfm_method_val = None
-            if sfm_matcher_val == "exhaustive":
+            if sfm_matcher_val == "auto":
                 sfm_matcher_val = None
             if sfm_camera_model_val == "OPENCV":
                 sfm_camera_model_val = None

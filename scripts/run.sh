@@ -67,6 +67,51 @@ output_skip() {
   echo "[INFO]: $1 output $2 already exists; skipping (use --overwrite to rerun)"
 }
 
+count_sfm_images() {
+  local images_dir="$1"
+  if [ ! -d "$images_dir" ]; then
+    echo 0
+    return
+  fi
+
+  find "$images_dir" -maxdepth 1 -type f \
+    \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.tif" \
+       -o -iname "*.tiff" -o -iname "*.bmp" -o -iname "*.webp" \) \
+    | wc -l | tr -d " "
+}
+
+sfm_args_have_option() {
+  local option="$1"
+  local arg
+  for arg in "${sfm_args[@]}"; do
+    if [[ "$arg" == "$option" || "$arg" == "$option="* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+apply_sfm_auto_defaults() {
+  local image_count
+  image_count=$(count_sfm_images "$input_dir/images")
+
+  if [ -z "$sfm_method" ]; then
+    if (( image_count <= 150 )); then
+      sfm_method=colmap
+    else
+      sfm_method=glomap
+    fi
+  fi
+
+  if ! sfm_args_have_option "--matcher"; then
+    if (( image_count > 500 )) && [ -f "$input_path" ]; then
+      sfm_args+=("--matcher" "sequential")
+    else
+      sfm_args+=("--matcher" "exhaustive")
+    fi
+  fi
+}
+
 # Run a command, logging it first if verbose mode is enabled
 run_cmd() {
   if [ "$verbose" = true ]; then
@@ -160,7 +205,9 @@ function show_help {
   echo "Contexts:"
   echo "  video [...args]    Additional arguments for ffmpeg.sh. Call ffmpeg.sh --help for details."
   echo "  sfm [...args]      Additional arguments for sfm.sh. Call sfm.sh --help for details."
-  echo "                       --method <str>                         SfM method: colmap, glomap, hloc, vggsfm (default: glomap)"
+  echo "                       --method <str>                         SfM method: colmap, glomap, hloc, vggsfm"
+  echo "                       default auto: <=150 colmap exhaustive, >150 glomap exhaustive"
+  echo "                                     video inputs with >500 frames use glomap sequential"
   echo "  process [...args]  Additional arguments for sdf-process-data:"
   echo "                       --mask <str>                           Mask background: rembg, sam2, true, none (default: none)"
   echo "                       --min-match-ratio <float>              Acceptable percentage of estimated camera poses"
@@ -238,7 +285,7 @@ show=false
 verbose=false
 overwrite=false
 current_context=global
-sfm_method=glomap
+sfm_method=""
 mask=none
 model=neus-facto
 name=$(basename "$input_dir")
@@ -477,6 +524,7 @@ if [ "$sfm_skip" = true ]; then
 else
   if ! [ -d "$input_dir/sparse" ] || [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; then
     stage_run "SfM"
+    apply_sfm_auto_defaults
     echo "SFM args: ${sfm_args[*]}"
     if [ -d "$input_dir/sparse" ] && { [ "$overwrite" = true ] || [ "$sfm_overwrite" = true ]; }; then
       verbose_echo "Removing: $input_dir/sparse $input_dir/database.db $input_dir/colmap $input_dir/hloc"

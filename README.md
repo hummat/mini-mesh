@@ -171,9 +171,13 @@ uv run python webui.py
 
 The pipeline runs 5 steps: **video** → **sfm** → **process** → **train** → **export**
 
-By default, the runner uses GLOMAP for SfM and trains `neus-facto` with
-`neus-facto-short`, which is the default mini-mesh mesh path for typical
-handheld captures.
+By default, the runner chooses SfM from the number of images it will process:
+up to 150 images use COLMAP exhaustive matching, 151-500 images use GLOMAP
+exhaustive matching, and video inputs with more than 500 extracted frames use
+GLOMAP sequential matching. Large image-directory inputs stay on GLOMAP
+exhaustive matching unless you pass `sfm --matcher sequential`. Training defaults
+to `neus-facto` with `neus-facto-short`, which is the default mini-mesh mesh path
+for typical handheld captures.
 
 The Web UI is a local single-user launcher for the same pipeline contract. It
 builds the command, starts one active run, streams the combined log, supports
