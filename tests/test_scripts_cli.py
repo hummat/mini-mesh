@@ -1661,6 +1661,7 @@ class TestRunScript:
         for name in [
             "nvidia-smi",
             "colmap",
+            "glomap",
             "sdf-train",
             "ns-train",
             "sdf-extract-mesh",
@@ -1677,7 +1678,7 @@ class TestRunScript:
                         'echo "GPU 0"',
                     ]
                 )
-            elif name == "colmap":
+            elif name in ("colmap", "glomap"):
                 body = "\n".join(
                     [
                         "#!/usr/bin/env bash",
@@ -1760,6 +1761,45 @@ class TestRunScript:
                 )
             script_path.write_text(body, encoding="utf-8")
             script_path.chmod(0o755)
+
+    def test_run_script_uses_recommended_sdf_defaults(self, tmp_path: Path) -> None:
+        """Bare train runs should use the documented mini-mesh mesh defaults."""
+        repo_root = Path(__file__).resolve().parents[1]
+        scene_dir = tmp_path / "scene"
+        images_dir = scene_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        (images_dir / "0001.jpg").write_text("dummy", encoding="utf-8")
+
+        log_path = tmp_path / "stub_run_defaults.log"
+        bin_dir = tmp_path / "bin"
+        self._make_pipeline_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/run.sh",
+            [
+                str(images_dir),
+                "sfm",
+                "--skip",
+                "process",
+                "--skip",
+                "train",
+                "export",
+                "--skip",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-train neus-facto" in log
+        assert "--trainer.max-num-iterations 20001" in log
+        assert "--pipeline.model.proposal-warmup 200" in log
+        assert "sdf-train neus " not in log
 
     def test_run_script_sdf_pipeline_from_images(self, tmp_path: Path) -> None:
         """run.sh should orchestrate process/train/export for SDF models."""

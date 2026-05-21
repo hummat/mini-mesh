@@ -295,6 +295,9 @@ For `-facto` methods, extremely wide near/far bounds make training unstable.
 | `grid` | Hash-grid nerfacto-style background (heavier, more expressive) |
 | `none` | No background field. Ideal with good masks; without masks, SDF reconstructs background as geometry. |
 
+`bakedangelo*` configs are the exception: they keep `background-model grid` and wide upstream-style scene bounds as
+large-scene/heritage presets.
+
 **NeRF/splat/ngp models**: No SDF/background split. With masks, mini-mesh uses `--pipeline.model.background-color random`.
 
 ### Appearance embedding

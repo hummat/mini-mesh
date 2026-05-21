@@ -9,8 +9,15 @@ CONFIG=(
   --pipeline.datamanager.train-num-rays-per-batch 2048
   --pipeline.datamanager.eval-num-rays-per-batch 2048
   --pipeline.model.eval-num-rays-per-chunk 2048
-  # BakedSDF/BakedAngelo paper/configs use no separate background model; keep that behavior here.
-  --pipeline.model.background-model none
+  # BakedAngelo is a large-scene/heritage preset; keep it isolated from the
+  # object-centric mini-mesh SDF defaults in config/defaults.sh.
+  --pipeline.model.near-plane 0.01
+  --pipeline.model.far-plane 1000.0
+  --pipeline.model.background-model grid
+  --pipeline.model.sdf-field.bias 1.5
+  --pipeline.model.sdf-field.beta-init 0.1
+  --pipeline.model.sdf-field.inside-outside True
+  --pipeline.model.sdf-field.hash-smoothstep False
 
   --pipeline.model.steps-per-level 500
   --pipeline.model.curvature-loss-warmup-steps 500

@@ -1037,13 +1037,13 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                     sfm_method = gr.Dropdown(
                         label="Method",
                         choices=["colmap", "glomap", "hloc", "vggsfm"],
-                        value="colmap",
+                        value="glomap",
                         info="SfM reconstruction method",
                     )
                     sfm_matcher = gr.Dropdown(
                         label="Matcher",
                         choices=["exhaustive", "sequential", "vocab_tree", "superglue"],
-                        value="sequential",
+                        value="exhaustive",
                         info="Feature matching method",
                     )
                     with gr.Accordion("Advanced SfM options", open=False):
@@ -1183,7 +1183,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                             "splatfacto",
                             "splatfacto-w-light",
                         ],
-                        value="neus",
+                        value="neus-facto",
                         info="Training model type",
                     )
                     train_config = gr.Dropdown(
@@ -1198,7 +1198,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                             "nerfacto-huge",
                             "splatfacto-w-light",
                         ],
-                        value="neus-grid-short",
+                        value="neus-facto-short",
                         info="Training configuration",
                     )
                     train_name = gr.Textbox(
@@ -1607,15 +1607,15 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
             export_downscale_factor_val = _norm_num(export_downscale_factor_val)
 
             # Drop values that match script defaults to keep command short
-            if sfm_method_val == "colmap":
+            if sfm_method_val == "glomap":
                 sfm_method_val = None
-            if sfm_matcher_val == "sequential":
+            if sfm_matcher_val == "exhaustive":
                 sfm_matcher_val = None
             if sfm_camera_model_val == "OPENCV":
                 sfm_camera_model_val = None
-            if train_model_val == "neus":
+            if train_model_val == "neus-facto":
                 train_model_val = None
-            if train_config_val == "neus-grid-short":
+            if train_config_val == "neus-facto-short":
                 train_config_val = None
             if train_vis_val == "tensorboard":
                 train_vis_val = None

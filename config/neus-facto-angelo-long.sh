@@ -4,7 +4,6 @@ CONFIG=(
   --pipeline.model.level-init 4
   --pipeline.model.steps-per-level 5000
   --pipeline.model.eikonal-loss-mult 0.1
-  --pipeline.model.use-anneal-beta False  # Disable beta annealing
   --pipeline.model.beta-anneal-init 0.1
   --pipeline.model.beta-anneal-max-num-iters 500000
   --pipeline.model.proposal-warmup 5000

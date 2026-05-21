@@ -1568,6 +1568,24 @@ class TestStructuredCommandBuilder:
         assert "resume" in validation
         assert "overwrite" in validation
 
+    def test_ui_control_defaults_track_script_defaults(self):
+        """The UI-visible defaults should match values omitted by the launcher."""
+        text = Path(__file__).resolve().parents[1].joinpath("webui.py").read_text(encoding="utf-8")
+
+        assert 'label="Method",' in text
+        assert 'value="glomap",' in text
+        assert 'label="Matcher",' in text
+        assert 'value="exhaustive",' in text
+        assert 'label="Model",' in text
+        assert 'value="neus-facto",' in text
+        assert 'label="Config",' in text
+        assert 'value="neus-facto-short",' in text
+
+        assert 'if sfm_method_val == "glomap":' in text
+        assert 'if sfm_matcher_val == "exhaustive":' in text
+        assert 'if train_model_val == "neus-facto":' in text
+        assert 'if train_config_val == "neus-facto-short":' in text
+
 
 class TestStageTracker:
     """Tests for parsing scripts/run.sh stage banners into UI state."""

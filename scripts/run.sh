@@ -160,15 +160,15 @@ function show_help {
   echo "Contexts:"
   echo "  video [...args]    Additional arguments for ffmpeg.sh. Call ffmpeg.sh --help for details."
   echo "  sfm [...args]      Additional arguments for sfm.sh. Call sfm.sh --help for details."
-  echo "                       --method <str>                         SfM method: colmap, glomap, hloc, vggsfm (default: colmap)"
+  echo "                       --method <str>                         SfM method: colmap, glomap, hloc, vggsfm (default: glomap)"
   echo "  process [...args]  Additional arguments for sdf-process-data:"
   echo "                       --mask <str>                           Mask background: rembg, sam2, true, none (default: none)"
   echo "                       --min-match-ratio <float>              Acceptable percentage of estimated camera poses"
   echo "                       --crop-factor <top bot left rgt>       Crop ratio for images"
   echo "  train [...args]    Additional arguments for train.sh:"
-  echo "                       --model <str>                          Model name (default: neus)"
+  echo "                       --model <str>                          Model name (default: neus-facto)"
   echo "                       --name <str>                           Experiment name (default: input directory name)"
-  echo "                       --config <str>                         Configuration file or name (default: neus-grid-short)"
+  echo "                       --config <str>                         Configuration file or name (default: neus-facto-short)"
   echo "                       --resume                               Resume from existing checkpoint directory"
   echo "                       --resume-step <int>                    Resume from a specific checkpoint step"
   echo "                     Data processing flags (passed to nerfstudio-data):"
@@ -238,11 +238,11 @@ show=false
 verbose=false
 overwrite=false
 current_context=global
-sfm_method=colmap
+sfm_method=glomap
 mask=none
-model=neus
+model=neus-facto
 name=$(basename "$input_dir")
-config=neus-grid-short
+config=neus-facto-short
 
 video_skip=false
 sfm_skip=false

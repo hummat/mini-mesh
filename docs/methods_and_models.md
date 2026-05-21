@@ -24,8 +24,8 @@ The `<NAME>` values are exactly the model identifiers referenced below.
 
 - If you want a **clean, watertight mesh** from a typical handheld capture:
   Prefer SDFStudio **NeuS-style** models. Start with `--model neus-facto` and a standard config such as
-  `neus-facto`. If you can afford more time and VRAM, step up to `neus-facto-angelo` or `neus2` with their
-  default or `-short` configs.
+  `neus-facto-short` (the mini-mesh default) or `neus-facto`. If you can afford more time and VRAM, step up to
+  `neus-facto-angelo` or `neus2` with their default or `-short` configs.
 
 - If you care more about **novel-view rendering / videos** than meshes:  
   Use Nerfstudio **Nerfacto-style** models: `--model nerfacto` with `nerfacto-short` for development, or
@@ -231,7 +231,9 @@ materials (glass, facades, foliage) efficiently.
 
 - `bakedangelo` (SDFStudio)  
   Combines **BakedSDF’s baked 3D representation** with **Neuralangelo-like training schedules**. Conceptually:
-  “Neuralangelo-quality large-scale reconstruction with BakedSDF-style baked grids”.
+  “Neuralangelo-quality large-scale reconstruction with BakedSDF-style baked grids”. In mini-mesh this remains a
+  large-scene/heritage preset and deliberately keeps upstream-style wide bounds and grid background instead of the
+  object-centric SDF defaults.
 
 - `neus2` (SDFStudio)  
   A NeuS-style model that adds **hash-grid encodings and analytic second-order curvature regularization** (via tiny
@@ -303,7 +305,8 @@ radiance field** behind the unit sphere. This is controlled by `--pipeline.model
   room clutter. This is mini-mesh’s default via `config/defaults.sh` and is generally safest for **unmasked real
   captures**.
 - `grid` – uses a hash-grid `nerfacto`-style background field. This is heavier but more expressive and is primarily
-  used by large-scale SDFStudio configs (Neuralangelo, BakedSDF).
+  used by large-scale SDFStudio configs. Mini-mesh's BakedAngelo configs explicitly keep this mode and their upstream
+  wide near/far/bias defaults so they do not inherit the object-centric default SDF envelope.
 
 `scripts/run.sh` wires this up to masking:
 
@@ -561,8 +564,8 @@ resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=
 ## 7. Practical mini-mesh guidance
 
 - For **default "good mesh" from a real capture (static object / room)**:
-  Use `--model neus-facto` with `neus-facto` (or `neus-facto-short` for quicker iterations). If you need more detail
-  and can spend more time, move to `neus2` with its default config or `neus-facto-bigmlp`.
+  Use the bare runner defaults, or spell them out as `--model neus-facto --config neus-facto-short`. If you need more
+  detail and can spend more time, move to `neus-facto`, `neus2` with its default config, or `neus-facto-bigmlp`.
 
 - For **large outdoor scenes / facades / cultural heritage**:
   Use `neuralangelo` or `neus-facto-angelo` with the corresponding default or `-small` configs, and make sure your SfM,
@@ -596,24 +599,24 @@ resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=
 This is a concrete “what to try first” workflow for SDF models, assuming a typical tabletop / room capture with
 reasonable SfM and no ground-truth masks.
 
-1. **Baseline run with `neus-grid-short`**
+1. **Default mini-mesh run with `neus-facto-short`**
 
-   - Start with a robust, proposal-free NeuS baseline:
+   - Start with the default object-centric mesh path:
 
      ```bash
      scripts/run.sh your_scene.mp4 \
        video --fps 1 \
        sfm --method glomap \
        process \
-       train --model neus --config neus-grid-short \
+       train --model neus-facto --config neus-facto-short \
        export --resolution 1024
      ```
 
    - Let it run for at least ~5–10k steps and inspect:
      - dataparser logs (`Estimated object scale`, `Near plane`, `Far plane`);
      - normals / depth in the viewer or quick exports.
-   - If geometry is already decent here, *do not* jump to Neuralangelo/neus-facto yet; first tighten global NeuS
-     hyperparameters.
+   - If geometry is already decent here, first tighten global SDF bounds/sharpness before jumping to heavier
+     Neuralangelo/BakedSDF-style schedules.
 
 2. **Tune global NeuS sharpness and bounds**
 
@@ -631,12 +634,12 @@ reasonable SfM and no ground-truth masks.
      - Keep it in `0.1–0.3`. Smaller makes surfaces razor-thin and brittle; larger makes them mushy.  
      - For plain `neus` / `neus-grid` you very rarely need to leave this range.
 
-   Once `neus-grid-short` looks good under these knobs, you have a solid reference: method switches should *improve* on it,
+   Once `neus-facto-short` looks good under these knobs, you have a solid reference: method switches should *improve* on it,
    not rescue bad data.
 
 3. **Add regularizers and BRDF flags**
 
-   Still on `neus-grid-short`, add light regularization if needed:
+   Still on `neus-facto-short`, add light regularization if needed:
 
    - Orientation loss: `--pipeline.model.orientation-loss-mult 1e-4` for wobbly or flipped normals.  
    - Distortion loss: `--pipeline.model.distortion-loss-mult 0.001–0.003` if you see double walls / smeared depth.  
@@ -645,14 +648,14 @@ reasonable SfM and no ground-truth masks.
 
 4. **When to switch methods**
 
-   - If `neus-grid-short` converges but you need **more detail / smoother curvature** at similar scene scale:  
+   - If `neus-facto-short` converges but you need **more detail / smoother curvature** at similar scene scale:
      move to `neus2` with `neus2-short` / `neus2`, keeping the same near/far/bias/beta-init as your working NeuS
      setup.
    - If the scene is **large-scale / outdoor / architectural** and NeuS2 still leaves facades noisy:
      switch to `neuralangelo` or `neus-facto-angelo` (default configs), but only after you trust your bounds and
      masks—these models are less forgiving.
-   - If you want **faster convergence / better use of samples** on real scenes and are willing to tune more:
-     try `neus-facto` (`neus-facto-short` / `neus-facto`) once a plain NeuS config works.
+   - If proposal nets are unstable and you need a simpler debugging reference:
+     drop to plain `neus` with `neus-grid-short`, keeping the same near/far/bias/beta-init.
 
 5. **Method-specific tweaks (proposal-based models)**
 
@@ -660,7 +663,7 @@ reasonable SfM and no ground-truth masks.
 
    - Keep `near-plane` / `far-plane` **tight**. Proposal nets hate huge empty intervals; background slabs almost always
      mean bounds are too wide rather than that `beta-init` is “wrong”.  
-   - Start with the same `bias` and `beta-init` that worked for `neus-grid-short`. Only then:
+   - Start with the same `bias` and `beta-init` that worked for `neus-facto-short`. Only then:
      - Adjust `beta-init` modestly (e.g. `0.1 → 0.2–0.3`) if surfaces remain overly thick or noisy even with good
        bounds.
      - Increase `--pipeline.model.interlevel-loss-mult` (e.g. `1.0 → 1.5–2.0`) if proposal depth maps never focus on
@@ -680,9 +683,10 @@ reasonable SfM and no ground-truth masks.
      - `--pipeline.model.enable_progressive_hash_encoding` / `steps-per-level` – in `neus-facto-angelo` you can delay
        higher hash levels by increasing `steps-per-level` if you see early overfitting on noise; disabling progressive
        hash entirely is usually a last resort for debugging, not a default.
-     - `--pipeline.model.use-anneal-beta` / `beta-anneal-*` – by default only `neus-facto-angelo` uses a beta schedule.
-       Enabling it on base `neus-facto` can make training more forgiving on long runs, but it also hides whether bad
-       geometry comes from beta vs bounds. Treat this as an advanced tweak.
+     - `--pipeline.model.use-anneal-beta` / `beta-anneal-*` – `neus-facto-angelo` exposes beta-anneal settings and now
+       leaves the upstream annealing behavior enabled. Enabling it on base `neus-facto` can make training more
+       forgiving on long runs, but it also hides whether bad geometry comes from beta vs bounds. Treat this as an
+       advanced tweak.
 
    - **`neus2`**
      - Inherits the Neuralangelo schedules but has no curvature loss by default (`curvature-loss-multi=0`). If you see
@@ -709,6 +713,8 @@ reasonable SfM and no ground-truth masks.
        you know you want a different sharpness schedule (e.g. shorter runs with a faster decay).
      - `--pipeline.model.use_spatial_varying_eikonal_loss` – lets far-away regions carry stronger eikonal weight.
        Helpful when large scenes are noisy far from the cameras; unnecessary for small object-centric captures.
+     - `bakedangelo` keeps `background-model grid`, `near-plane 0.01`, `far-plane 1000.0`, `bias 1.5`, and
+       `beta-init 0.1` by config. Treat it as a large-scene preset, not as the mini-mesh default object pipeline.
 
 6. **Background handling**
 

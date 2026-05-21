@@ -171,6 +171,10 @@ uv run python webui.py
 
 The pipeline runs 5 steps: **video** → **sfm** → **process** → **train** → **export**
 
+By default, the runner uses GLOMAP for SfM and trains `neus-facto` with
+`neus-facto-short`, which is the default mini-mesh mesh path for typical
+handheld captures.
+
 The Web UI is a local single-user launcher for the same pipeline contract. It
 builds the command, starts one active run, streams the combined log, supports
 stopping the child process, shows stage progress, and previews discovered mesh
@@ -237,7 +241,7 @@ The optional `video ...` context is used only for frame extraction and is not
 forwarded to `run.sh`. Use `--overwrite` before `--` to rebuild the assembled
 frames and rerun the downstream pipeline with overwrite enabled. If the videos
 come from different cameras or zoom settings, pass `sfm --camera_model ...`
-carefully; the default COLMAP path assumes one shared camera.
+carefully; the default SfM path assumes one shared camera.
 
 ### Docker wrapper options
 
@@ -266,8 +270,8 @@ MINI_MESH_DOCKER_APP=image docker/run.sh /path/to/input video --fps 1
 
 | Model | Description |
 |-------|-------------|
-| `neus` | Baseline surface reconstruction |
-| `neus-facto` | Faster surface reconstruction (recommended) |
+| `neus` | Plain NeuS baseline for debugging/tuning |
+| `neus-facto` | Default faster surface reconstruction (recommended) |
 | `neuralangelo` | Higher quality via multi-resolution features, slower |
 | `nerfacto` | View synthesis, not watertight meshes (requires nerfstudio) |
 | `splatfacto` | Fast view synthesis via point clouds (requires nerfstudio) |
