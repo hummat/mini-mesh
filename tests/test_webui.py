@@ -812,6 +812,7 @@ class TestRunPipelineTrainContext:
             train_enable=True,
             train_use_reflections=True,
             train_use_diffuse_specular=True,
+            train_use_specular_tint=True,
             train_enable_pred_roughness=True,
         )
         assert cmd == (
@@ -851,6 +852,7 @@ class TestRunPipelineTrainContext:
             train_config="neus-facto",
             train_use_reflections=True,
             train_use_diffuse_specular=True,
+            train_use_specular_tint=True,
             train_enable_pred_roughness=True,
             train_orientation_loss_mult=0.01,
             train_distortion_loss_mult=0.001,
@@ -865,6 +867,34 @@ class TestRunPipelineTrainContext:
             "--pipeline.model.sdf-field.enable-pred-roughness True "
             "--pipeline.model.orientation-loss-mult 0.01 "
             "--pipeline.model.distortion-loss-mult 0.001"
+        )
+
+    def test_train_diffuse_specular_does_not_enable_specular_tint(self):
+        """Diffuse/specular split should not imply metal-only specular tint."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_use_diffuse_specular=True,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train "
+            "--pipeline.model.sdf-field.use-diffuse-color True"
+        )
+
+    def test_train_specular_tint_flag(self):
+        """Test train context with metal specular tint enabled separately."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            train_enable=True,
+            train_use_specular_tint=True,
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 train "
+            "--pipeline.model.sdf-field.use-specular-tint True"
         )
 
 

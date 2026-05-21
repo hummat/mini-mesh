@@ -286,6 +286,7 @@ def build_pipeline_argv(
     train_camera_optimizer_mode: Optional[str] = None,
     train_use_reflections: bool = False,
     train_use_diffuse_specular: bool = False,
+    train_use_specular_tint: bool = False,
     train_enable_pred_roughness: bool = False,
     train_orientation_loss_mult: Optional[float] = None,
     train_distortion_loss_mult: Optional[float] = None,
@@ -375,7 +376,8 @@ def build_pipeline_argv(
         train_eval_num_rays_per_batch: Rays per eval batch
         train_camera_optimizer_mode: Camera optimizer mode (e.g. SO3xR3)
         train_use_reflections: Enable SDF reflection model
-        train_use_diffuse_specular: Enable diffuse+specular SDF colors
+        train_use_diffuse_specular: Enable diffuse/specular SDF color split
+        train_use_specular_tint: Enable colored specular tint for metals
         train_enable_pred_roughness: Enable PBR roughness prediction
         train_orientation_loss_mult: Ref-NeRF orientation loss multiplier
         train_distortion_loss_mult: Mip-NeRF 360 distortion loss multiplier
@@ -556,6 +558,11 @@ def build_pipeline_argv(
                 [
                     "--pipeline.model.sdf-field.use-diffuse-color",
                     "True",
+                ]
+            )
+        if train_use_specular_tint:
+            cmd_parts.extend(
+                [
                     "--pipeline.model.sdf-field.use-specular-tint",
                     "True",
                 ]
@@ -1273,12 +1280,25 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                             info="Sets Ref-NeRF-style reflection flags for SDF models.",
                         )
                         train_use_diffuse_specular = gr.Checkbox(
-                            label="Enable diffuse+specular colors (SDF)",
-                            info="Enables diffuse/specular color modeling for SDF models.",
+                            label="Enable diffuse/specular split (SDF)",
+                            info=(
+                                "Separates diffuse color from view-dependent effects for SDF "
+                                "models."
+                            ),
+                        )
+                        train_use_specular_tint = gr.Checkbox(
+                            label="Enable colored specular tint (metals)",
+                            info=(
+                                "Metallic/colored specular only; leave off for plastic, ceramics, "
+                                "and matte objects."
+                            ),
                         )
                         train_enable_pred_roughness = gr.Checkbox(
                             label="Enable predicted roughness (PBR)",
-                            info="Predict PBR roughness [0,1]; enables roughness map export.",
+                            info=(
+                                "Predict roughness [0,1]; export needs diffuse/specular split "
+                                "enabled."
+                            ),
                         )
                         train_orientation_loss_mult = gr.Number(
                             label="Orientation loss multiplier",
@@ -1515,6 +1535,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
             train_camera_optimizer_mode_val,
             train_use_reflections_val,
             train_use_diffuse_specular_val,
+            train_use_specular_tint_val,
             train_enable_pred_roughness_val,
             train_orientation_loss_mult_val,
             train_distortion_loss_mult_val,
@@ -1689,6 +1710,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                     train_camera_optimizer_mode_val,
                     train_use_reflections_val,
                     train_use_diffuse_specular_val,
+                    train_use_specular_tint_val,
                     train_enable_pred_roughness_val,
                     train_orientation_loss_mult_val,
                     train_distortion_loss_mult_val,
@@ -1795,6 +1817,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                 train_camera_optimizer_mode=train_camera_optimizer_mode_val or None,
                 train_use_reflections=bool(train_use_reflections_val),
                 train_use_diffuse_specular=bool(train_use_diffuse_specular_val),
+                train_use_specular_tint=bool(train_use_specular_tint_val),
                 train_enable_pred_roughness=bool(train_enable_pred_roughness_val),
                 train_orientation_loss_mult=float(train_orientation_loss_mult_val)
                 if train_orientation_loss_mult_val is not None
@@ -1987,6 +2010,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
             train_camera_optimizer_mode,
             train_use_reflections,
             train_use_diffuse_specular,
+            train_use_specular_tint,
             train_enable_pred_roughness,
             train_orientation_loss_mult,
             train_distortion_loss_mult,

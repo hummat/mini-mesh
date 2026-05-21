@@ -189,10 +189,10 @@ In SDFStudio/mini-mesh, the following SDF field flags are loosely inspired by Re
   Appends a Schlick-style Fresnel scalar as an extra input to the color MLP. More explicit than `use_n_dot_v` for
   Fresnel effects.
 
-- `enable_pred_roughness` (requires `use_reflections=True`)
-  Predicts a roughness in `[0, 1]` and uses it to mix view-direction and reflection-direction encodings. This is a very
-  lightweight proxy for roughness-dependent specular behavior; it is **not** a full analytic microfacet BRDF, but
-  nudges the network toward roughness-consistent highlights and provides an interpretable roughness map.
+- `enable_pred_roughness`
+  Predicts a roughness in `[0, 1]`. With `use_reflections=True`, it mixes view-direction and reflection-direction
+  encodings. In the current SDFStudio fork, roughness map export also depends on `use_diffuse_color=True`. This is a
+  very lightweight proxy for roughness-dependent specular behavior; it is **not** a full analytic microfacet BRDF.
 
 ### Material-specific flags
 
@@ -230,7 +230,7 @@ In SDFStudio/mini-mesh, the following SDF field flags are loosely inspired by Re
 | `use_reflections` | Reflection-direction encoding | — | Glossy scenes |
 | `use_n_dot_v` | Angle of incidence input | — | Most scenes |
 | `use_fresnel_term` | Explicit Schlick Fresnel | — | Shiny surfaces |
-| `enable_pred_roughness` | Predict roughness [0,1] | `use_reflections` | Gloss variation |
+| `enable_pred_roughness` | Predict roughness [0,1] | Reflection blend: `use_reflections`; export: `use_diffuse_color` | Gloss variation |
 | `use_specular_tint` | Colored specular | — | **Metals only** |
 | `specular_exclude_geo_features` | Purely view-dependent specular | `use_diffuse_color` | Uniform plastic |
 | `use_roughness_gated_specular` | Gate specular by (1-roughness) | `enable_pred_roughness` + `use_diffuse_color` | Plastic |
@@ -240,4 +240,3 @@ In SDFStudio/mini-mesh, the following SDF field flags are loosely inspired by Re
 
 These flags give you Ref-NeRF–style signals and biases inside an SDF-based model, but the underlying rendering is still
 fully learned by an MLP — there is no explicit microfacet BRDF, env lighting, or guaranteed physical correctness.
-

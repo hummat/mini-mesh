@@ -180,7 +180,7 @@ In addition to the above, consider:
 | `use-n-dot-v` | Angle of incidence input | — |
 | `use-fresnel-term` | Schlick Fresnel scalar input | — |
 | `use-specular-tint` | Colored specular (metals only) | — |
-| `enable-pred-roughness` | Predict roughness [0,1] | `use-reflections` |
+| `enable-pred-roughness` | Predict roughness [0,1] | Reflection blend needs `use-reflections`; map export needs `use-diffuse-color` |
 | `use-roughness-in-color-mlp` | Feed roughness to color MLP | `enable-pred-roughness` |
 | `specular-exclude-geo-features` | Purely view-dependent specular | `use-diffuse-color` |
 | `use-roughness-gated-specular` | Gate specular by (1-roughness) | `enable-pred-roughness` + `use-diffuse-color` |
@@ -315,8 +315,10 @@ viewers. Regular `splatfacto`, `splatfacto-mcmc`, and `instant-ngp` do not have 
 ### Practical tuning order
 
 1. Fix SfM and poses (stronger `sfm` settings, then camera-optimizer in `train`)
-2. Enable robust BRDF flags (`use-diffuse-color`, `use-n-dot-v`, plus `use-reflections`/`use-specular-tint` for glossy)
-3. Turn up geometry priors (patch warping, mono priors, sparse SfM point losses) via SDFStudio config
+2. Enable robust appearance flags (`use-diffuse-color`, `use-n-dot-v`, plus `use-reflections` for glossy;
+   `use-specular-tint` only for metals)
+3. Use geometry priors only with the matching SDFStudio data path; mini-mesh's default processed data does not supply
+   mono priors or patch-warp source pairs yet
 4. Only then consider capture changes (matte spray, textured backgrounds, polarization) or research-level models
 
 For detailed method explanations, see [methods_and_models.md](methods_and_models.md).

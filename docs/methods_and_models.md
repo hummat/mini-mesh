@@ -41,8 +41,8 @@ The `<NAME>` values are exactly the model identifiers referenced below.
   more finicky, but give best detail when SfM + masks are solid.
 
 - If your views are **sparse or indoor** and you have good depth/normal predictions:  
-  Use MonoSDF-style variants: `monosdf`, `mono-neus`, or `mono-unisurf`. They trade assumptions about monocular
-  priors for improved geometry under limited coverage.
+  MonoSDF-style variants (`monosdf`, `mono-neus`, `mono-unisurf`) are the right research family, but mini-mesh's
+  default processed data path does not generate or pass those monocular priors yet.
 
 - If the scene is **dynamic** over time:  
   Only then consider `dnerf`; otherwise avoid it and stay with static-scene models.
@@ -196,6 +196,11 @@ Use these when:
 
 - you have **good monocular depth/normals** (MonoSDF-style) or strong multi-view photometric consistency (Geo-NeuS);  
 - base NeuS / VolSDF is too “blobby” or unstable indoors or with sparse views.
+
+In current mini-mesh runs these are not drop-in rescue presets. The normal `train` path invokes SDFStudio with
+`nerfstudio-data`, which provides images, masks, cameras, and metadata, but not the monocular prior tensors or
+source-view patch-warp inputs these losses need. Treat `mono-*` / `geo-*` as requiring a custom SDFStudio data path
+until mini-mesh grows explicit monocular-prior and source-pair generation.
 
 Avoid them when:
 
@@ -573,8 +578,9 @@ resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=
   most faithful replication of the NeuralRecon-W setting.
 
 - For **challenging indoor / sparse-view scenes with priors**:  
-  Use `monosdf`, `mono-neus`, or `mono-unisurf` when you have strong monocular depth + normals; add `geo-*` variants
-  when you also have good multi-view coverage and want sharper, more consistent textures.
+  `monosdf`, `mono-neus`, and `mono-unisurf` are only useful if the training data actually includes strong monocular
+  depth + normals. Add `geo-*` variants only with the source-view pairs / patch-warp inputs expected by SDFStudio.
+  The default mini-mesh `process` -> `train` path does not supply those inputs yet.
 
 - For **NeRF-style view synthesis or turning videos into flythroughs**:  
   Use `nerfacto` with `nerfacto-short` as your main workhorse. Scale up to `nerfacto-big` / `nerfacto-huge` when GPU
@@ -647,8 +653,9 @@ reasonable SfM and no ground-truth masks.
 
    - Orientation loss: `--pipeline.model.orientation-loss-mult 1e-4` for wobbly or flipped normals.  
    - Distortion loss: `--pipeline.model.distortion-loss-mult 0.001–0.003` if you see double walls / smeared depth.  
-   - Ref-NeRF flags (`use-diffuse-color`, `use-n-dot-v`, `use-reflections`, `use-specular-tint`) only after geometry is
-     mostly correct; they mainly help appearance and can hide geometric issues if used too early.
+   - Ref-NeRF-style flags (`use-diffuse-color`, `use-n-dot-v`, `use-reflections`) only after geometry is mostly
+     correct; they mainly help appearance and can hide geometric issues if used too early. Use `use-specular-tint`
+     only for metals / colored specular, not as a generic glossy-object setting.
 
 4. **When to switch methods**
 
