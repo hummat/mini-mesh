@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0](https://github.com/hummat/mini-mesh/compare/v0.5.0..v0.6.0) - 2026-05-21
+
+### Bug Fixes
+
+- *(defaults)* Align mini-mesh mesh defaults
+- *(splat)* Densify splatfacto-w-light preset
+- *(webui)* Separate specular tint from diffuse split
+
+
+### Documentation
+
+- *(papers)* Update papi coverage analysis
+
+
+### Features
+
+- *(export)* Add orbit frame export
+- *(sfm)* Auto-select defaults by image count
+- *(train)* Enable auto SDF bounds
+
+
+### Miscellaneous
+
+- *(deps)* Refresh sdfstudio v0.9.0 lock
+
+
+### Testing
+
+- *(docker)* Update sdfstudio pin assertions
+
 ## [0.5.0](https://github.com/hummat/mini-mesh/compare/v0.4.2..v0.5.0) - 2026-05-19
 
 ### Bug Fixes
@@ -13,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(run)* Print invoked command
 - *(run)* Clarify stage decisions
 - *(sfm)* Canonicalize sparse model outputs
+- *(tests)* Guard torch-only exporter coverage
 
 
 ### Features
