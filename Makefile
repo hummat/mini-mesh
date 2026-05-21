@@ -2,7 +2,7 @@
 
 help:
 	@echo "Targets:"
-	@echo "  deps    Install dev dependencies (uv sync)"
+	@echo "  deps    Install frozen dev dependencies and git hooks"
 	@echo "  build   Build local pipeline dependencies for webui local mode"
 	@echo "  fmt     Format (ruff)"
 	@echo "  lint    Lint (shellcheck + ruff)"

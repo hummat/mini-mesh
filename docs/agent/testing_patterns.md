@@ -7,7 +7,7 @@
 - **Lint**: ruff
 - **Shell**: shellcheck
 - **Package manager**: uv
-- **All-in-one**: `make check` (runs all checks; CI uses `scripts/lint.sh`)
+- **All-in-one**: `make check` (runs format, lint, type checking, and tests; CI uses `scripts/lint.sh`)
 
 ## Commands
 ```bash
@@ -26,8 +26,8 @@ uv run pytest tests/ --cov=webui --cov-report=term-missing
 
 ## Package Management
 ```bash
-make deps                    # install dev deps (preferred)
-uv sync --group dev          # same as above, explicit
+make deps                    # install frozen dev deps and git hooks (preferred)
+uv sync --frozen --group dev # dependency sync only, without hook setup
 uv add <package>             # add dependency
 uv run <command>             # run in uv environment
 ```

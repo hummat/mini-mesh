@@ -41,7 +41,8 @@ Key flows:
 
 ```bash
 # Install
-uv sync --group dev           # via uv (matches CI)
+make deps                    # frozen dev deps + git hooks
+uv sync --frozen --group dev  # explicit uv equivalent
 pip install -e ".[dev]"       # editable + dev tools
 
 # Run pipeline
