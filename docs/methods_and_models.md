@@ -625,6 +625,10 @@ reasonable SfM and no ground-truth masks.
    - `--pipeline.model.near-plane`, `--pipeline.model.far-plane`  
      - Base them on dataparser logs: set near slightly below the reported Near and far slightly above the reported Far
        (e.g. `Near*0.8`, `Far*1.2`), not `[0.01, 1000]`.  
+     - mini-mesh SDF defaults enable SDFStudio's `--pipeline.model.auto-near-far-plane True` and disable the explicit
+       bound override, which applies those dataparser-derived margins automatically.
+     - Passing `--pipeline.model.near-plane` or `--pipeline.model.far-plane` to `train` opts back into the explicit
+       override automatically.
      - If you see background slabs in normals, shrink `far-plane` before touching anything else.
    - `--pipeline.model.sdf-field.bias`  
      - Start around `0.3–0.5` for object-centric scenes.  
@@ -713,8 +717,9 @@ reasonable SfM and no ground-truth masks.
        you know you want a different sharpness schedule (e.g. shorter runs with a faster decay).
      - `--pipeline.model.use_spatial_varying_eikonal_loss` – lets far-away regions carry stronger eikonal weight.
        Helpful when large scenes are noisy far from the cameras; unnecessary for small object-centric captures.
-     - `bakedangelo` keeps `background-model grid`, `near-plane 0.01`, `far-plane 1000.0`, `bias 1.5`, and
-       `beta-init 0.1` by config. Treat it as a large-scene preset, not as the mini-mesh default object pipeline.
+     - `bakedangelo` keeps `background-model grid`, `near-plane 0.01`, `far-plane 1000.0`,
+       `overwrite-near-far-plane True`, `bias 1.5`, and `beta-init 0.1` by config. Treat it as a large-scene preset,
+       not as the mini-mesh default object pipeline.
 
 6. **Background handling**
 

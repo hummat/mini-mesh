@@ -8,6 +8,7 @@ CONFIG=(
   # object-centric mini-mesh SDF defaults in config/defaults.sh.
   --pipeline.model.near-plane 0.01
   --pipeline.model.far-plane 1000.0
+  --pipeline.model.overwrite-near-far-plane True
   --pipeline.model.background-model grid
   --pipeline.model.sdf-field.bias 1.5
   --pipeline.model.sdf-field.beta-init 0.1

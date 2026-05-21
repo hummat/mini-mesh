@@ -1720,7 +1720,7 @@ requires-dist = [
     { name = "rembg", extras = ["gpu", "cli"], marker = "extra == 'rembg'", specifier = "==2.0.69" },
     { name = "sam2", marker = "extra == 'sam'", git = "https://github.com/hummat/sam2.git?rev=98f488a540f87260b8e51146dc3ab15694dd174c" },
     { name = "scikit-build-core", marker = "extra == 'core'", specifier = ">=0.11" },
-    { name = "sdfstudio", extras = ["cuda", "export"], marker = "extra == 'core'", git = "https://github.com/hummat/sdfstudio.git?rev=v0.8.0" },
+    { name = "sdfstudio", extras = ["cuda", "export"], marker = "extra == 'core'", git = "https://github.com/hummat/sdfstudio.git?rev=v0.9.0" },
     { name = "splatfacto-w", marker = "extra == 'splat'", git = "https://github.com/KevinXu02/splatfacto-w.git?rev=119a3bfb3aa03669278e174ff11c4dfdcbcf97d7" },
     { name = "vggsfm", marker = "extra == 'vggsfm'", git = "https://github.com/hummat/vggsfm.git?rev=d597df629a312a662544006ac3bdbc2782b82834" },
 ]
@@ -3159,8 +3159,8 @@ wheels = [
 
 [[package]]
 name = "sdfstudio"
-version = "0.8.0"
-source = { git = "https://github.com/hummat/sdfstudio.git?rev=v0.8.0#655bd3c54c19804b9475aa207ee244060cd29e7f" }
+version = "0.9.0"
+source = { git = "https://github.com/hummat/sdfstudio.git?rev=v0.9.0#2db08582dbb5221407d078b808379af5675b6628" }
 dependencies = [
     { name = "appdirs", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "imageio", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },

@@ -32,7 +32,7 @@ mini-mesh (scripts/*.sh, webui.py)
 | | |
 |---|---|
 | **Upstream** | [autonomousvision/sdfstudio](https://github.com/autonomousvision/sdfstudio) (last commit 2023, effectively abandoned) |
-| **Fork** | [hummat/sdfstudio](https://github.com/hummat/sdfstudio) `@v0.8.0` |
+| **Fork** | [hummat/sdfstudio](https://github.com/hummat/sdfstudio) `@v0.9.0` |
 | **Role** | NeuS/VolSDF/BakedSDF surface reconstruction, mesh extraction, texture baking |
 | **Divergence** | ~40 commits, 320 files changed |
 

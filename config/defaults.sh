@@ -10,7 +10,8 @@ DEFAULTS=(
   --optimizers.field-background.optimizer.weight-decay 0.01
   --pipeline.model.near-plane 1
   --pipeline.model.far-plane 5
-  --pipeline.model.overwrite-near-far-plane True
+  --pipeline.model.overwrite-near-far-plane False
+  --pipeline.model.auto-near-far-plane True
   --pipeline.model.background-model mlp
   --pipeline.model.eval-num-rays-per-chunk 1024
   --pipeline.model.sdf-field.inside-outside False

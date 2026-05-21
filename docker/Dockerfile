@@ -221,7 +221,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     ninja==1.13.0 \
     "numpy<2" \
     "pillow==${PILLOW_VERSION}" \
-    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0"
+    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.9.0"
 
 # Build tools only if optional deps enabled (SAM2 JIT-compiles CUDA extension at runtime)
 ARG INSTALL_OPTIONAL_DEPS=ON

@@ -1230,10 +1230,88 @@ class TestTrainScript:
         log = log_path.read_text(encoding="utf-8")
         assert "sdf-train neus-facto" in log
         assert "--pipeline.model.use-average-appearance-embedding True" in log
+        assert "--pipeline.model.auto-near-far-plane True" in log
+        assert "--pipeline.model.overwrite-near-far-plane False" in log
+        assert log.rfind("--pipeline.model.overwrite-near-far-plane False") > log.rfind(
+            "--pipeline.model.overwrite-near-far-plane True"
+        )
         assert "--output-dir" in log
         assert str(data_dir / "train") in log
         assert "nerfstudio-data" in log
         assert f"--data {data_dir}" in log
+
+    def test_train_bakedangelo_preserves_fixed_wide_bounds(self, tmp_path: Path) -> None:
+        """BakedAngelo should opt back into its explicit large-scene bounds."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_bakedangelo.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "bakedangelo",
+                "my_exp",
+                str(data_dir),
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "sdf-train bakedangelo" in log
+        assert "--pipeline.model.auto-near-far-plane True" in log
+        assert "--pipeline.model.near-plane 0.01" in log
+        assert "--pipeline.model.far-plane 1000.0" in log
+        assert log.rfind("--pipeline.model.overwrite-near-far-plane True") > log.rfind(
+            "--pipeline.model.overwrite-near-far-plane False"
+        )
+
+    def test_train_cli_near_far_enables_explicit_override(self, tmp_path: Path) -> None:
+        """User-supplied near/far planes should override automatic defaults."""
+        repo_root = Path(__file__).resolve().parents[1]
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = tmp_path / "stub_train_near_far.log"
+        bin_dir = tmp_path / "bin"
+        self._make_train_stubs(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        }
+
+        result = _run_script(
+            repo_root,
+            "scripts/train.sh",
+            [
+                "neus-facto",
+                "my_exp",
+                str(data_dir),
+                "neus-facto",
+                "--pipeline.model.near-plane",
+                "0.2",
+                "--pipeline.model.far-plane",
+                "2.0",
+            ],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+
+        log = log_path.read_text(encoding="utf-8")
+        assert "--pipeline.model.near-plane 0.2" in log
+        assert "--pipeline.model.far-plane 2.0" in log
+        assert log.rfind("--pipeline.model.overwrite-near-far-plane True") > log.rfind(
+            "--pipeline.model.overwrite-near-far-plane False"
+        )
 
     def test_train_sdf_exposes_python_startup_hooks(self, tmp_path: Path) -> None:
         """sdf-train should inherit the Python startup hook path from env.sh."""
@@ -1896,6 +1974,11 @@ class TestRunScript:
         assert "sdf-train neus-facto" in log
         assert "--trainer.max-num-iterations 20001" in log
         assert "--pipeline.model.proposal-warmup 200" in log
+        assert "--pipeline.model.auto-near-far-plane True" in log
+        assert "--pipeline.model.overwrite-near-far-plane False" in log
+        assert log.rfind("--pipeline.model.overwrite-near-far-plane False") > log.rfind(
+            "--pipeline.model.overwrite-near-far-plane True"
+        )
         assert "sdf-train neus " not in log
 
     def test_run_script_sdf_pipeline_from_images(self, tmp_path: Path) -> None:

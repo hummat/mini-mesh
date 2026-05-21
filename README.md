@@ -398,7 +398,7 @@ Common issues and solutions:
 | Bad results | Improve input: 30-120s video, good lighting, cover all angles |
 | CUDA OOM | Reduce ray batch sizes; for full-image or 4K training, use `--downscale-factor 2` or higher |
 | Few SfM poses | Try `--matcher exhaustive`, `--method glomap`, or `--method hloc` |
-| Training diverges | Adjust `near-plane`/`far-plane`, try `neus-facto` |
+| Training diverges | Check dataparser near/far logs; SDF defaults auto-derive bounds, but explicit `near-plane`/`far-plane` still override |
 | Wrong mesh scale | Adjust `--scale-factor` (default 2.5) |
 
 For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/troubleshooting.md](docs/troubleshooting.md)**.

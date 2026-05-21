@@ -47,7 +47,7 @@ core = [
     "pillow==12.1.0",
     "scikit-build-core>=0.11",
     "pybind11>=2.6",
-    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.8.0",
+    "sdfstudio[cuda,export] @ git+https://github.com/hummat/sdfstudio.git@v0.9.0",
 ]
 # Background removal
 rembg = ["rembg[gpu,cli]==2.0.69"]

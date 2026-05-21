@@ -155,6 +155,16 @@ set_array_option_value() {
   array_ref+=("$option" "$new_value")
 }
 
+enable_explicit_near_far_override_if_requested() {
+  if [[ -n "$(find_array_option_value --pipeline.model.overwrite-near-far-plane "${CONFIG_ARGS[@]}" "${ARGS[@]}")" ]]; then
+    return
+  fi
+  if [[ -n "$(find_array_option_value --pipeline.model.near-plane "${CONFIG_ARGS[@]}" "${ARGS[@]}")" ]] \
+    || [[ -n "$(find_array_option_value --pipeline.model.far-plane "${CONFIG_ARGS[@]}" "${ARGS[@]}")" ]]; then
+    ARGS+=("--pipeline.model.overwrite-near-far-plane" "True")
+  fi
+}
+
 find_training_image() {
   local candidate_dir
   for candidate_dir in "$DATA_DIR/images_orig" "$DATA_DIR/images"; do
@@ -210,6 +220,7 @@ DATA_CONFIG_ARGS=()
 route_args CONFIG_ARGS DATA_CONFIG_ARGS "${CONFIG[@]}"
 
 add_large_image_downscale_default
+enable_explicit_near_far_override_if_requested
 
 if [[ "$(find_array_option_value --vis "${CONFIG_ARGS[@]}" "${ARGS[@]}")" = viewer ]] \
   && [[ -z "$(find_array_option_value --viewer.quit-on-train-completion "${CONFIG_ARGS[@]}" "${ARGS[@]}")" ]]; then

@@ -76,7 +76,7 @@ feat(export)!: Change default resolution
 feat: Add new texturing options to export script
 fix(export): Handle missing argument values gracefully
 docs: Update installation instructions
-chore: Bump sdfstudio to v0.8.0
+chore: Bump sdfstudio to v0.9.0
 refactor(webui): Simplify config loading
 ci: Fix shellcheck to follow sourced files
 ```
