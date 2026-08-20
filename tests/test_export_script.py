@@ -1152,6 +1152,52 @@ class TestExportScriptNerfWorkflow:
         assert result.returncode == 0, result.stderr
         assert "clean_splat.py" not in log_path.read_text(encoding="utf-8")
 
+    def _run_and_log(
+        self, tmp_path: Path, model: str, extra_args: list[str]
+    ) -> tuple[subprocess.CompletedProcess[str], str]:
+        """Export one experiment of the given model and return the stub log."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / model
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, extra_args, env_overrides)
+        log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        return result, log
+
+    def test_splat_export_crops_nothing_by_default(self, tmp_path: Path) -> None:
+        """nerfstudio's default is no crop box; export.sh must not invent one."""
+        result, log = self._run_and_log(tmp_path, "splatfacto", [])
+        assert result.returncode == 0, result.stderr
+        assert "ns-export gaussian-splat" in log
+        assert "--obb-" not in log
+
+    def test_poisson_export_crops_nothing_by_default(self, tmp_path: Path) -> None:
+        """The same default applies to the mesh exporters, which share the flags."""
+        result, log = self._run_and_log(tmp_path, "nerfacto", [])
+        assert result.returncode == 0, result.stderr
+        assert "ns-export poisson" in log
+        assert "--obb-" not in log
+
+    def test_one_obb_flag_turns_cropping_on_with_defaults_for_the_rest(
+        self, tmp_path: Path
+    ) -> None:
+        """nerfstudio ignores a partial triplet, so one flag has to supply all three."""
+        result, log = self._run_and_log(tmp_path, "splatfacto", ["--obb-scale", "2", "2", "2"])
+        assert result.returncode == 0, result.stderr
+        assert "--obb-scale 2 2 2" in log
+        assert "--obb-center 0 0 0" in log
+        assert "--obb-rotation 0 0 0" in log
+
 
 class TestExportScriptOrbitFramesSdfWorkflow:
     """Tests for image-sequence render export on SDF-style methods."""
