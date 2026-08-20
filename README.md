@@ -307,6 +307,18 @@ For NeRF/ngp models, request several exporters by repeating `--method` or using
 a comma-separated value, for example `export --method poisson,orbit-frames`. For SDF and splat models,
 `orbit-frames` is additive to the normal export.
 
+**Splat cleanup:** every exported splat PLY goes through `scripts/clean_splat.py` before it lands on disk. Only the
+opacity filter runs by default, dropping Gaussians below 0.05, which cuts file size well below what nerfstudio's own
+1/255 export cull leaves and does not change the render on the scenes we measured. Use `export --no-clean` to keep the
+raw output, `--clean-opacity <float>` to move the threshold, and `--clean-max-scale-quantile <q>`,
+`--clean-max-anisotropy <ratio>`, or `--clean-sor` to switch on the size, needle, and outlier filters, none of which
+run unless asked. The script also works on an existing PLY, so you can try settings without re-exporting:
+
+```bash
+scripts/clean_splat.py splat.ply --dry-run --clean-sor    # report what each stage would remove
+scripts/clean_splat.py splat.ply -o splat_clean.ply --opacity 0.1
+```
+
 </details>
 
 <details markdown="1">

@@ -25,7 +25,17 @@ def _make_stub_binaries(bin_dir: Path, log_path: Path) -> None:
             'echo "$0 $@" >> "$MINI_MESH_STUB_LOG"',
         ]
     )
-    for name in ("sdf-extract-mesh", "sdf-texture-mesh", "sdf-render", "ns-export", "ns-render"):
+    # "python" is stubbed too: the splat cleanup step runs the real clean_splat.py
+    # otherwise, and these tests write placeholder PLY files it rightly rejects.
+    names = (
+        "sdf-extract-mesh",
+        "sdf-texture-mesh",
+        "sdf-render",
+        "ns-export",
+        "ns-render",
+        "python",
+    )
+    for name in names:
         script_path = bin_dir / name
         script_path.write_text(script_body, encoding="utf-8")
         script_path.chmod(0o755)
@@ -1070,6 +1080,77 @@ class TestExportScriptNerfWorkflow:
         assert "--obb-center 1 2 3" in log
         assert "--obb-rotation 4 5 6" in log
         assert "--obb-scale 7 8 9" in log
+
+    def _run_splat_export_with_cleanup(
+        self, tmp_path: Path, extra_args: list[str]
+    ) -> tuple[subprocess.CompletedProcess[str], str]:
+        """Export a splat with an output file already in place so cleanup has a target."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "splatfacto" / "run"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+        (exp_path / "splat.ply").write_text("ply\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--overwrite", *extra_args], env_overrides
+        )
+        log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        return result, log
+
+    def test_splat_export_cleans_the_exported_splat_by_default(self, tmp_path: Path) -> None:
+        """A splat export should hand its output to clean_splat.py without being asked."""
+        result, log = self._run_splat_export_with_cleanup(tmp_path, [])
+        assert result.returncode == 0, result.stderr
+        assert "clean_splat.py" in log
+        assert "splat.ply" in log
+
+    def test_no_clean_skips_the_cleanup_step(self, tmp_path: Path) -> None:
+        """--no-clean should leave the exported splat exactly as nerfstudio wrote it."""
+        result, log = self._run_splat_export_with_cleanup(tmp_path, ["--no-clean"])
+        assert result.returncode == 0, result.stderr
+        assert "ns-export gaussian-splat" in log
+        assert "clean_splat.py" not in log
+
+    def test_clean_flags_are_forwarded_without_their_prefix(self, tmp_path: Path) -> None:
+        """--clean-opacity is the export-level spelling of clean_splat.py's --opacity."""
+        result, log = self._run_splat_export_with_cleanup(
+            tmp_path, ["--clean-opacity", "0.1", "--clean-sor"]
+        )
+        assert result.returncode == 0, result.stderr
+        cleanup = [line for line in log.splitlines() if "clean_splat.py" in line]
+        assert len(cleanup) == 1
+        assert "--opacity 0.1" in cleanup[0]
+        assert "--sor" in cleanup[0]
+        assert "--clean-" not in cleanup[0]
+
+    def test_mesh_export_does_not_run_the_splat_cleanup(self, tmp_path: Path) -> None:
+        """Cleanup is splat-specific; a Poisson mesh must not be routed through it."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(repo_root, exp_path, [], env_overrides)
+        assert result.returncode == 0, result.stderr
+        assert "clean_splat.py" not in log_path.read_text(encoding="utf-8")
 
 
 class TestExportScriptOrbitFramesSdfWorkflow:

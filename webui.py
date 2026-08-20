@@ -108,6 +108,8 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--hdr",
         "--skip",
         "--overwrite",
+        "--no-clean",
+        "--clean-",
     ]
     video_pattern = r"video\s+(.*?)(?=\s+(sfm|process|train|export)\b|$)"
     video_match = re.search(video_pattern, cmd)

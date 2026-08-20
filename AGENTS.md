@@ -29,13 +29,14 @@ Pipeline orchestrated by Bash scripts (`scripts/`). Configuration in `config/*.s
 - `config/defaults.sh` — base defaults for all model types
 - `webui.py` — Gradio UI wrapping run.sh
 - `docker/run.sh` — Docker wrapper for run.sh
+- `scripts/clean_splat.py` — post-export splat filter (opacity, size, anisotropy, outliers)
 
 Key flows:
 - `video` → extract frames (ffmpeg)
 - `sfm` → structure from motion (COLMAP/GLOMAP/HLoc/VGGSfM)
 - `process` → prepare data for training
 - `train` → neural surface reconstruction (sdfstudio)
-- `export` → extract and texture mesh
+- `export` → extract and texture mesh; splat exports are filtered by `clean_splat.py`
 
 ## Commands
 
