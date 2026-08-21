@@ -440,6 +440,7 @@ For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/tro
 - **[Methods & Models](docs/methods_and_models.md)** — How NeuS, NeRF, and other methods work
 - **[BRDF & Shading](docs/brdf_and_shading_effects.md)** — Handling reflective and glossy surfaces
 - **[Examples](docs/examples.md)** — Additional usage examples
+- **[Evaluating splat quality](docs/evaluation.md)** — Why PSNR/SSIM/LPIPS undersell splat quality differences
 
 ## Demos
 
