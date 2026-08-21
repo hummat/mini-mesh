@@ -108,14 +108,25 @@ with spherical harmonics removed during training, not as a container applied
 afterwards. Nothing published covers our version of the question.
 
 **The frame-count experiment.** Ran at 106 and 212 training views against a
-pinned 11-frame held-out set, and came back a tie: PSNR 20.05 against 20.10,
-SSIM 0.519 against 0.532, LPIPS 0.3645 against 0.3677, all inside a per-image
-spread of 0.063 to 0.070. Doubling the training views moved nothing, and moved
-LPIPS the wrong way. This null is the one least troubled by the correlation
-ceiling, since the gap is a twentieth of the noise rather than a close call, but
-it is still a statement about what three 2D metrics can see. MUGSQA's
-view-quantity axis is the closest prior work and it scores with 2D metrics too,
-so it inherits the same limit.
+pinned 11-frame held-out set: PSNR 20.05 against 20.10, SSIM 0.519 against
+0.532, LPIPS 0.3645 against 0.3677. Both configurations were scored on the same
+11 frames, which means the comparison is paired and the per-image standard
+deviation is the wrong yardstick for it.
+
+That deviation, 0.063 to 0.070 on LPIPS, is dominated by how hard each frame is,
+and frame difficulty is shared between the two runs. It cancels in the
+per-frame differences. A change of 0.003 that pointed the same way on all 11
+frames would be a real effect hiding inside a spread twenty times its size,
+and comparing the gap to the marginal spread cannot tell that apart from noise.
+`ns-eval` reports only aggregates, so the per-frame values needed to settle it
+were never written down.
+
+This is not a frame-count problem. Every "inside the spread, therefore no
+difference" verdict in this project was reached the same way, including the ones
+for opacity pruning, `rasterize_mode` and appearance embeddings. Pairing raises
+sensitivity, so the direction of the error is one-sided: effects called noise
+may be real, while effects already called real stay real. Re-running eval with
+per-frame output is cheap and comes before trusting any of those nulls.
 
 ## What to measure instead
 
@@ -165,8 +176,19 @@ The proposed experiment, in order:
    metric can be scored against.
 3. **Select on one half, validate on the other.** Split the pairs into a
    selection set and a held-out set before looking at any of them. Use the
-   selection set to pick among DOVER, DISTS (0.73) and CW-SSIM (0.74), then
-   score the winner once on the held-out set. Count only pairs where the rater
+   selection set to pick a metric, then score the winner once on the held-out
+   set.
+
+   The candidates have to be no-reference, because an A/B of two orbits has no
+   ground truth to reference. A novel orbit path has no captured photo to
+   compare against, so a full-reference metric has nothing to score. DISTS and
+   CW-SSIM beat PSNR and LPIPS in the tables above and are useless here for that
+   reason: scored A against B they give a symmetric distance with no direction,
+   and scored against the unfiltered export as reference they hand it the win by
+   construction. That leaves DOVER, VSFA, FAST-VQA and Q-Align, which score each
+   orbit on its own. DISTS and CW-SSIM can only be tested on held-out frames
+   where a real photo exists, which is a different experiment against different
+   stimuli than the one a viewer judged. Count only pairs where the rater
    was self-consistent and expressed a preference, and fix the acceptance
    threshold in advance rather than after seeing the number. Adopting a metric
    on the same comparisons that chose it measures nothing.
