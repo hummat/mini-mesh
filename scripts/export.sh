@@ -45,6 +45,53 @@ experiment_model_name() {
   echo "$name"
 }
 
+nerfstudio_python() {
+  # scripts/env.sh prepends $repo/.venv/bin to PATH whenever that directory exists,
+  # so `python` may be a dev venv interpreter with no torch while the pipeline itself
+  # runs under another one. Probe candidates for torch rather than trusting the name,
+  # and check for the module without importing it so this stays cheap.
+  local probe candidate entry shebang first
+  probe='import importlib.util as u, sys; sys.exit(0 if u.find_spec("torch") else 1)'
+
+  # A console script's shebang names the interpreter it was installed for, which is
+  # the one that owns nerfstudio.
+  entry="$(command -v ns-export 2>/dev/null)" || entry=""
+  shebang=""
+  if [ -n "$entry" ]; then
+    first="$(head -n 1 "$entry" 2>/dev/null)"
+    case "$first" in
+      '#!'*)
+        first="${first#\#!}"
+        shebang="${first%% *}"
+        if [ "$(basename "$shebang")" = env ]; then
+          first="${first#* }"
+          shebang="${first%% *}"
+        fi
+        ;;
+    esac
+  fi
+
+  for candidate in python python3 "$shebang"; do
+    [ -n "$candidate" ] || continue
+    command -v "$candidate" >/dev/null 2>&1 || continue
+    if "$candidate" -c "$probe" >/dev/null 2>&1; then
+      echo "$candidate"
+      return
+    fi
+  done
+
+  # Nothing claims torch: keep the historical call so the failure is the script's own.
+  echo python
+}
+
+clean_splat_output() {
+  local output_path="$1"
+  if [ "$clean_splat" != true ] || [ ! -f "$output_path" ]; then
+    return 0
+  fi
+  run_cmd "$(nerfstudio_python)" "$script_dir/clean_splat.py" "$output_path" "${clean_splat_args[@]}"
+}
+
 nerf_export_output_path() {
   local exp_path="$1"
   local model_name="$2"
@@ -202,6 +249,13 @@ function show_help {
   echo "                              --obb-rotation <float float float>        Rotation of oriented bounding-box (default: 0 0 0)"
   echo "                              --obb-scale <float float float>           Scale of oriented bounding-box (default: 1 1 1)"
   echo "                              --downscale-factor <int>                  Image downscale factor for TSDF extraction (default: 2)"
+  echo "                              --no-clean                                Skip splat cleanup after export"
+  echo "                              --clean-opacity <float>                   Drop Gaussians below this opacity (default: 0.05)"
+  echo "                              --clean-max-scale-quantile <float>        Drop Gaussians above this size quantile (default: off)"
+  echo "                              --clean-max-anisotropy <float>            Drop Gaussians above this axis ratio (default: off)"
+  echo "                              --clean-sor                               Statistical outlier removal on centres (needs scipy)"
+  echo "                              --clean-sor-neighbours <int>              Neighbours per outlier test (default: 16)"
+  echo "                              --clean-sor-std-ratio <float>             Outlier cut in std devs (default: 2.0)"
   echo "                              --mesh-only                               Extract mesh but skip texturing (SDF only)"
   echo "                              --texture-only                            Texture existing mesh, skip extraction (SDF only)"
   echo "                              --input-mesh-filename <path>              Custom mesh file for texturing (requires --texture-only)"
@@ -231,6 +285,8 @@ texture_mesh_args=("${EXPORT_DEFAULTS[@]}")
 nerf_args=()
 nerf_tsdf_args=()
 splatfactow_args=()
+clean_splat_args=()
+clean_splat=true
 nerf_methods=()
 method_requested=false
 orbit_frames_requested=false
@@ -344,6 +400,19 @@ while [ $i -lt ${#export_args[@]} ]; do
       esac
       i=$((i+4))
       ;;
+    --no-clean)
+      clean_splat=false
+      i=$((i+1))
+      ;;
+    --clean-opacity|--clean-max-scale-quantile|--clean-max-anisotropy|--clean-sor-neighbours|--clean-sor-std-ratio)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      clean_splat_args+=("${export_args[$i]/--clean-/--}" "${export_args[$((i+1))]}")
+      i=$((i+2))
+      ;;
+    --clean-sor)
+      clean_splat_args+=("--sor")
+      i=$((i+1))
+      ;;
     --mesh-only)
       mesh_only=true
       i=$((i+1))
@@ -403,7 +472,7 @@ if [ -f "$exp_path/config.yml" ]; then
       nerf_output_path="$(nerf_export_output_path "$exp_path" "$model_name" poisson)"
       if should_run_export "$nerf_output_path"; then
         if [ "$model_name" = splatfacto-w-light ]; then
-          run_cmd python "$script_dir/export_splatfactow.py" \
+          run_cmd "$(nerfstudio_python)" "$script_dir/export_splatfactow.py" \
             --load-config "$exp_path/config.yml" \
             --output-dir "$exp_path" \
             --obb-center "${nerf_obb_center[@]}" \
@@ -420,6 +489,7 @@ if [ -f "$exp_path/config.yml" ]; then
             --obb-scale "${nerf_obb_scale[@]}" \
             "${nerf_args[@]}"
         fi
+        clean_splat_output "$nerf_output_path"
       fi
       if [ "$orbit_frames_requested" = true ]; then
         run_nerfstudio_orbit_frames_export "$exp_path"

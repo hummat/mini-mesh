@@ -244,6 +244,9 @@ function show_help {
   echo "                       --mesh-only                                Extract mesh but skip texturing (SDF only)"
   echo "                       --texture-only                             Texture existing mesh, skip extraction (SDF only)"
   echo "                       --input-mesh-filename <path>               Custom mesh file for texturing (requires --texture-only)"
+  echo "                       --no-clean                                 Skip splat cleanup after export"
+  echo "                       --clean-opacity <float>                    Drop Gaussians below this opacity (default: 0.05)"
+  echo "                       --clean-sor                                Statistical outlier removal on splat centres"
   echo "                       --data <path>                              Override data path (for Docker/local portability)"
   echo
   echo "Examples:"
