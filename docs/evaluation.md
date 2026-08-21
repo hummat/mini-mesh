@@ -108,7 +108,10 @@ the same rate. Nobody has measured that, and the 62% scenes remain the ones to
 worry about.
 
 **The container choice.** SPZ against SOG is a quantisation decision applied to
-a fixed set of Gaussians. GS-QA evaluates SOG, but as a reconstruction *method*
+a fixed set of Gaussians. Measured on one cleaned 250k export (`gaudi_ceiling`,
+224,367 Gaussians): 55.6 MB as PLY, 5.9 MB as SPZ, 2.6 MB as SOG, all carrying
+three SH bands. Whether the 3.3 MB SOG saves costs anything a viewer would see
+is exactly the kind of question the metrics above cannot answer. GS-QA evaluates SOG, but as a reconstruction *method*
 with spherical harmonics removed during training, not as a container applied
 afterwards. Nothing published covers our version of the question.
 
