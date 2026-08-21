@@ -314,10 +314,12 @@ frame the dataparser produced by auto-scaling the cameras, which is not a frame 
 looking at the result rather than by reasoning about the capture.
 
 **Splat cleanup:** every exported splat PLY goes through `scripts/clean_splat.py` before it lands on disk. Only the
-opacity filter runs by default, dropping Gaussians below 0.05, which takes a 1M-Gaussian MCMC export from 207 MB to
-178 MB and a 100k one from 21.5 MB to 20.4 MB. The threshold comes from pruning checkpoints at several values and
-re-running `ns-eval`: 0.05 moved LPIPS by less than a tenth of the per-image spread on both scenes tried, while 0.1
-cost a full spread on the sharper one.
+opacity filter runs by default, dropping Gaussians below 0.05. What that saves depends on the capture rather than on
+the settings: across 15 splatfacto-mcmc exports it removed between 4.9% and 62% of the Gaussians, median 28%. Object
+captures sit at the top of that range because the model fills the empty space around the subject with faint
+Gaussians, and outdoor walkthroughs where every direction has content sit at the bottom. The threshold comes from
+pruning checkpoints at several values and re-running `ns-eval`: 0.05 moved LPIPS by less than a tenth of the
+per-image spread on both scenes tried, while 0.1 cost a full spread on the sharper one.
 
 Use `export --no-clean` to keep the raw output, `--clean-opacity <float>` to move the threshold, and
 `--clean-max-scale-quantile <q>`, `--clean-max-anisotropy <ratio>`, or `--clean-sor` to switch on the size, needle,
@@ -330,6 +332,11 @@ without re-exporting:
 scripts/clean_splat.py splat.ply --dry-run --clean-sor    # report what each stage would remove
 scripts/clean_splat.py splat.ply -o splat_clean.ply --opacity 0.1
 ```
+
+**Shipping to the web:** the container format is a larger lever than anything in this filter. One 250k-Gaussian
+export measures 43 MB as a PLY, 4.2 MB as `.spz`, and 2.0 MB as `.sog`; running the opacity filter first takes the
+SPZ to 1.6 MB. `npx @playcanvas/splat-transform in.ply out.spz` converts between all three. Clean first, convert
+second: the compressed formats quantize what they are given, so a Gaussian removed beforehand costs nothing at all.
 
 </details>
 
