@@ -141,18 +141,42 @@ The proposed experiment, in order:
    shows the published 0.94 survives contact with our content and capture style;
    it does not yet show the metric is useful on close calls. Failing kills it
    outright, which is why this comes first and costs nothing.
-2. **The contested pairs.** Take the decisions we cannot currently settle, at
-   most a handful: cap_max 250k against 500k, cleanup at 0.05 against raw on a
-   scene where the filter takes 60%, 212 training views against 424. Render
-   orbits, present each pair side by side in randomised order without labels,
-   and record a forced choice. One rater is thin evidence, and it is still the
-   only direct evidence about the decisions we actually make; a published
-   correlation on someone else's stimuli is not a substitute.
-3. **Adopt or fall back.** If DOVER agrees with the forced choices, wire it in
-   after export and report it alongside `ns-eval`. If it disagrees, DISTS (0.73)
-   and CW-SSIM (0.74) are the next candidates and cost almost nothing to try. If
-   nothing agrees, the honest conclusion is that these calls are not
-   metric-decidable and we should pick on file size, which we can measure.
+2. **Paired comparisons on the contested decisions.** Three comparisons would
+   agree with any metric one time in eight, so the set has to be big enough for
+   agreement to mean something. The cleanup threshold supplies it for free: all
+   15 Gaudi scenes have an uncropped export and a filtered one, and the cut
+   ranges from 4.9% to 62%, which is a difficulty gradient rather than a single
+   point. Add the cap_max pairs from the existing sweep.
+
+   Present each pair as two orbits side by side, unlabelled, in randomised
+   left-right order, and offer three responses: left, right, or no difference.
+   Indifference has to be a legal answer. Forcing a choice between variants that
+   look identical manufactures a label out of nothing, and "we cannot tell them
+   apart" is both a likely outcome and a useful one, since it means ship the
+   smaller file.
+
+   Show every pair at least twice, separated. The repeat is not padding: it
+   measures how often the rater agrees with themselves, which caps how much
+   agreement any metric could show. A pair the rater flips on is a pair no
+   metric can be scored against.
+3. **Select on one half, validate on the other.** Split the pairs into a
+   selection set and a held-out set before looking at any of them. Use the
+   selection set to pick among DOVER, DISTS (0.73) and CW-SSIM (0.74), then
+   score the winner once on the held-out set. Count only pairs where the rater
+   was self-consistent and expressed a preference, and fix the acceptance
+   threshold in advance rather than after seeing the number. Adopting a metric
+   on the same comparisons that chose it measures nothing.
+
+   Three outcomes are worth naming ahead of time. A metric clears the threshold
+   and gets wired in after `export`, reported alongside `ns-eval`. Nothing
+   clears it, which means these calls are not metric-decidable for us and file
+   size decides. Or the rater is mostly indifferent, which settles the
+   underlying question without a metric: if 250k and 500k are indistinguishable
+   on an orbit, ship 250k.
+
+   One rater makes all of this suggestive rather than conclusive. It is still
+   direct evidence about the decisions we actually make, which a published
+   correlation on someone else's stimuli is not.
 4. **Build stimuli only if 1 to 3 leave a real gap.** MUGSQA covers the input
    axes and released its data, so what would remain is attribute-based pruning
    and container quantisation at fixed training. That is a much smaller build
