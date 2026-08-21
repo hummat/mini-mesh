@@ -139,3 +139,37 @@ def test_rejects_an_out_of_range_opacity(tmp_path: Path) -> None:
     clean_splat.write_ply(source, _splat(np.zeros(4, dtype=np.float32)), FIELDS)
 
     assert clean_splat.main([str(source), "--opacity", "1.5"]) == 2
+
+
+def test_round_trip_preserves_non_float_widths(tmp_path: Path) -> None:
+    """A PLY carrying integer properties has to survive rewriting unchanged.
+
+    The header is generated from the numpy dtype, so an unmapped width used to
+    be written out as "float" while the payload kept its original size, leaving
+    a file no reader can parse correctly.
+    """
+    names = ["x", "red", "material_id", "cluster"]
+    dtype = np.dtype([("x", "<f4"), ("red", "u1"), ("material_id", "<i2"), ("cluster", "<u4")])
+    data = np.zeros(4, dtype=dtype)
+    data["x"] = [0.5, 1.5, 2.5, 3.5]
+    data["red"] = [0, 127, 200, 255]
+    data["material_id"] = [-2, -1, 300, 32000]
+    data["cluster"] = [0, 1, 70000, 4000000000]
+    path = tmp_path / "typed.ply"
+
+    clean_splat.write_ply(path, data, names)
+    restored, restored_names = clean_splat.read_ply(path)
+
+    assert restored_names == names
+    for name in names:
+        assert restored.dtype[name] == dtype[name], name
+        assert np.array_equal(restored[name], data[name]), name
+
+
+def test_unwritable_property_type_is_reported(tmp_path: Path) -> None:
+    """A dtype with no PLY spelling raises instead of writing a wrong header."""
+    dtype = np.dtype([("x", "<f4"), ("stamp", "<i8")])
+    data = np.zeros(2, dtype=dtype)
+
+    with pytest.raises(clean_splat.PlyError, match="stamp"):
+        clean_splat.write_ply(tmp_path / "bad.ply", data, ["x", "stamp"])

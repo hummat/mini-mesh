@@ -108,8 +108,6 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--hdr",
         "--skip",
         "--overwrite",
-        "--no-clean",
-        "--clean-",
     ]
     video_pattern = r"video\s+(.*?)(?=\s+(sfm|process|train|export)\b|$)"
     video_match = re.search(video_pattern, cmd)
@@ -213,12 +211,15 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--bounding-box-min",
         "--bounding-box-max",
         "--obb-center",
+        "--obb-rotation",
         "--obb-scale",
         "--mesh-only",
         "--texture-only",
         "--input-mesh-filename",
         "--skip",
         "--overwrite",
+        "--no-clean",
+        "--clean-",
     ]
     export_pattern = r"export\s+(.*?)$"
     export_match = re.search(export_pattern, cmd)

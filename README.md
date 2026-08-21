@@ -329,7 +329,7 @@ Gaussian is how a splat represents thin structure. The script also works on an e
 without re-exporting:
 
 ```bash
-scripts/clean_splat.py splat.ply --dry-run --clean-sor    # report what each stage would remove
+scripts/clean_splat.py splat.ply --dry-run --sor          # report what each stage would remove
 scripts/clean_splat.py splat.ply -o splat_clean.ply --opacity 0.1
 ```
 
