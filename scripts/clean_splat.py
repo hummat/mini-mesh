@@ -45,6 +45,20 @@ PLY_DTYPES = {
     "float64": "f8",
 }
 
+# Every width the reader accepts needs a way back out. Falling back to "float"
+# for an unmapped dtype writes a header that misdescribes the payload, and the
+# file is then silently misaligned rather than rejected.
+PLY_NAMES = {
+    "i1": "char",
+    "u1": "uchar",
+    "i2": "short",
+    "u2": "ushort",
+    "i4": "int",
+    "u4": "uint",
+    "f4": "float",
+    "f8": "double",
+}
+
 SCALE_FIELDS = ("scale_0", "scale_1", "scale_2")
 
 
@@ -121,14 +135,11 @@ def write_ply(path: Path, data: np.ndarray, names: list[str]) -> None:
         out[name] = data[name]
 
     header = ["ply", "format binary_little_endian 1.0", f"element vertex {len(out)}"]
-    reverse = {
-        value: key
-        for key, value in PLY_DTYPES.items()
-        if key in ("uchar", "int", "float", "double")
-    }
     for name in names:
         kind = out.dtype[name].str[1:]
-        header.append(f"property {reverse.get(kind, 'float')} {name}")
+        if kind not in PLY_NAMES:
+            raise PlyError(f"cannot write property {name!r} of type {kind!r}")
+        header.append(f"property {PLY_NAMES[kind]} {name}")
     header.append("end_header")
 
     path.parent.mkdir(parents=True, exist_ok=True)

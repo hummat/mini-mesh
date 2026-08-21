@@ -1837,6 +1837,32 @@ class TestArtifactDiscovery:
         assert find_mesh_artifacts(tmp_path)[:2] == [str(textured_mesh), str(mesh)]
 
 
+class TestExportContextArgs:
+    """The export allowlist has to match what scripts/export.sh parses."""
+
+    def test_cleanup_flags_belong_to_export(self):
+        """Cleanup flags are documented under export, so export must accept them."""
+        from webui import test_cmd
+
+        for arg in ("--no-clean", "--clean-opacity 0.1", "--clean-sor"):
+            cmd = f"scripts/run.sh /path/to/video.mp4 export {arg}"
+            assert test_cmd(cmd, "scripts/run.sh") is None, arg
+
+    def test_cleanup_flags_are_rejected_after_video(self):
+        """They were on the video allowlist by mistake; video must turn them down."""
+        from webui import test_cmd
+
+        cmd = "scripts/run.sh /path/to/video.mp4 video --no-clean"
+        assert test_cmd(cmd, "scripts/run.sh") == "Invalid video argument: --no-clean"
+
+    def test_obb_rotation_is_accepted(self):
+        """export.sh parses all three box flags; the allowlist was missing one."""
+        from webui import test_cmd
+
+        cmd = "scripts/run.sh /path/to/video.mp4 export --obb-rotation 0 0 0"
+        assert test_cmd(cmd, "scripts/run.sh") is None
+
+
 class TestCreateUI:
     """Smoke tests for the Gradio layout."""
 
