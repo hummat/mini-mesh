@@ -94,39 +94,158 @@ to 232.9 MB over the same range, so the decision has a real cost on one side and
 an unverified benefit on the other.
 
 **The cleanup threshold.** Filtering at opacity 0.05 removes between 4.9% and
-62% of the Gaussians depending on the scene. 3DGS-QA measured perceptual cost
-for content-blind random pruning at 25/50/75% and found it degrades MOS
-smoothly. Our filter is attribute-based, not random: it targets Gaussians the
-model itself marked as nearly transparent. Pruning what the model
-already considers invisible should cost less than pruning at random, but no
-study has measured it. The 62% cases
-are the ones to worry about, and we have no evidence either way.
+62% of the Gaussians depending on the scene, and it is not free. Paired testing
+puts the cost at 0.0007 LPIPS on `gaudi_fountain` and 0.0059 on `r2d2_new`, the
+same sign on every frame of both, with PSNR and SSIM agreeing. It was called
+free because the marginal spread is 0.05 and 0.035, which buried it. The cost is
+small enough that a median 28% size saving is still worth paying, but "free" was
+the wrong word and it was reached the wrong way.
+
+3DGS-QA measured content-blind random pruning at 25/50/75% and found it degrades
+MOS smoothly. Our filter is attribute-based, targeting Gaussians the model
+itself marked nearly transparent, which should cost less than random pruning at
+the same rate. Nobody has measured that, and the 62% scenes remain the ones to
+worry about.
 
 **The container choice.** SPZ against SOG is a quantisation decision applied to
 a fixed set of Gaussians. GS-QA evaluates SOG, but as a reconstruction *method*
 with spherical harmonics removed during training, not as a container applied
 afterwards. Nothing published covers our version of the question.
 
-**The frame-count experiment.** Ran at 106 and 212 training views against a
-pinned 11-frame held-out set: PSNR 20.05 against 20.10, SSIM 0.519 against
-0.532, LPIPS 0.3645 against 0.3677. Both configurations were scored on the same
-11 frames, which means the comparison is paired and the per-image standard
-deviation is the wrong yardstick for it.
+**The frame-count experiment.** Invalid, and not for a subtle reason. The design
+held a fixed set of 11 source frames out of every configuration so the two runs
+would be scored on the same ground truth. It did not survive contact with
+`ceil`. The split fraction has to be `(N-E)/N` exactly; the script validated
+that at full precision and then passed a six-decimal rounding to training, and
+`0.905983 * 117` is `106.00001`, so `ceil` returned 107 instead of 106. Both
+configurations held out 10 frames instead of 11, at different positions, and the
+two runs share exactly one ground-truth image out of ten. The reported tie
+compared different pictures.
 
-That deviation, 0.063 to 0.070 on LPIPS, is dominated by how hard each frame is,
-and frame difficulty is shared between the two runs. It cancels in the
-per-frame differences. A change of 0.003 that pointed the same way on all 11
-frames would be a real effect hiding inside a spread twenty times its size,
-and comparing the gap to the marginal spread cannot tell that apart from noise.
-`ns-eval` reports only aggregates, so the per-frame values needed to settle it
-were never written down.
+The fix is to stop deriving the split from a float. Name the files so
+`eval_mode=filename` selects them, which cannot drift. Retraining is cheap
+because the SfM output already exists.
 
-This is not a frame-count problem. Every "inside the spread, therefore no
-difference" verdict in this project was reached the same way, including the ones
-for opacity pruning, `rasterize_mode` and appearance embeddings. Pairing raises
-sensitivity, so the direction of the error is one-sided: effects called noise
-may be real, while effects already called real stay real. Re-running eval with
-per-frame output is cheap and comes before trusting any of those nulls.
+## What pairing changed
+
+Matched runs are scored on the same eval frames, so the comparison is paired and
+the per-frame difference is the quantity with a meaningful spread. `ns-eval`
+reports only the mean and the marginal standard deviation, which is dominated by
+how hard each frame is, and that difficulty is shared between the runs and
+cancels in the differences. Re-running eval with per-frame output and testing
+the differences directly changes several verdicts.
+
+LPIPS, mean paired difference with a 95% interval, and how often the difference
+kept its sign across frames:
+
+| Comparison | n | Mean diff | 95% CI | Paired SD | Marginal SD | Same sign |
+|---|---|---|---|---|---|---|
+| seed off to on | 5 | -0.0810 | [-0.155, -0.007] | 0.060 | 0.070 | 5/5 |
+| cap 100k to 250k | 5 | -0.0803 | [-0.097, -0.064] | 0.013 | 0.064 | 5/5 |
+| cap 250k to 500k | 5 | -0.0505 | [-0.064, -0.037] | 0.011 | 0.050 | 5/5 |
+| classic to antialiased | 5 | +0.0016 | [-0.004, +0.007] | 0.005 | 0.064 | 3/5 |
+| prune 0.05, gaudi | 5 | +0.0007 | [+0.0004, +0.0010] | 0.0002 | 0.050 | 5/5 |
+| prune 0.1, gaudi | 5 | +0.0042 | [+0.003, +0.005] | 0.0009 | 0.050 | 5/5 |
+| prune 0.05, r2d2 | 7 | +0.0059 | [+0.004, +0.008] | 0.002 | 0.035 | 7/7 |
+| prune 0.1, r2d2 | 7 | +0.0373 | [+0.029, +0.046] | 0.010 | 0.038 | 7/7 |
+
+Three things fall out.
+
+**Opacity pruning is not free.** At 0.05 it costs 0.0007 LPIPS on gaudi and
+0.0059 on r2d2, and the sign holds on every frame of both scenes, with PSNR and
+SSIM agreeing. The marginal spread is 70 times the gaudi effect, which is why it
+read as noise. The trade is still worth taking for a median 28% size cut. The
+verdict of "free" was not.
+
+**PSNR and SSIM really are blind to the Gaussian budget.** This one survives
+pairing and gets stronger for it. Across both cap steps the PSNR interval
+contains zero and the sign splits 3/5, while LPIPS separates every step cleanly.
+Pairing removed the excuse that the effect was hiding in the noise: it is not
+there.
+
+**Effects come in two kinds, and the marginal spread cannot tell them apart.**
+Seeding moves LPIPS by 0.081 with a paired SD of 0.060, almost as large as the
+marginal spread, so it helps some frames far more than others. Pruning at 0.05
+moves it by 0.0007 with a paired SD of 0.0002, a consistent tax on every frame.
+Judged against the marginal spread the first looks significant and the second
+looks absent, when what actually separates them is homogeneity, not size.
+
+One near miss is worth recording. Pairing the antialiased run against the
+obvious partner made `rasterize_mode` look like a 0.083 LPIPS regression, which
+would have overturned a correct result. The run predates the seed point cloud
+landing in that scene directory, so the number was the seeding effect wearing a
+different label. Timestamps caught it. Against its actual control the difference
+is 0.0016 with the sign splitting 3/5, and `rasterize_mode` stays free.
+
+## Would FID or KID do better?
+
+Worth separating the premise first: LPIPS is not one of the metrics that works.
+It scored 0.41, 0.34 and 0.51 in the three studies, at or below PSNR every time.
+What worked was DISTS at 0.73 and the no-reference video models above 0.93. The
+dividing line is not deep features against hand-built ones, since LPIPS and
+DISTS are both deep-feature metrics separated by 0.4 in correlation.
+
+FID and KID are a different kind of thing again. Both compare *distributions* of
+features between two sets of images rather than scoring one image against
+another, which gives them one property nothing else here has: they need no
+correspondence between the sets. An A/B of two orbits has no per-frame ground
+truth, since a novel camera path has no photograph, and that is exactly why
+DISTS and CW-SSIM cannot be used on it. A set-level metric can compare the orbit
+renders against the original capture frames without any pose in common, which
+matches the delivery question directly. Does this exported asset still look like
+photographs of this scene?
+
+The one measurement available is MUGSQA's, which reports FID at 0.52 Spearman on
+its main set and 0.77 on its additional set, second best of everything it tried
+there. The gap between the two is informative. The main set spans 55 different
+objects; the additional set fixes 3 objects and varies the reconstruction method.
+A distribution metric compares content and quality at once, so when content
+varies it measures mostly content. Fixed content with varying settings is our
+case and is the regime where it did well.
+
+Sample size is the obstacle. FID fits a Gaussian to each set and estimates a
+2048-dimensional covariance, which on 11 eval frames has rank at most 10 and is
+meaningless. The bias is well documented, and the part that matters is that it
+depends on the model being scored, so evaluating two configurations at the same
+small n does not cancel it. Chong and Forsyth propose extrapolating to infinite
+samples to get around this; common practice is tens of thousands of images.
+
+KID is the answer to that. It replaces the Fréchet distance with a
+polynomial-kernel MMD that has an unbiased estimator and assumes nothing about
+the distribution, which is what makes it usable at small n. Variance still falls
+with sample size, but the bias does not depend on it, so a comparison at fixed
+small n means something. Between the two, KID is the one to reach for here.
+
+CMMD is the stronger version of the same idea. Jayasumana et al. argue FID fails
+on three counts at once, with Inception features too narrow for varied content,
+a normality assumption that does not hold, and poor sample complexity, and show
+it contradicting human raters and reordering itself as sample size changes.
+Their replacement keeps the MMD but swaps in CLIP embeddings and a Gaussian RBF
+kernel. Unbiased, distribution-free, sample efficient, and available as
+`clip-mmd`. If the goal is a feature-based distributional metric, this is the
+current best version of it.
+
+Three cautions before treating any of them as an answer.
+
+They give one number per set, so they cannot be paired the way everything in the
+table above was. Uncertainty has to come from bootstrapping over frames, and the
+paired comparison that made the pruning effect visible has no analogue.
+
+They are insensitive to exactly the errors a reconstruction makes. A render that
+is plausible but geometrically wrong scores well, because the feature
+distribution does not encode where anything is. This is a known failure in
+view-synthesis evaluation, where distribution metrics improve while frame to
+frame consistency gets worse.
+
+The natural reference set is our own capture frames, which contain the tourists.
+A model that correctly drops a transient gets penalised for not matching, the
+same bias already documented for the held-out frames.
+
+The honest recommendation is to test KID or CMMD as a companion, not a
+replacement, and to put it through the same ladder as everything else. Render a
+few hundred orbit frames per configuration, which costs nothing, use the capture
+frames as the reference set, and require it to order a degradation ladder
+correctly before asking it anything harder.
 
 ## What to measure instead
 
@@ -238,3 +357,14 @@ rather than settled until step 1 above runs on our own data.
 - GS-QA: [arXiv:2502.13196](https://arxiv.org/abs/2502.13196)
 - GGSC compression benchmark: [arXiv:2407.14197](https://arxiv.org/abs/2407.14197),
   code at [Qi-Yangsjtu/GGSC](https://github.com/Qi-Yangsjtu/GGSC)
+
+Distribution metrics:
+
+- KID: [arXiv:1801.01401](https://arxiv.org/abs/1801.01401), Bińkowski et al.,
+  the unbiased MMD estimator FID lacks
+- FID sample-size bias: [arXiv:1911.07023](https://arxiv.org/abs/1911.07023),
+  Chong and Forsyth
+- CMMD: [arXiv:2401.09603](https://arxiv.org/abs/2401.09603), Jayasumana et al.,
+  CLIP features plus MMD, packaged as `clip-mmd`
+- ImageNet class dependence of FID:
+  [arXiv:2203.06026](https://arxiv.org/abs/2203.06026), Kynkäänniemi et al.
