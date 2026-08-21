@@ -154,17 +154,33 @@ kept its sign across frames:
 
 Three things fall out.
 
-**Opacity pruning is not free.** At 0.05 it costs 0.0007 LPIPS on gaudi and
-0.0059 on r2d2, and the sign holds on every frame of both scenes, with PSNR and
-SSIM agreeing. The marginal spread is 70 times the gaudi effect, which is why it
-read as noise. The trade is still worth taking for a median 28% size cut. The
-verdict of "free" was not.
+**Opacity pruning produces a repeatable objective regression.** At 0.05 it moves
+LPIPS by 0.0007 on gaudi and 0.0059 on r2d2, and the sign holds on every frame
+of both scenes, with PSNR and SSIM agreeing. The marginal spread is 70 times the
+gaudi effect, which is why it read as noise.
 
-**PSNR and SSIM really are blind to the Gaussian budget.** This one survives
-pairing and gets stronger for it. Across both cap steps the PSNR interval
-contains zero and the sign splits 3/5, while LPIPS separates every step cleanly.
-Pairing removed the excuse that the effect was hiding in the noise: it is not
-there.
+Calling that a perceptual cost would repeat the mistake this document is about.
+Movement in these metrics is sensitivity, and their agreement with viewers runs
+around 0.5, so 0.0007 LPIPS is a measured change in a number and not a known
+change in what anyone sees. Whether it is worth a median 28% size cut is exactly
+the trade the paired-comparison experiment exists to settle, and until that runs
+the honest statement is that the filter has a small consistent effect on three
+objective metrics. The earlier verdict of "free" was wrong for a different and
+simpler reason: it was never measured.
+
+**PSNR and SSIM respond far more weakly to the Gaussian budget than LPIPS.**
+Across both cap steps the PSNR interval contains zero and the sign splits 3/5,
+while LPIPS separates every step cleanly. Measured against each metric's own
+paired noise, the 100k to 250k step moves LPIPS by 6.1 standard deviations, SSIM
+by 0.77, and PSNR by 0.001. PSNR and SSIM do not belong in the same sentence
+here: PSNR's response is about four orders of magnitude weaker than LPIPS's,
+while SSIM's is merely too weak to resolve on five frames.
+
+That is the defensible claim, and "blind" is not. Five frames failing to reject
+zero is not evidence of no effect, and the PSNR interval spans plus or minus
+0.24 dB, which is wide enough to contain changes that would matter. Saying the
+effect is absent needs an equivalence bound declared in advance and an interval
+that fits inside it, neither of which exists here.
 
 **Effects come in two kinds, and the marginal spread cannot tell them apart.**
 Seeding moves LPIPS by 0.081 with a paired SD of 0.060, almost as large as the
@@ -230,9 +246,14 @@ current best version of it.
 
 Three cautions before treating any of them as an answer.
 
-They give one number per set, so they cannot be paired the way everything in the
-table above was. Uncertainty has to come from bootstrapping over frames, and the
-paired comparison that made the pruning effect visible has no analogue.
+They give one number per set, so uncertainty has to come from bootstrapping over
+frames rather than from a per-frame difference. The pairing does survive that,
+as long as it is built in: two configurations rendered at the same orbit poses
+and scored against the same capture set share both sets of indices, so a
+replicate should resample the frame indices and the reference indices once and
+recompute the *difference* under that shared resampling. Bootstrapping the two
+estimates independently throws away the covariance, which is the thing that made
+a 0.0007 effect visible in the first place.
 
 They are insensitive to exactly the errors a reconstruction makes. A render that
 is plausible but geometrically wrong scores well, because the feature
