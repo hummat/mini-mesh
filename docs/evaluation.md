@@ -107,11 +107,15 @@ a fixed set of Gaussians. GS-QA evaluates SOG, but as a reconstruction *method*
 with spherical harmonics removed during training, not as a container applied
 afterwards. Nothing published covers our version of the question.
 
-**The frame-count experiment.** Currently running at 106/212/424 training views
-with a pinned held-out set. MUGSQA's view-quantity axis is the closest prior
-work, and it also scores with 2D metrics, so it inherits the same ceiling. The
-experiment is still worth reading, but a small LPIPS delta between 212 and 424
-should not decide anything.
+**The frame-count experiment.** Ran at 106 and 212 training views against a
+pinned 11-frame held-out set, and came back a tie: PSNR 20.05 against 20.10,
+SSIM 0.519 against 0.532, LPIPS 0.3645 against 0.3677, all inside a per-image
+spread of 0.063 to 0.070. Doubling the training views moved nothing, and moved
+LPIPS the wrong way. This null is the one least troubled by the correlation
+ceiling, since the gap is a twentieth of the noise rather than a close call, but
+it is still a statement about what three 2D metrics can see. MUGSQA's
+view-quantity axis is the closest prior work and it scores with 2D metrics too,
+so it inherits the same limit.
 
 ## What to measure instead
 
