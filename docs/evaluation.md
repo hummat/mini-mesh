@@ -39,12 +39,16 @@ They agree on the part that matters here: PSNR, SSIM and LPIPS all land near 0.5
 or below, and none of the three separates itself from the other two.
 
 The papers also report Kendall correlation, which converts to something more
-concrete. Ignoring ties, a metric with Kendall tau of t orders a random pair of
-stimuli the way a human would about (1+t)/2 of the time. On 3DGS-VBench that
-puts PSNR at 68%, LPIPS at 68% and DISTS at 76%. On 3DGS-QA, LPIPS drops to 64%.
-A coin flip is 50%. When we compare two configurations and one wins on LPIPS,
-the odds that a viewer agrees are closer to two in three than to a settled
-result.
+concrete. Ignoring ties, a metric with Kendall tau of t ranks a random pair of
+stimuli the way the averaged panel ranked them about (1+t)/2 of the time. On
+3DGS-VBench that puts PSNR at 68%, LPIPS at 68% and DISTS at 76%. On 3DGS-QA,
+LPIPS drops to 64%. A coin flip is 50%.
+
+Read that as agreement with a mean opinion score, not with any individual
+viewer. Per-viewer agreement is lower, since the panel average smooths out
+disagreement between people, and none of these papers reports the subject-level
+numbers that would pin it down. Either way, a metric that reproduces the panel's
+ordering two times in three is not settling a close call.
 
 ### What each study degraded
 
@@ -118,28 +122,52 @@ these models, so the numbers appear to be off-the-shelf pretrained weights
 applied to rendered videos. That is worth confirming against their code before
 leaning on it.
 
-If it holds, the recommendation is cheap to adopt. These models take a video,
-need no reference, and we already render orbit videos with `ns-render`. The
-change is one more step after export, not a new benchmark.
+If it holds, adopting it is cheap. These models take a video, need no reference,
+and we already render orbit videos with `ns-render`. The change is one more step
+after export, not a new benchmark.
+
+Adopting it on the strength of separation alone would repeat the mistake this
+document is about. A metric that moves when the configuration changes has shown
+sensitivity, and sensitivity is what LPIPS already has. What we need is
+agreement with a viewer, which takes stimuli whose perceptual ordering is
+established before the metric is asked about them.
 
 The proposed experiment, in order:
 
-1. Run DOVER on the orbit renders from the cap_max sweep already on disk. Four
-   configurations, one scene, no new training. If DOVER separates them where
-   PSNR and SSIM did not, the metric earns its place.
-2. Extend to the cleanup threshold sweep, which is the decision with the widest
-   per-scene spread and the least published coverage.
-3. Only then consider generating our own stimuli. MUGSQA covers the input axes
-   and released its data, so the gap worth filling is attribute-based pruning
-   and container quantisation at fixed training, which is a much smaller build
-   than a full synthetic benchmark.
+1. **Transfer check.** Build a ladder on one of our own scenes where the
+   ordering is not in doubt: training truncated at 2k, 5k, 10k and 30k steps, or
+   pruning at 25/50/75%, degradations large enough that anyone watching the
+   orbits agrees which is worse. Require DOVER to reproduce that order. Passing
+   shows the published 0.94 survives contact with our content and capture style;
+   it does not yet show the metric is useful on close calls. Failing kills it
+   outright, which is why this comes first and costs nothing.
+2. **The contested pairs.** Take the decisions we cannot currently settle, at
+   most a handful: cap_max 250k against 500k, cleanup at 0.05 against raw on a
+   scene where the filter takes 60%, 212 training views against 424. Render
+   orbits, present each pair side by side in randomised order without labels,
+   and record a forced choice. One rater is thin evidence, and it is still the
+   only direct evidence about the decisions we actually make; a published
+   correlation on someone else's stimuli is not a substitute.
+3. **Adopt or fall back.** If DOVER agrees with the forced choices, wire it in
+   after export and report it alongside `ns-eval`. If it disagrees, DISTS (0.73)
+   and CW-SSIM (0.74) are the next candidates and cost almost nothing to try. If
+   nothing agrees, the honest conclusion is that these calls are not
+   metric-decidable and we should pick on file size, which we can measure.
+4. **Build stimuli only if 1 to 3 leave a real gap.** MUGSQA covers the input
+   axes and released its data, so what would remain is attribute-based pruning
+   and container quantisation at fixed training. That is a much smaller build
+   than a full synthetic benchmark, and it needs its own subjective scores to be
+   worth anything, which is the expensive part.
 
 ## Caveats
 
-The correlations above are pooled across content. Predicting an absolute opinion
-score across 15 object types is harder than ranking two settings within one
-scene, so 0.5 is a lower bound on how much of our problem the metrics miss, not
-a direct estimate of how often our A/B comparisons are wrong.
+The correlations above are pooled across content, and our comparisons are not.
+Pooling mixes in differences between object types that have nothing to do with
+tuning, and the per-distortion breakdowns in both 3DGS-QA and MUGSQA do come out
+higher than the pooled figure, so a within-scene comparison may well be easier
+than 0.5 suggests. It may also be harder, because the settings we compare sit
+much closer together than the stimuli in these datasets. Nobody has measured it.
+Treat 0.5 as a reason to distrust close calls, not as an error rate for ours.
 
 DBCNN at 0.88 and GSOQA at 0.77 are trained or cross-validated on the same
 dataset they score. They are not drop-in metrics.
