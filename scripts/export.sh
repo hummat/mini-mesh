@@ -245,9 +245,10 @@ function show_help {
   echo "                              --appearance-mode <mean|index>            Appearance bake mode for splatfacto-w-light (default: mean)"
   echo "                              --appearance-idx <int>                    Camera index for appearance embedding"
   echo "                              --method <string[,string...]>             Export method(s): poisson, tsdf, pointcloud, orbit-frames (default: poisson for NeRF)"
-  echo "                              --obb-center <float float float>          Center of oriented bounding-box (default: 0 0 0)"
-  echo "                              --obb-rotation <float float float>        Rotation of oriented bounding-box (default: 0 0 0)"
-  echo "                              --obb-scale <float float float>           Scale of oriented bounding-box (default: 1 1 1)"
+  echo "                              --obb-center <float float float>          Center of crop box, turns cropping on (default: 0 0 0)"
+  echo "                              --obb-rotation <float float float>        Rotation of crop box, turns cropping on (default: 0 0 0)"
+  echo "                              --obb-scale <float float float>           Size of crop box, turns cropping on (default: 1 1 1)"
+  echo "                                                                        Nothing is cropped unless one of these is given"
   echo "                              --downscale-factor <int>                  Image downscale factor for TSDF extraction (default: 2)"
   echo "                              --no-clean                                Skip splat cleanup after export"
   echo "                              --clean-opacity <float>                   Drop Gaussians below this opacity (default: 0.05)"
@@ -290,9 +291,14 @@ clean_splat=true
 nerf_methods=()
 method_requested=false
 orbit_frames_requested=false
+# These are the values used when the user asks for a box, not a default box.
+# nerfstudio crops only when all three flags are given (exporter.py:619), so
+# passing them unconditionally would clip every export to a half-unit cube in a
+# frame the dataparser picked by auto-scaling the cameras.
 nerf_obb_center=(0 0 0)
 nerf_obb_rotation=(0 0 0)
 nerf_obb_scale=(1 1 1)
+nerf_obb_requested=false
 mesh_only=false
 texture_only=false
 input_mesh_filename=""
@@ -387,6 +393,7 @@ while [ $i -lt ${#export_args[@]} ]; do
       ;;
     --obb-center|--obb-rotation|--obb-scale)
       require_args "${export_args[$i]}" 3 "$remaining"
+      nerf_obb_requested=true
       case "${export_args[$i]}" in
         --obb-center)
           nerf_obb_center=("${export_args[$((i+1))]}" "${export_args[$((i+2))]}" "${export_args[$((i+3))]}")
@@ -448,6 +455,17 @@ while [ $i -lt ${#export_args[@]} ]; do
   esac
 done
 
+# One box for every exporter. Any single flag turns the box on and the other two
+# keep their values, since nerfstudio ignores a partial triplet entirely.
+nerf_obb_args=()
+if [ "$nerf_obb_requested" = true ]; then
+  nerf_obb_args=(
+    --obb-center "${nerf_obb_center[@]}"
+    --obb-rotation "${nerf_obb_rotation[@]}"
+    --obb-scale "${nerf_obb_scale[@]}"
+  )
+fi
+
 if [ -f "$exp_path/config.yml" ]; then
   if [[ ${#export_args[@]} -gt 0 ]]; then
     echo "[INFO]: Export args: ${export_args[*]}"
@@ -475,18 +493,14 @@ if [ -f "$exp_path/config.yml" ]; then
           run_cmd "$(nerfstudio_python)" "$script_dir/export_splatfactow.py" \
             --load-config "$exp_path/config.yml" \
             --output-dir "$exp_path" \
-            --obb-center "${nerf_obb_center[@]}" \
-            --obb-rotation "${nerf_obb_rotation[@]}" \
-            --obb-scale "${nerf_obb_scale[@]}" \
+            "${nerf_obb_args[@]}" \
             "${splatfactow_args[@]}" \
             "${nerf_args[@]}"
         else
           run_cmd ns-export gaussian-splat \
             --load-config "$exp_path/config.yml" \
             --output-dir "$exp_path" \
-            --obb-center "${nerf_obb_center[@]}" \
-            --obb-rotation "${nerf_obb_rotation[@]}" \
-            --obb-scale "${nerf_obb_scale[@]}" \
+            "${nerf_obb_args[@]}" \
             "${nerf_args[@]}"
         fi
         clean_splat_output "$nerf_output_path"
@@ -502,9 +516,7 @@ if [ -f "$exp_path/config.yml" ]; then
             run_cmd ns-export pointcloud \
               --load-config "$exp_path/config.yml" \
               --output-dir "$exp_path" \
-              --obb-center "${nerf_obb_center[@]}" \
-              --obb-rotation "${nerf_obb_rotation[@]}" \
-              --obb-scale "${nerf_obb_scale[@]}" \
+              "${nerf_obb_args[@]}" \
               --std-ratio 1 \
               "${nerf_args[@]}"
           elif [ "$method" = tsdf ]; then
@@ -520,9 +532,7 @@ if [ -f "$exp_path/config.yml" ]; then
               --load-config "$exp_path/config.yml" \
               --output-dir "$exp_path" \
               --save-point-cloud True \
-              --obb-center "${nerf_obb_center[@]}" \
-              --obb-rotation "${nerf_obb_rotation[@]}" \
-              --obb-scale "${nerf_obb_scale[@]}" \
+              "${nerf_obb_args[@]}" \
               --std-ratio 1 \
               --density-quantile 0.01 \
               "${nerf_args[@]}"

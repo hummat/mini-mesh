@@ -307,6 +307,12 @@ For NeRF/ngp models, request several exporters by repeating `--method` or using
 a comma-separated value, for example `export --method poisson,orbit-frames`. For SDF and splat models,
 `orbit-frames` is additive to the normal export.
 
+**Cropping:** nothing is cropped unless you ask. Passing any of `--obb-center`, `--obb-rotation`, or
+`--obb-scale` turns on an oriented box and the other two fall back to `0 0 0`, `0 0 0`, and `1 1 1`; nerfstudio
+ignores a partial triplet, so one flag has to supply all three. The box spans ±scale/2 about its centre, in the
+frame the dataparser produced by auto-scaling the cameras, which is not a frame you can guess: pick the numbers by
+looking at the result rather than by reasoning about the capture.
+
 **Splat cleanup:** every exported splat PLY goes through `scripts/clean_splat.py` before it lands on disk. Only the
 opacity filter runs by default, dropping Gaussians below 0.05. What that saves depends on the capture rather than on
 the settings: across 15 splatfacto-mcmc exports it removed between 4.9% and 62% of the Gaussians, median 28%. Object
