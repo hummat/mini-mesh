@@ -140,7 +140,11 @@ cancels in the differences. Re-running eval with per-frame output and testing
 the differences directly changes several verdicts.
 
 LPIPS, mean paired difference with a 95% interval, and how often the difference
-kept its sign across frames:
+kept its sign across frames. These intervals treat the frames as independent,
+which the section below shows is wrong for a walkthrough. It holds here because
+these are held-out eval frames, and nerfstudio's fraction split takes them as
+the complement of an evenly spaced training set: 23 frames apart on gaudi and 22
+on r2d2, further apart than the correlation length measured below.
 
 | Comparison | n | Mean diff | 95% CI | Paired SD | Marginal SD | Same sign |
 |---|---|---|---|---|---|---|
@@ -289,8 +293,9 @@ the capture photographs, on two scenes. CMMD uses CLIP ViT-L/14-336 features wit
 bicubic resize to 336 by 336; FID and KID use the standard 2048-d Inception
 pool3 features. Uncertainty comes from bootstrap replicates that resample the
 frame indices once per replicate and recompute the *difference* under that
-shared resampling. The ladder is the opacity pruning threshold at 0, 0.00392,
-0.01, 0.02, 0.05 and 0.1.
+shared resampling, in blocks of 20 consecutive frames for the reason set out
+under "What the intervals assume" below. The ladder is the opacity pruning
+threshold at 0, 0.00392, 0.01, 0.02, 0.05 and 0.1.
 
 The first rung is a free calibration check, and not by luck. 0.00392 is 1/255,
 which is the cutoff gsplat's rasterizer already applies: `alpha < 1.f / 255.f`
@@ -328,33 +333,32 @@ on the pair that renders byte-identical images.
 
 Steps, with an interval excluding zero marked R:
 
-| gaudi step      | ΔFID                    | ΔKID x1000              | ΔCMMD                     |
-| --------------- | ----------------------- | ----------------------- | ------------------------- |
-| 0 → 0.00392     | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] | +0.0000 [0.0000, 0.0000]  |
-| 0.00392 → 0.01  | -0.036 [-0.082, +0.004] | -0.037 [-0.072, -0.001] R | +0.0009 [-0.0006, +0.0023] |
-| 0.01 → 0.02     | -0.011 [-0.131, +0.118] | -0.054 [-0.165, +0.053] | -0.0000 [-0.0018, +0.0019] |
-| 0.02 → 0.05     | +0.722 [+0.330, +1.013] R | +0.071 [-0.352, +0.532] | +0.0133 [+0.0095, +0.0178] R |
-| 0.05 → 0.1      | +5.514 [+4.150, +6.863] R | +1.842 [+0.906, +2.822] R | +0.0622 [+0.0528, +0.0720] R |
+| gaudi step      | ΔFID                      | ΔKID x1000                | ΔCMMD                        |
+| --------------- | ------------------------- | ------------------------- | ---------------------------- |
+| 0 → 0.00392     | +0.000 [+0.000, +0.000]   | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
+| 0.00392 → 0.01  | -0.031 [-0.088, +0.030]   | -0.036 [-0.065, +0.010]   | +0.0010 [-0.0002, +0.0023]   |
+| 0.01 → 0.02     | -0.029 [-0.172, +0.100]   | -0.062 [-0.198, +0.035]   | +0.0000 [-0.0024, +0.0024]   |
+| 0.02 → 0.05     | +0.733 [+0.253, +1.339] R | +0.135 [-0.316, +0.762]   | +0.0136 [+0.0100, +0.0185] R |
+| 0.05 → 0.1      | +5.340 [+4.105, +6.951] R | +2.075 [+0.929, +3.961] R | +0.0637 [+0.0470, +0.0861] R |
 
-| r2d2 step       | ΔFID                       | ΔKID x1000              | ΔCMMD                       |
-| --------------- | -------------------------- | ----------------------- | --------------------------- |
-| 0 → 0.00392     | +0.000 [+0.000, +0.000]    | +0.000 [+0.000, +0.000] | +0.0000 [0.0000, 0.0000]    |
-| 0.00392 → 0.01  | +0.000 [-0.013, +0.011]    | -0.005 [-0.013, +0.003] | +0.0006 [-0.0007, +0.0019]  |
-| 0.01 → 0.02     | -0.052 [-0.138, +0.010]    | -0.059 [-0.104, -0.019] R | +0.0069 [+0.0039, +0.0099] R |
-| 0.02 → 0.05     | +1.724 [+1.189, +2.245] R  | +0.522 [+0.170, +0.875] R | +0.0750 [+0.0664, +0.0849] R |
-| 0.05 → 0.1      | +11.871 [+10.422, +13.009] R | +3.949 [+2.907, +4.969] R | +0.2477 [+0.2168, +0.2786] R |
+| r2d2 step       | ΔFID                         | ΔKID x1000                | ΔCMMD                        |
+| --------------- | ---------------------------- | ------------------------- | ---------------------------- |
+| 0 → 0.00392     | +0.000 [+0.000, +0.000]      | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
+| 0.00392 → 0.01  | +0.001 [-0.013, +0.012]      | -0.004 [-0.017, +0.008]   | +0.0006 [-0.0008, +0.0019]   |
+| 0.01 → 0.02     | -0.051 [-0.116, +0.009]      | -0.067 [-0.118, -0.024] R | +0.0071 [+0.0048, +0.0095] R |
+| 0.02 → 0.05     | +1.626 [+1.054, +2.246] R    | +0.561 [+0.135, +1.081] R | +0.0752 [+0.0627, +0.0877] R |
+| 0.05 → 0.1      | +12.001 [+9.925, +14.690] R  | +4.400 [+2.937, +6.391] R | +0.2511 [+0.2040, +0.2936] R |
 
-The coarse end is unanimous. Every metric resolves 0.05 to 0.1 in both scenes
-and all but one resolves 0.02 to 0.05, with intervals nowhere near zero.
+The coarse end is close to unanimous. Every metric resolves 0.05 to 0.1 in both
+scenes, and 0.02 to 0.05 goes the same way everywhere except KID on gaudi. The
+weakest of the resolved cases is FID on gaudi's 0.02 to 0.05 step, where the
+interval's near end still sits a third of the way to the estimate.
 
-The fine end does not sort them out. FID resolves nothing there. CMMD resolves
-one step, r2d2 0.01 to 0.02, in the direction of more pruning meaning more
-deviation. KID resolves two, gaudi 0.00392 to 0.01 and r2d2 0.01 to 0.02, both
-negative, both saying pruning moved the render nearer the photographs.
-
-On r2d2's 0.01 to 0.02 step KID reports -0.059 with an interval of
-[-0.104, -0.019] while CMMD reports +0.0069 with [+0.0039, +0.0099]: same
-images, same frames, both excluding zero, opposite signs. That is less damning
+The fine end resolves once, and the one time it does the metrics disagree about
+which way. On r2d2's 0.01 to 0.02 step KID reports -0.067 with an interval of
+[-0.118, -0.024] while CMMD reports +0.0071 with [+0.0048, +0.0095]: same
+images, same frames, both excluding zero, opposite signs. FID spans zero there,
+and on the other three fine steps all three metrics do. That is less damning
 than it first looks. KID measures a polynomial-kernel distance between Inception
 features and CMMD an RBF distance between CLIP features, so a change in the
 images can genuinely shorten one and lengthen the other. Nothing is being
@@ -382,6 +386,64 @@ rung then returns exactly zero and the frame bootstrap is the only source of
 uncertainty left. Every KID number above is computed that way, and anyone
 comparing two configurations with KID should do the same, or at minimum share
 the subset draws between them.
+
+#### What the intervals assume
+
+Every interval above comes from a moving-block bootstrap with a block length of
+20, which resamples runs of consecutive frames instead of individual ones. The
+frames are consecutive poses along a walkthrough, so neighbouring views share
+most of their content, and an i.i.d. resample treats them as independent
+observations and returns an interval narrower than the data supports.
+
+How much it costs splits the metrics in two, and the split is the useful part of
+the check. Interval width at block length 20 over width at block length 1:
+
+| statistic                         | ratio        |
+| --------------------------------- | ------------ |
+| LPIPS, a mean of per-frame values | 3.0 to 3.8   |
+| FID, KID and CMMD, set-level      | 0.89 to 1.72 |
+
+The three set-level metrics are not separable from each other on this: FID runs
+0.89 to 1.61, KID 1.06 to 1.67, CMMD 0.91 to 1.72, all overlapping. What
+separates them from LPIPS is that a mean of per-frame values is exactly what
+correlated neighbours inflate, while a statistic computed from the whole
+resampled set absorbs the correlation. So block resampling matters a great deal
+for the export-referenced LPIPS ladder below and barely at all for this section.
+
+It does not overturn the LPIPS ladder. Every rung there stays separated from its
+neighbours by more than the width of either interval, at the widest block length
+tried. The LPIPS widths were still climbing at 20, by 16 to 22% over block length
+10, so they are a lower bound rather than a converged answer.
+
+FID needed a second fix for an unrelated reason. Its bootstrap had been running
+25 replicates, because the textbook Frechet term needs the square root of a
+2048 by 2048 matrix, and 25 draws cannot support a 2.5th percentile. It does not
+need that square root. With n frames and n well below 2048 both covariances have
+rank at most n-1, so the nonzero eigenvalues of the product live in an n by n
+matrix built from the centred feature blocks, and the trace term is the sum of
+their square roots. The identity agrees with torchmetrics to three parts in a
+million, with the residual a constant offset that cancels in a difference, and
+400 replicates now cost less than 25 did.
+
+Two classifications moved between them, both from resolved to unresolved. KID
+resolved gaudi's 0.00392 to 0.01 step under the i.i.d. bootstrap, at -0.037 with
+[-0.072, -0.001], and does not under blocks, at -0.036 with [-0.065, +0.010].
+FID resolved r2d2's 0.01 to 0.02 step on 25 replicates, at -0.052 with
+[-0.098, -0.001], and does not on 400, at -0.051 with [-0.116, +0.009]. Neither
+estimate shifted; both intervals grew past zero, which is what the fine end
+looks like once the interval stops being optimistic.
+
+CMMD needed a third. The implementation here is Google's, which uses the biased
+V-statistic rather than the unbiased U-statistic, and its bias is not a constant
+that a difference can be relied on to cancel: the excess over the U-statistic is
+one minus the mean off-diagonal kernel similarity, divided by n, once per set,
+and that quantity depends on the configuration being scored. On this ladder it
+does not move. The excess is 0.0160 on gaudi and 0.0156 on r2d2, the same to
+four decimals across all six rungs, and the configuration-dependent factor
+varies only in the fifth decimal. Recomputing every step with the unbiased
+estimator shifts none of them by more than 0.0002 and leaves every
+classification standing: r2d2's 0.01 to 0.02 step reads +0.0071 with
+[+0.0048, +0.0095] biased and +0.0071 with [+0.0046, +0.0095] unbiased.
 
 #### How much of each is the sample count
 
@@ -426,9 +488,9 @@ sensitivity looks like. Calling it an error would need an equivalence bound
 declared in advance and an interval that fits inside it, which is the same thing
 this document demands before anyone calls PSNR blind. No such bound exists here.
 
-So the fine end ranks nobody. FID resolves nothing, CMMD resolves one step, KID
-resolves two, and which behaviour is correct depends on a threshold nobody has
-set.
+So the fine end ranks nobody. FID resolves nothing there, KID and CMMD resolve
+the same single step and disagree about its sign, and which behaviour is correct
+depends on a threshold nobody has set.
 
 What does separate them needs no labels, because it is about the estimators
 rather than the images. Two things, and the first version of one of them was
@@ -446,21 +508,22 @@ resampling, so the ratio of a step to that deviation compares estimators in
 spite of their different units. On the four steps where the renders genuinely
 differ:
 
-| step             | FID   | KID  | CMMD  |
-| ---------------- | ----- | ---- | ----- |
-| gaudi 0.02→0.05  | 4.15  | 0.31 | 6.32  |
-| gaudi 0.05→0.1   | 7.97  | 3.77 | 12.70 |
-| r2d2 0.02→0.05   | 6.40  | 2.90 | 15.90 |
-| r2d2 0.05→0.1    | 17.98 | 7.50 | 15.72 |
+| step             | FID  | KID  | CMMD  |
+| ---------------- | ---- | ---- | ----- |
+| gaudi 0.02→0.05  | 2.65 | 0.49 | 6.27  |
+| gaudi 0.05→0.1   | 7.35 | 2.68 | 6.39  |
+| r2d2 0.02→0.05   | 5.35 | 2.33 | 11.77 |
+| r2d2 0.05→0.1    | 9.87 | 4.99 | 10.98 |
 
 CMMD leads in three of the four and KID trails in all four, while FID takes the
-largest step on r2d2. That is the comparison this conclusion needed. An earlier
-version rested it on KID returning -6.4 at 36 frames, which does not support
-anything: a negative value is exactly what an unbiased U-statistic is entitled
-to produce, it bars reading that point estimate as an absolute distance, and it
-leaves untouched the paired differences the tables above are built from. CMMD's
-estimator is the biased V-statistic and nonnegative by construction, so never
-going negative is a property of its formula rather than evidence of stability.
+largest step on gaudi's coarsest. That is the comparison this conclusion
+needed. An earlier version rested it on KID returning -6.4 at 36 frames, which
+does not support anything: a negative value is exactly what an unbiased
+U-statistic is entitled to produce, it bars reading that point estimate as an
+absolute distance, and it leaves untouched the paired differences the tables
+above are built from. CMMD's estimator is the biased V-statistic and nonnegative
+by construction, so never going negative is a property of its formula rather
+than evidence of stability.
 
 The fine steps are left out of that table on purpose. A higher ratio there would
 mean only that an estimator separates images that barely differ, and whether
@@ -498,10 +561,10 @@ poses, per frame, LPIPS with a 95% interval on the mean:
 | --------- | ---------------------------- | ------- | ---------------------------- | ------- |
 | 0         | 0.00000 [0.00000, 0.00000]   | inf     | 0.00000 [0.00000, 0.00000]   | inf     |
 | 0.00392   | 0.00000 [0.00000, 0.00000]   | inf     | 0.00000 [0.00000, 0.00000]   | inf     |
-| 0.01      | 0.00005 [0.00005, 0.00005]   | 61.02   | 0.00002 [0.00002, 0.00002]   | 68.01   |
-| 0.02      | 0.00030 [0.00029, 0.00031]   | 53.41   | 0.00031 [0.00030, 0.00032]   | 57.02   |
-| 0.05      | 0.00322 [0.00313, 0.00331]   | 43.20   | 0.00775 [0.00756, 0.00793]   | 42.14   |
-| 0.1       | 0.02032 [0.01979, 0.02084]   | 34.01   | 0.05406 [0.05291, 0.05520]   | 31.59   |
+| 0.01      | 0.00005 [0.00005, 0.00006]   | 61.02   | 0.00002 [0.00002, 0.00002]   | 68.01   |
+| 0.02      | 0.00030 [0.00027, 0.00033]   | 53.41   | 0.00031 [0.00028, 0.00034]   | 57.02   |
+| 0.05      | 0.00322 [0.00291, 0.00353]   | 43.20   | 0.00775 [0.00715, 0.00834]   | 42.14   |
+| 0.1       | 0.02032 [0.01871, 0.02191]   | 34.01   | 0.05406 [0.05050, 0.05780]   | 31.59   |
 
 These are lossless renders. The first attempt used the q95 JPEGs the render
 script writes by default and produced 0.00085 and 0.00038 at the 0.01 rung,
@@ -517,9 +580,12 @@ everything as a constant floor: seventeen times at 0.01, six at 0.02, and still
 Every problem the distribution metrics had disappears. The ladder is monotone in
 both scenes. No neighbouring pair of intervals overlaps. The identity rung
 returns exactly zero with infinite PSNR, which is a fact rather than a
-calibration hope. Where FID, KID and CMMD each inverted somewhere and left the
-fine rungs unresolved, this separates all five rungs in both scenes, and the
-intervals are narrow enough that the separation is not close.
+calibration hope. Where FID and KID both invert on both scenes and all three
+leave the fine rungs unresolved, this separates all five rungs in both scenes,
+and the intervals are narrow enough that the separation is not close. CMMD
+orders the ladder correctly, which is the one thing at the fine end it does that
+the other two do not, though every fine step of that ordering sits inside an
+interval spanning zero.
 
 The reason is not that LPIPS is a better metric than CMMD. It is that the
 comparison is paired at the level of individual frames against an exact
