@@ -487,6 +487,22 @@ frames are consecutive poses along a walkthrough, so neighbouring views share
 most of their content, and an i.i.d. resample treats them as independent
 observations and returns an interval narrower than the data supports.
 
+Enough of the procedure to rerun it. Each replicate draws ceil(n/L) block
+starts uniformly from 0 to n-1, takes L consecutive indices from each with
+wraparound past the end of the sequence, concatenates them and truncates back
+to n. One index set per replicate indexes the configuration under test, the one
+it is compared against, and the reference set alike, so the pairing survives the
+resample. The reported difference is the mean over replicates, the interval is
+their 2.5th and 97.5th percentiles, and R marks an interval that does not
+contain zero. The set-level tables use 400 replicates, the per-frame LPIPS ones
+2000, and the walkthrough comparison quoted earlier 20000. Each run seeds one
+generator at 0 and draws every step of the ladder from it in sequence, so
+rerunning a single step alone reproduces its estimate but not its exact
+interval, and the endpoints move in their last quoted digit between generators
+anyway. FID uses the low-rank Frechet identity described below, KID the
+unbiased estimator on the full set with no subset averaging, and CMMD the
+V-statistic accumulated in float64.
+
 How much it costs splits the metrics in two, and the split is the useful part of
 the check. Interval width at block length 20 over width at block length 1:
 
@@ -789,10 +805,19 @@ The proposed experiment, in order:
    apart" is both a likely outcome and a useful one, since it means ship the
    smaller file.
 
-   Show every pair at least twice, separated. The repeat is not padding: it
-   measures how often the rater agrees with themselves, which caps how much
-   agreement any metric could show. A pair the rater flips on is a pair no
-   metric can be scored against.
+   Show every pair three times, separated. The repeats are not padding: they
+   measure how often the rater agrees with themselves, which caps how much
+   agreement any metric could show. Two showings cannot establish that. A
+   rater guessing on a pair they see no difference in still repeats the same
+   answer about a third of the time when there are three responses to choose
+   from, and every one of those accidents would enter the next step as a
+   label. Requiring all three showings to agree drops that floor to one in
+   nine, and what it filters out is concentrated in the close pairs, which are
+   the ones the exercise is about. Report the raw agreement rate next to the
+   floor. A rate near it on the close pairs says the rater cannot separate
+   them at all, which answers the question without a metric and means no
+   metric can be validated on them either. A pair the rater flips on is a pair
+   no metric can be scored against.
 3. **Select on one half, validate on the other.** Split the pairs into a
    selection set and a held-out set before looking at any of them. Use the
    selection set to pick a metric, then score the winner once on the held-out
