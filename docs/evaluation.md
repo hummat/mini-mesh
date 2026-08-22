@@ -195,7 +195,12 @@ obvious partner made `rasterize_mode` look like a 0.083 LPIPS regression, which
 would have overturned a correct result. The run predates the seed point cloud
 landing in that scene directory, so the number was the seeding effect wearing a
 different label. Timestamps caught it. Against its actual control the difference
-is 0.0016 with the sign splitting 3/5, and `rasterize_mode` stays free.
+is 0.0016 with the sign splitting 3/5 and an interval running from -0.004 to
++0.007. That does not make `rasterize_mode` free, which is the same error this
+document objects to two paragraphs above: effects as large as either endpoint
+are still compatible with five frames. The honest statement is that the
+comparison is unresolved, and calling it free needs an equivalence bound set in
+advance with the whole interval inside it.
 
 ## Would FID or KID do better?
 
