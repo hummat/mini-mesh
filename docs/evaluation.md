@@ -224,8 +224,12 @@ the estimand swapped under cover of a caveat.
 
 So the honest position on seeding is three-part. On training views the effect is
 large and resolved. On held-out views the five-frame test does not resolve it
-once dependence is accounted for. And the direction is the same at 10k and 30k
-steps, which is weak corroboration rather than strong, because both readings
+under the sensitivity adjustment above, which is weaker than it sounds: that
+adjustment borrows its autocorrelation from the training-view sequence, and a
+set of poses the model was fitted to can differ from one it was not in
+covariance as easily as in mean. Nothing here estimates dependence from held-out
+frames, because five of them cannot. And the direction is the same at 10k and
+30k steps, which is weak corroboration rather than strong, because both readings
 come from the same five frames: the 0.468 to 0.387 gap at 10k is the -0.081
 paired difference above written as levels, not a second measurement.
 
@@ -690,9 +694,13 @@ separate, so the contamination grows with the rung instead of sitting under
 everything as a constant floor: seventeen times at 0.01, six at 0.02, and still
 1.7 at 0.05. Write PNG for any render-against-render comparison.
 
-Every problem the distribution metrics had disappears. The ladder is monotone in
-both scenes. No neighbouring pair of intervals overlaps. The identity rung
-returns exactly zero with infinite PSNR, which is a fact rather than a
+Every problem the distribution metrics had at the fine end disappears. The pose
+question is not one of them: those were scored on the same capture poses, and
+the difference is that they could not have been scored anywhere else, since the
+photographs only exist where someone stood. This comparison could be, and has
+not been. The ladder is monotone in both scenes. No neighbouring pair of
+intervals overlaps. The identity rung returns exactly zero with infinite PSNR,
+which is a fact rather than a
 calibration hope. Where FID and KID both invert on both scenes and the three of
 them together resolve one fine step out of eight, this separates all five rungs
 in both scenes, and the intervals are narrow enough that the separation is not
@@ -702,12 +710,18 @@ resolves in the opposite direction.
 
 The reason is not that LPIPS is a better metric than CMMD. It is that the
 comparison is paired at the level of individual frames against an exact
-reference, so nothing has to be estimated from a sample of 112 images. The
-question changed, and the easier question has a much better answer.
+reference, so two of the three things the set metrics estimate stop being
+estimated: the reference is the pre-transform render rather than a photograph,
+and the quantity is a per-frame difference rather than a distance between two
+fitted distributions. The third remains. The mean over poses is still a sample
+average over 112 correlated cameras, which is why it carries a bootstrap
+interval and why the choice of poses matters. The question changed, and the
+easier question has a much better answer, but it is not an exact one.
 
 What it buys is a real decision. Both scenes start from a 1M cap. Pruning at
 0.05 leaves 628k Gaussians on gaudi and 619k on r2d2, a cut of roughly 38% in
-both, and moves the delivered image by 0.0032 and 0.0078 LPIPS at 42 to 43 dB.
+both, and moves the image at the capture poses by 0.0032 and 0.0078 LPIPS at 42
+to 43 dB.
 Pruning at 0.1 leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.020
 and 0.054 at around 32 dB.
 
