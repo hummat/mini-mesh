@@ -528,19 +528,51 @@ The three set-level metrics are not separable from each other on this: FID runs
 0.89 to 1.61, KID 1.06 to 1.67, CMMD 0.91 to 1.72, all overlapping. What
 separates them from LPIPS is that a mean of per-frame values is exactly what
 correlated neighbours inflate, while a statistic computed from the whole
-resampled set absorbs the correlation. So block resampling matters a great deal
-for the export-referenced LPIPS ladder below and barely at all for this section.
+resampled set carries less of it. So block resampling costs the
+export-referenced LPIPS ladder below a great deal of width and this section
+almost none.
+
+Width is not the whole story, and stopping at 20 was a choice, so the set-level
+metrics got the same sweep out to 100. Their widths peak between 5 and 40
+depending on the step and shrink from 60 on, the same collapse the LPIPS ladder
+shows, so a long block is not a conservative block here either. Out to 40 no
+coarse verdict moves. The 0.02 to 0.05 and 0.05 to 0.1 steps stay resolved for
+every metric on both scenes except KID on gaudi's 0.02 to 0.05, which stays
+unresolved, and r2d2's 0.01 to 0.02 stays resolved for KID and CMMD in opposite
+directions at every length tried. Past 40 the collapse starts
+manufacturing resolutions instead: r2d2's 0.01 to 0.02 turns resolved for FID at
+60, gaudi's 0.01 to 0.02 for KID at 100.
+
+The rest of the fine end is worse than the tables make it look. Gaudi's 0.00392
+to 0.01 KID interval has an endpoint sitting on zero and changes verdict at
+almost every block length tried: resolved at 1, 10, 30 and everything from 60
+up, unresolved at 5, 20 and 40. That step is not measuring anything. The coarse
+conclusions do not depend on the block length, and the fine ones, apart from
+r2d2's 0.01 to 0.02, were never conclusions.
 
 It does not overturn the LPIPS ladder, and the widths do not run away either.
 At 20 they were still climbing, 16 to 22% over block length 10, which left the
 question of where they stop. Pushing the ladder out to block lengths of 30, 40,
 60, 80 and 100 answers it: every rung peaks at 40, 7 to 17% wider than at 20,
-and falls back after. That is forced by the resampling rather than by the data.
-A wrapped block of length L covers a fixed fraction of the sequence whatever its
-start, so as L approaches n every replicate converges on the full-sample mean
-and the interval has to collapse. The reported intervals stay at block length
-20, where the set-level metrics were also measured, and 40 is the honest worst
-case.
+and falls back after. The fall is forced by the resampling rather than by the
+data. A wrapped block of length L covers a fixed fraction of the sequence
+whatever its start, so as L approaches n every replicate converges on the
+full-sample mean and the interval has to collapse.
+
+That makes 40 the widest this resampling can go, which is not the same as a
+bound on the uncertainty, so two checks that do not depend on the sweep. The
+Politis-White automatic block length lands between 17 and 23 on all eight
+non-degenerate rungs, below the peak rather than beyond it. A Newey-West
+variance with a Bartlett kernel, which does not resample at all, gives widths
+within 14% of the length-40 bootstrap on every rung, and wider than it on one.
+Three different treatments of the dependence agree to about a tenth.
+
+What none of them do is bound dependence that 112 and 147 frames cannot show.
+On simulated AR(1) series of the same length and first-order correlation the
+Politis-White selector recovers 44 to 60% of the block length the closed form
+asks for, so it is known to run short in this regime, and doubling what it
+selects lands back at the swept peak. The reported intervals stay at block
+length 20, where the set-level metrics were also measured.
 
 FID needed a second fix for an unrelated reason. Its bootstrap had been running
 25 replicates, because the textbook Frechet term needs the square root of a
@@ -747,12 +779,14 @@ intervals overlaps. The identity rung returns exactly zero with infinite PSNR,
 which is a fact rather than a
 calibration hope. Where FID and KID both invert on both scenes and the three of
 them together resolve one fine step out of eight, this separates all five rungs
-in both scenes, and the separation holds at the block length where the intervals
-are widest. At 40 the tightest neighbouring gap is 2.6 times the wider of the
-two intervals on gaudi and 3.2 times on r2d2, and no pair comes closer than that
-at any block length from 1 to 100. CMMD does better than the other two at the
-fine end: it orders both ladders correctly, and it resolves r2d2's 0.01 to 0.02
-step, which KID also resolves in the opposite direction.
+in both scenes, and the separation survives every treatment of the dependence
+tried. The tightest neighbouring gap is 2.6 times the wider of the two intervals
+at the block length where the resampling is widest, 2.7 under a Newey-West
+variance at a bandwidth of 40, and no pair comes closer at any block length from
+1 to 100. Closing the tightest of those gaps takes a factor of 2.6 in width,
+against the tenth that separates the three treatments. CMMD does better than the
+other two at the fine end: it orders both ladders correctly, and it resolves
+r2d2's 0.01 to 0.02 step, which KID also resolves in the opposite direction.
 
 The reason is not that LPIPS is a better metric than CMMD. It is that the
 comparison is paired at the level of individual frames against an exact
@@ -926,3 +960,14 @@ Distribution metrics:
   CLIP features plus MMD, packaged as `clip-mmd`
 - ImageNet class dependence of FID:
   [arXiv:2203.06026](https://arxiv.org/abs/2203.06026), Kynkäänniemi et al.
+
+Resampling under dependence:
+
+- Politis and White, "Automatic Block-Length Selection for the Dependent
+  Bootstrap", Econometric Reviews 23(1), 53-70, 2004, with the correction in
+  Patton, Politis and White, Econometric Reviews 28(4), 372-375, 2009
+  ([PDF](https://public.econ.duke.edu/~ap172/Politis_White_2004.pdf),
+  [correction](https://public.econ.duke.edu/~ap172/Patton_Politis_White_2009.pdf))
+- Newey and West, "A Simple, Positive Semi-Definite, Heteroskedasticity and
+  Autocorrelation Consistent Covariance Matrix", Econometrica 55(3), 703-708,
+  1987
