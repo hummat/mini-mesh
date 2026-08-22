@@ -205,34 +205,41 @@ reaches zero at a width factor of 1.095, which sits between the two: [-0.145,
 The row should not be read as resolving anything, and the reason is dependence
 rather than sample size.
 
-That is a statement about this test, not about seeding, and the full walkthrough
-settles it without needing any of the estimates above. Rendering both
-configurations over all 112 frames and moving-block bootstrapping the mean gives
--0.0714 with [-0.098, -0.045] at block length 20 and [-0.102, -0.041] at 40,
-excluding zero at every block length tried. That interval needs no effective
-sample size and no autocorrelation sum: the resampling carries the dependence
-itself. The same treatment resolves both pruning comparisons at every block
-length as well, at +0.00054 [+0.00029, +0.00078] on gaudi and +0.00430
-[+0.00395, +0.00463] on r2d2. Seeding also moves LPIPS from 0.468 to 0.387 at
-10k steps and 0.341 to 0.282 at 30k. The effect is not in doubt. What the
-five-frame interval could carry is.
+A longer sequence is available, but it answers a different question. Rendering
+both configurations over all 112 training views and moving-block bootstrapping
+the mean gives -0.0714 with [-0.098, -0.045] at block length 20 and
+[-0.102, -0.041] at 40, excluding zero at every block length tried, and the same
+treatment resolves both pruning comparisons at every block length: +0.00054
+[+0.00029, +0.00078] on gaudi and +0.00430 [+0.00395, +0.00463] on r2d2. Those
+intervals need no effective sample size and no autocorrelation sum, because the
+resampling carries the dependence itself.
 
-Which points at the fix rather than the caveat. Every one of these comparisons
-has a full walkthrough available, so the eval-split table is a five-frame
-estimate of something 112 frames can measure directly. The block-bootstrapped
-full-sequence figures are the ones to trust, with the standing caveat that they
-score training views and so understate every degradation.
+They are not substitutes for the rows above. A training view is one the model
+was fit to, so an effect can be large and precisely estimated there while doing
+nothing for a pose the model never saw. Seeding is the case where that matters
+most, since better initial geometry could plausibly show up as a tighter fit to
+the views it was fitted on. The training-view interval is evidence about
+training views; treating a narrow one as settling the held-out question would be
+the estimand swapped under cover of a caveat.
 
-Three caveats. A dependence-robust interval computed from the eval frames alone,
+So the honest position on seeding is three-part. On training views the effect is
+large and resolved. On held-out views the five-frame test does not resolve it
+once dependence is accounted for. And the direction is the same at 10k and 30k
+steps, which is weak corroboration rather than strong, because both readings
+come from the same five frames: the 0.468 to 0.387 gap at 10k is the -0.081
+paired difference above written as levels, not a second measurement.
+
+Settling it needs more held-out frames, which needs a pinned eval set rather
+than a fraction split. That is the `eval_mode=filename` rerun already
+outstanding for the frame-count experiment, and it would fix both.
+
+Two caveats. A dependence-robust interval computed from the eval frames alone,
 block or HAC, is not available at five and seven observations: it would need the
-same long-lag autocorrelations, estimated from even less. That is why the
-correction to the table is a sensitivity analysis while the full-sequence
-figures above are a block bootstrap, and why the second is the one to lean on.
-The three comparisons measured here are the pruning pair on both scenes and the
-seeding pair on gaudi; the cap and `rasterize_mode` rows have no full-sequence
-figure and are assumed to sit inside the same range, which is untested. And all
-of this, autocorrelations and block intervals alike, comes from training views
-while the table scores held-out ones.
+same long-lag autocorrelations, estimated from even less. A sensitivity analysis
+is the ceiling, which is why the table cannot be repaired in place. And the
+three comparisons measured here are the pruning pair on both scenes and the
+seeding pair on gaudi; the cap and `rasterize_mode` rows have no autocorrelation
+of their own and are assumed to sit inside the same range, which is untested.
 
 Three things fall out.
 
@@ -652,7 +659,16 @@ metric.
 The section above ends by arguing that the pre-transform export is the better
 reference for anything applied after training. That is cheap to test, since the
 renders already exist. Each rung scored against the unpruned render at the same
-poses, per frame, LPIPS with a 95% interval on the mean:
+poses, per frame, LPIPS with a 95% interval on the mean.
+
+One thing the poses are not: an orbit. The argument for this reference includes
+that it works along the delivery camera path, and that remains an argument.
+These numbers come from the capture poses, because those are the renders already
+on disk. Whether a transform moves the image more or less at viewpoints away
+from the capture is a question this table does not answer, and pruning is a
+plausible place for it to differ, since a Gaussian that is edge-on from the
+capture is not edge-on from everywhere. Rendering the same rungs along an orbit
+would settle it and costs one more render pass.
 
 | threshold | gaudi LPIPS vs unpruned      | PSNR dB | r2d2 LPIPS vs unpruned       | PSNR dB |
 | --------- | ---------------------------- | ------- | ---------------------------- | ------- |
