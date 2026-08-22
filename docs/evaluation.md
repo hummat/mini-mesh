@@ -1021,12 +1021,21 @@ The proposed experiment, in order:
    rater who splits the three responses evenly and answers each showing
    independently of the last, and no one does the first. Estimate it from the
    rater's own marginal frequencies instead, as the chance that three
-   independent draws from those frequencies agree, which is p_left cubed plus
-   p_right cubed plus p_none cubed. A rater who answers "no difference" most of
-   the time pushes that well above a ninth, and separating the showings in time
-   reduces the correlation between them without removing it, so even the
-   estimate is a floor rather than the rate. Report the observed unanimity rate
-   against it. A rate near the floor on the close pairs says the rater is not
+   independent draws from those frequencies agree, which is p_A cubed plus p_B
+   cubed plus p_none cubed. Those marginals are over the configuration the
+   answer named, not over the side it was on, for the same reason the answers
+   themselves are recorded that way: sides are redrawn at every showing, so a
+   rater who always clicks left has p_left of 1 and a side-based floor of 1,
+   while the labels their clicks actually produce are an even split between the
+   two configurations and unanimous a quarter of the time. A quarter is the
+   floor that rater's data supports, and it is what "a fixed-side habit looks
+   like guessing" means once it is a number. A rater who answers "no
+   difference" most of the time pushes the floor well above a ninth in the
+   other direction, and separating the showings in time reduces the correlation
+   between them without removing it, so even the estimate is a floor rather
+   than the rate. Report the observed unanimity rate against it, and report the
+   side marginals too: they diagnose the habit that the configuration marginals
+   absorb. A rate near the floor on the close pairs says the rater is not
    separating them, which answers the question without a metric and means no
    metric can be validated on them either. A pair the rater flips on is a pair
    no metric can be scored against.
