@@ -7,8 +7,9 @@ images and decorrelate as the images separate, so the contamination grows with
 the effect being measured instead of sitting under it as a constant floor. At
 q95 the encoder's own error measured 0.00795 LPIPS and 48.5 dB, against renders
 that differ from each other by 61 to 68 dB, which inflated a pruning ladder by
-up to 19x. The default here is q100 rather than q95, so it is better than that
-and still lossy and still unmeasured. See docs/evaluation.md.
+up to 19x. The q100 default here is not reliably safer: PSNR improves with the
+quality setting but LPIPS does not, and on one of the two scenes measured q100
+scores worse than q95. See docs/evaluation.md.
 """
 
 from __future__ import annotations

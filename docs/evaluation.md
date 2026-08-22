@@ -828,10 +828,16 @@ source puts the encoder's error at 0.00795 LPIPS and 48.5 dB on r2d2, 0.00597
 and 46.0 dB on gaudi. None of that comes from the rendering: the JPEG pass is
 byte for byte identical to those re-encodings on all 147 and 112 frames, so both
 passes drew the same pixels and the encoder is the only thing left between them.
-The repository's own orbit renderer defaults to quality 100, so 0.00795 bounds
-what that default costs rather than measuring it. Against a photograph the
-number is nothing, since renders sit around 22 dB from those, and against
-another render at 61 to 68 dB it is overwhelming. The artifacts
+The repository's own orbit renderer defaults to quality 100, which is a
+different setting and not a safer one. Encoding the same frames across the range
+gives LPIPS of 0.01941, 0.01084, 0.00795, 0.00802 and 0.00843 on r2d2 at q80,
+q90, q95, q98 and q100, and 0.01954, 0.00983, 0.00597, 0.00430 and 0.00396 on
+gaudi. PSNR climbs with the setting on both scenes, 44.7 to 50.4 dB and 41.7 to
+49.4 dB, and LPIPS does not: on r2d2 it bottoms out at q95 and rises again, so
+the q100 default costs 6% more LPIPS than q95 while writing files 2.2 times the
+size. The two scenes disagree about the direction, which is the point. Against a
+photograph the number is nothing, since renders sit around 22 dB from those, and
+against another render at 61 to 68 dB it is overwhelming. The artifacts
 mostly cancel between two nearly identical images and decorrelate as the images
 separate, so the contamination grows with the rung instead of sitting under
 everything as a constant floor: seventeen times at 0.01, six at 0.02, and still
@@ -979,10 +985,17 @@ The proposed experiment, in order:
 
    Three outcomes are worth naming ahead of time. A metric clears the threshold,
    which makes it a candidate rather than a default. Nothing clears it, which
-   means these calls are not metric-decidable for us and file size decides. Or
-   the rater is mostly indifferent, which settles the underlying question
-   without a metric: if 250k and 500k are indistinguishable on an orbit, ship
-   250k.
+   means these calls cannot be automated with these candidates. Or the rater is
+   mostly indifferent, which settles the underlying question without a metric:
+   if 250k and 500k are indistinguishable on an orbit, ship 250k.
+
+   The second outcome is not a licence to ship the smaller file. A metric can
+   fail by mispredicting preferences the rater expressed unanimously, and those
+   preferences do not evaporate when the metric that was supposed to reproduce
+   them does. Where a pair drew a stable preference, follow it. File size
+   decides the pairs the rater could not separate and the pairs never rated,
+   and pairs that matter and stay unresolved are an argument for rating more of
+   them rather than for a tiebreaker.
 
    With one rater all three are statements about that rater, and none is a
    statement about viewers. Repeats measure whether a rater agrees with
