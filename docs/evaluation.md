@@ -212,8 +212,9 @@ correspondence between the sets. An A/B of two orbits has no per-frame ground
 truth, since a novel camera path has no photograph, and that is exactly why
 DISTS and CW-SSIM cannot be used on it. A set-level metric can compare the orbit
 renders against the original capture frames without any pose in common, which
-matches the delivery question directly. Does this exported asset still look like
-photographs of this scene?
+looks like the delivery question. Does this exported asset still look like
+photographs of this scene? That framing is what motivated the rest of this
+section, and it does not survive it.
 
 The one measurement available is MUGSQA's, which reports FID at 0.52 Spearman on
 its main set and 0.77 on its additional set, second best of everything it tried
@@ -568,6 +569,13 @@ Treat 0.5 as a reason to distrust close calls, not as an error rate for ours.
 
 DBCNN at 0.88 and GSOQA at 0.77 are trained or cross-validated on the same
 dataset they score. They are not drop-in metrics.
+
+Every render behind the distribution-metric numbers is a JPEG at quality 95.
+That is well below the effects at the coarse end of the ladder and it is shared
+by every configuration, but at the fine end, where the differences approach the
+encoder's own error, some of what those metrics failed to resolve may be the
+encoding rather than the estimator. Any rerun aimed at the fine rungs should
+write PNG.
 
 3DGS-QA reports FAST-VQA at 0.29 while 3DGS-VBench reports 0.93. The two
 datasets contain different distortions and different content, and neither paper
