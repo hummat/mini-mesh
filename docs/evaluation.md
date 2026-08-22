@@ -321,12 +321,12 @@ settles.
 
 | rung    | gaudi FID | gaudi KID x1000 | gaudi CMMD | r2d2 FID | r2d2 KID x1000 | r2d2 CMMD |
 | ------- | --------- | --------------- | ---------- | -------- | -------------- | --------- |
-| 0       | 62.68     | 16.553          | 0.4553     | 35.83    | 4.214          | 0.6908    |
-| 0.00392 | 62.68     | 16.553          | 0.4553     | 35.83    | 4.214          | 0.6908    |
-| 0.01    | 62.65     | 16.515          | 0.4563     | 35.82    | 4.209          | 0.6911    |
-| 0.02    | 62.63     | 16.460          | 0.4562     | 35.78    | 4.150          | 0.6984    |
-| 0.05    | 63.33     | 16.507          | 0.4696     | 37.29    | 4.649          | 0.7730    |
-| 0.1     | 68.10     | 18.200          | 0.5312     | 47.86    | 8.384          | 1.0171    |
+| 0       | 62.68     | 16.553          | 0.4554     | 35.83    | 4.214          | 0.6907    |
+| 0.00392 | 62.68     | 16.553          | 0.4554     | 35.83    | 4.214          | 0.6907    |
+| 0.01    | 62.65     | 16.515          | 0.4563     | 35.82    | 4.209          | 0.6913    |
+| 0.02    | 62.63     | 16.460          | 0.4563     | 35.78    | 4.150          | 0.6984    |
+| 0.05    | 63.33     | 16.507          | 0.4695     | 37.29    | 4.649          | 0.7730    |
+| 0.1     | 68.10     | 18.200          | 0.5312     | 47.86    | 8.384          | 1.0172    |
 
 All three pass the null rung exactly, returning zero with a zero-width interval
 on the pair that renders byte-identical images.
@@ -337,17 +337,17 @@ Steps, with an interval excluding zero marked R:
 | --------------- | ------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]   | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
 | 0.00392 → 0.01  | -0.031 [-0.088, +0.030]   | -0.036 [-0.065, +0.010]   | +0.0010 [-0.0002, +0.0023]   |
-| 0.01 → 0.02     | -0.029 [-0.172, +0.100]   | -0.062 [-0.198, +0.035]   | +0.0000 [-0.0024, +0.0024]   |
-| 0.02 → 0.05     | +0.733 [+0.253, +1.339] R | +0.135 [-0.316, +0.762]   | +0.0136 [+0.0100, +0.0185] R |
-| 0.05 → 0.1      | +5.340 [+4.105, +6.951] R | +2.075 [+0.929, +3.961] R | +0.0637 [+0.0470, +0.0861] R |
+| 0.01 → 0.02     | -0.029 [-0.172, +0.100]   | -0.062 [-0.198, +0.035]   | +0.0000 [-0.0023, +0.0023]   |
+| 0.02 → 0.05     | +0.733 [+0.253, +1.339] R | +0.135 [-0.316, +0.762]   | +0.0136 [+0.0099, +0.0184] R |
+| 0.05 → 0.1      | +5.340 [+4.105, +6.951] R | +2.075 [+0.929, +3.961] R | +0.0637 [+0.0470, +0.0862] R |
 
 | r2d2 step       | ΔFID                         | ΔKID x1000                | ΔCMMD                        |
 | --------------- | ---------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]      | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
-| 0.00392 → 0.01  | +0.001 [-0.013, +0.012]      | -0.004 [-0.017, +0.008]   | +0.0006 [-0.0008, +0.0019]   |
-| 0.01 → 0.02     | -0.051 [-0.116, +0.009]      | -0.067 [-0.118, -0.024] R | +0.0071 [+0.0048, +0.0095] R |
-| 0.02 → 0.05     | +1.626 [+1.054, +2.246] R    | +0.561 [+0.135, +1.081] R | +0.0752 [+0.0627, +0.0877] R |
-| 0.05 → 0.1      | +12.001 [+9.925, +14.690] R  | +4.400 [+2.937, +6.391] R | +0.2511 [+0.2040, +0.2936] R |
+| 0.00392 → 0.01  | +0.001 [-0.013, +0.012]      | -0.004 [-0.017, +0.008]   | +0.0006 [-0.0007, +0.0018]   |
+| 0.01 → 0.02     | -0.051 [-0.116, +0.009]      | -0.067 [-0.118, -0.024] R | +0.0072 [+0.0048, +0.0096] R |
+| 0.02 → 0.05     | +1.626 [+1.054, +2.246] R    | +0.561 [+0.135, +1.081] R | +0.0752 [+0.0624, +0.0876] R |
+| 0.05 → 0.1      | +12.001 [+9.925, +14.690] R  | +4.400 [+2.937, +6.391] R | +0.2511 [+0.2039, +0.2937] R |
 
 The coarse end is close to unanimous. Every metric resolves 0.05 to 0.1 in both
 scenes, and 0.02 to 0.05 goes the same way everywhere except KID on gaudi. The
@@ -356,7 +356,7 @@ interval's near end still sits a third of the way to the estimate.
 
 The fine end resolves once, and the one time it does the metrics disagree about
 which way. On r2d2's 0.01 to 0.02 step KID reports -0.067 with an interval of
-[-0.118, -0.024] while CMMD reports +0.0071 with [+0.0048, +0.0095]: same
+[-0.118, -0.024] while CMMD reports +0.0072 with [+0.0048, +0.0096]: same
 images, same frames, both excluding zero, opposite signs. FID spans zero there,
 and on the other three fine steps all three metrics do. That is less damning
 than it first looks. KID measures a polynomial-kernel distance between Inception
@@ -441,9 +441,21 @@ and that quantity depends on the configuration being scored. On this ladder it
 does not move. The excess is 0.0160 on gaudi and 0.0156 on r2d2, the same to
 four decimals across all six rungs, and the configuration-dependent factor
 varies only in the fifth decimal. Recomputing every step with the unbiased
-estimator shifts none of them by more than 0.0002 and leaves every
-classification standing: r2d2's 0.01 to 0.02 step reads +0.0071 with
-[+0.0048, +0.0095] biased and +0.0071 with [+0.0046, +0.0095] unbiased.
+estimator shifts none of them by more than 0.0007 and leaves every
+classification standing: r2d2's 0.01 to 0.02 step reads +0.0072 with
+[+0.0048, +0.0096] biased and +0.0071 with [+0.0047, +0.0095] unbiased.
+
+Checking that turned up a fourth thing, which has nothing to do with either
+objection. CMMD is 1000 times the difference of three kernel means that all sit
+within 0.001 of 1.0, so in float32 the cancellation quantises the answer at
+1000 times 2^-23, or 0.00012. Two independent float32 runs of the same
+computation on the same images disagreed by up to 0.00048, and against float64
+each is out by up to 0.00022. Every CMMD number in this document is now
+accumulated in float64. The steps mostly survived the change, because the shared
+reference term cancels between the two configurations, but the fine ones are
+small enough that they need not have: gaudi's 0.00392 to 0.01 step is 0.0010,
+eight of those quantisation units. Four decimals on a float32 CMMD value are
+three decimals of number and one of rounding.
 
 #### How much of each is the sample count
 
@@ -454,7 +466,7 @@ Each estimator on the unpruned run, at four frame counts:
 | 28     | 75.46     | 1.528     | 0.4377     | 36     | 43.44    | -6.431   | 0.6206    |
 | 56     | 70.06     | 14.060    | 0.4842     | 73     | 38.58    | 1.164    | 0.6754    |
 | 84     | 67.34     | 14.559    | 0.4561     | 110    | 37.60    | 3.887    | 0.7154    |
-| 112    | 62.68     | 16.553    | 0.4554     | 147    | 35.83    | 4.214    | 0.6906    |
+| 112    | 62.68     | 16.553    | 0.4554     | 147    | 35.83    | 4.214    | 0.6907    |
 
 FID falls monotonically as frames are added in both scenes, which is the bias
 Chong and Forsyth describe. The drift is 12.8 points on gaudi against a ladder
@@ -468,7 +480,9 @@ KID is worse in a different way. A single draw at 36 frames puts the r2d2 run at
 produce and which supports no ordering whatsoever. Unbiased in expectation is
 not the same as usable from one draw at this size. CMMD wanders least in
 relative terms but still moves more between 28 and 56 frames than the entire
-0.02 to 0.05 step it is being asked to detect.
+0.02 to 0.05 step it is being asked to detect. Its rows below the full frame
+count are float32 and carry the 0.0002 noted above, which is two orders of
+magnitude under the drift being discussed.
 
 Three limits apply to all of the above. These are training views, which the
 model was fit to, so they understate every degradation. The reference set is our
@@ -511,9 +525,9 @@ differ:
 | step             | FID  | KID  | CMMD  |
 | ---------------- | ---- | ---- | ----- |
 | gaudi 0.02→0.05  | 2.65 | 0.49 | 6.27  |
-| gaudi 0.05→0.1   | 7.35 | 2.68 | 6.39  |
-| r2d2 0.02→0.05   | 5.35 | 2.33 | 11.77 |
-| r2d2 0.05→0.1    | 9.87 | 4.99 | 10.98 |
+| gaudi 0.05→0.1   | 7.35 | 2.68 | 6.38  |
+| r2d2 0.02→0.05   | 5.35 | 2.33 | 11.69 |
+| r2d2 0.05→0.1    | 9.87 | 4.99 | 10.96 |
 
 CMMD leads in three of the four and KID trails in all four, while FID takes the
 largest step on gaudi's coarsest. That is the comparison this conclusion
