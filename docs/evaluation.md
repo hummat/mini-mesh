@@ -438,7 +438,7 @@ Steps, with an interval excluding zero marked R:
 | gaudi step      | ΔFID                      | ΔKID x1000                | ΔCMMD                        |
 | --------------- | ------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]   | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
-| 0.00392 → 0.01  | -0.028 [-0.097, +0.027]   | -0.039 [-0.072, -0.006] R | +0.0009 [-0.0002, +0.0022]   |
+| 0.00392 → 0.01  | -0.028 [-0.097, +0.027]   | -0.039 [-0.072, -0.006]   | +0.0009 [-0.0002, +0.0022]   |
 | 0.01 → 0.02     | -0.024 [-0.169, +0.107]   | -0.059 [-0.203, +0.048]   | -0.0000 [-0.0024, +0.0022]   |
 | 0.02 → 0.05     | +0.702 [+0.221, +1.409]   | +0.041 [-0.318, +0.793]   | +0.0132 [+0.0099, +0.0179] R |
 | 0.05 → 0.1      | +4.772 [+3.964, +6.823] R | +1.634 [+0.634, +3.528]   | +0.0618 [+0.0465, +0.0883] R |
@@ -454,22 +454,26 @@ Steps, with an interval excluding zero marked R:
 The coarse end belongs to CMMD and FID. CMMD resolves all four coarse steps,
 FID three of them, and the two agree on direction throughout. KID resolves one,
 r2d2's 0.05 to 0.1. An interval carries the R only where the percentile and the
-basic construction agree, and the step FID loses that way is gaudi's 0.02 to
-0.05: the percentile interval is [+0.221, +1.409] on an estimate of +0.702, and
-reflecting it about the estimate gives [-0.006, +1.182]. It crosses zero by less
-than a hundredth of the step. At 400 replicates it did not cross at all; four
-thousand put the upper tail further out and the reflected lower end followed it
-down through zero, which is what happens to a verdict that was never far from
-the line.
+basic construction agree and the block-length sweep does not overturn them, the
+two conditions set out under "What the intervals assume" below. The step FID
+loses on the first of them is gaudi's 0.02 to 0.05: the percentile interval is
+[+0.221, +1.409] on an estimate of +0.702, and reflecting it about the estimate
+gives [-0.006, +1.182]. It crosses zero by less than a hundredth of the step.
+At 400 replicates it did not cross at all; four thousand put the upper tail
+further out and the reflected lower end followed it down through zero, which is
+what happens to a verdict that was never far from the line.
 
-Two fine steps resolve, on different scenes and pointing opposite ways. CMMD
-takes r2d2's 0.01 to 0.02 at +0.0071 with [+0.0045, +0.0095], the pruning
-scoring worse. KID takes gaudi's 0.00392 to 0.01 at -0.039 with
-[-0.072, -0.006], the pruning scoring better, and that is the weakest resolution
-in either table: the near end of the interval sits at a sixth of the estimate,
-and the block-length check below is unkind to it. CMMD puts that same step at
-+0.0009, the other way, and does not resolve it. On the remaining fine steps
-every metric spans zero.
+The fine end resolves once, for CMMD, on r2d2's 0.01 to 0.02 step at +0.0071
+with [+0.0045, +0.0095]. FID spans zero there, and on the other three fine steps
+every metric does.
+
+One fine step nearly joins it and is worth naming because it does not. KID puts
+gaudi's 0.00392 to 0.01 at -0.039 with [-0.072, -0.006], reading the pruning as
+an improvement where CMMD reads +0.0009 the other way, and that interval clears
+zero under both constructions at the block length these tables use. It does not
+clear at every block length the sweep below tries, and there is no selector
+behind the choice of 20 for a set-level statistic, so the exclusion is a
+property of the resampling scheme and carries no R.
 
 The disagreement on r2d2's 0.01 to 0.02 step used to be sharper. KID gives
 -0.061 there on the same images and the same frames, and under the standard
@@ -477,7 +481,7 @@ estimator its interval excluded zero under both constructions, so two estimators
 were resolving one step in opposite directions. That was never a fact about the
 images. It came from the paired cross terms below, and once those are removed
 the basic interval reads [-0.098, +0.003] and only CMMD is left saying anything.
-What survives, on both that step and gaudi's fine one, is a weaker statement
+What survives, on that step and on gaudi's fine one, is a weaker statement
 worth keeping: a polynomial-kernel distance on Inception features and an RBF
 distance on CLIP features can move in opposite directions on the same change
 without either being wrong, so at most one of them tracks any single notion of
@@ -487,11 +491,10 @@ An earlier version of this section had FID resolving gaudi's 0.00392 to 0.01
 step as an improvement, and I read that as the metric misbehaving. It was the
 JPEG encoder, and it vanished when the renders were written losslessly. Worth
 recording, because a resolved interval on an artifact is the exact failure this
-document is about, produced while writing it. KID now resolves that same step in
-that same direction on the lossless renders, which is not the same finding: the
-images it is separating differ by the pruning and by nothing else. Whether a
-distance of 0.039 in KID units is worth separating is the question no bound
-here settles.
+document is about, produced while writing it. KID puts that same step in that
+same direction on the lossless renders, which is not the same failure: the
+images it is separating differ by the pruning and by nothing else. It is also
+not a finding, for the reason above.
 
 #### A flaw in the standard KID protocol
 
@@ -532,13 +535,13 @@ goes from +0.499 to +0.448 and its 0.05 to 0.1 from +3.735 to +3.521. The
 correction to the levels also shrinks as the rungs coarsen instead of holding
 constant, which is the configuration dependence showing up directly.
 
-It swaps which fine step KID resolves. With the paired terms in, r2d2's 0.01 to
-0.02 excludes zero under both constructions and gaudi's 0.00392 to 0.01 does
-not; with them out it is the other way round. The r2d2 step is the one that used
-to disagree with CMMD, and the disagreement was an artifact of the estimator.
-The tables above are the paired-U column throughout, which leaves KID resolving
-two of the eight steps, r2d2's 0.05 to 0.1 and gaudi's 0.00392 to 0.01, the
-second of them barely.
+It swaps which fine step KID excludes zero on. With the paired terms in, r2d2's
+0.01 to 0.02 excludes it under both constructions and gaudi's 0.00392 to 0.01
+does not; with them out it is the other way round. The r2d2 step is the one that
+used to disagree with CMMD, and the disagreement was an artifact of the
+estimator. Neither survives the block-length check, so the tables, which are the
+paired-U column throughout, leave KID resolving one of the eight steps, r2d2's
+0.05 to 0.1.
 
 FID is untouched. It uses each set's own mean and covariance and never forms a
 cross-set kernel, so there is no paired term in it to remove.
@@ -562,15 +565,23 @@ estimating the resampling expectation rather than the difference that was
 measured, and it would make the point estimate depend on the replicate count and
 the seed. The interval is the 2.5th and 97.5th percentile of the replicate
 differences. R marks a step that excludes zero under both interval
-constructions. The set-level tables use 4000 replicates, the per-frame LPIPS
-ones 2000, and the walkthrough comparison quoted earlier 20000. The set-level
-run seeds one generator per step rather than one per run, so the Inception pass
-and the CLIP pass, which need different environments and cannot share a process,
-still resample the same frames in the same order and the three columns of a row
-are one resample rather than three. FID uses the low-rank Frechet identity
-described below, KID the unbiased estimator on the full set with no subset
-averaging and with the paired cross terms dropped, and CMMD the V-statistic
-accumulated in float64.
+constructions at the block length reported and at every block length in the
+sweep below, which is the stricter rule the sweep forced: a verdict that appears
+only inside a band of block lengths is a property of the resampling scheme,
+since nothing here selects a block length for a set-level statistic the way
+Politis and White select one for a mean.
+
+The set-level tables use 4000 replicates, the per-frame LPIPS ones 2000, and the
+walkthrough comparison quoted earlier 20000. The set-level run seeds one
+generator per step rather than one per run, at 7000 plus the index of the step
+in ladder order counting from zero, so the Inception pass and the CLIP pass,
+which need different environments and cannot share a process, still resample the
+same frames in the same order and the three columns of a row are one resample
+rather than three. The block sweep seeds at 70000 plus 100 times the step index
+plus the block length, and the frame-count draws at 1100 plus the frame count.
+FID uses the low-rank Frechet identity described below, KID the unbiased
+estimator on the full set with no subset averaging and with the paired cross
+terms dropped, and CMMD the V-statistic accumulated in float64.
 
 Which point estimate gets reported is not a formality here. The replicates of a
 nonlinear statistic do not centre on the observed value, and the percentile
@@ -628,12 +639,13 @@ Two cases sit on the line rather than move around. r2d2's 0.01 to 0.02 KID step
 clears zero under the basic interval by 0.00014 at 2000 replicates and misses it
 by 0.0026 at 4000, same data and same block length, so the tables' unresolved
 verdict is the better tail estimate rather than a different finding. Gaudi's
-0.00392 to 0.01 KID step, the one the tables do mark, resolves under both
-constructions at every block length from 10 up and at none below: the i.i.d.
-bootstrap puts its upper end within 0.00001 of zero. Its interval also narrows
-monotonically as the blocks lengthen, from 0.081 at length 1 to 0.029 at 100, so
-that resolution is one the resampling scheme grants rather than one it survives.
-It is the weakest R in the document and nothing rests on it.
+0.00392 to 0.01 KID step excludes zero under both constructions at every block
+length from 10 up and at none below: the i.i.d. bootstrap puts its upper end
+within 0.00001 of zero. Its interval also narrows monotonically as the blocks
+lengthen, from 0.081 at length 1 to 0.029 at 100, so the exclusion is granted by
+the resampling scheme rather than survived. This is the case that set the rule
+above. It carries no R, and every step that does carries it at every block
+length tried.
 
 Past 40 the collapse manufactures resolutions outright: r2d2's 0.01 to 0.02
 turns resolved for FID at 60, gaudi's 0.00392 to 0.01 for CMMD at 80 and for FID
@@ -785,9 +797,9 @@ sensitivity looks like. Calling it an error would need an equivalence bound
 declared in advance and an interval that fits inside it, which is the same thing
 this document demands before anyone calls PSNR blind. No such bound exists here.
 
-So the fine end ranks nobody. FID resolves nothing there, CMMD resolves one
-step and KID another, in opposite directions on different scenes, and which of
-those is the right behaviour depends on a threshold nobody has set.
+So the fine end ranks nobody. FID and KID resolve nothing there, CMMD resolves
+one step, and which of those is the right behaviour depends on a threshold
+nobody has set.
 
 What does separate them needs no labels, because it is about the estimators
 rather than the images. Two things, and the first version of one of them was
