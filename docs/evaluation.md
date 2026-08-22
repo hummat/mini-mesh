@@ -1030,10 +1030,21 @@ The proposed experiment, in order:
    separating them, which answers the question without a metric and means no
    metric can be validated on them either. A pair the rater flips on is a pair
    no metric can be scored against.
-3. **Select on one half, validate on the other.** Split the pairs into a
-   selection set and a held-out set before looking at any of them. Use the
-   selection set to pick a metric, then score the winner once on the held-out
-   set.
+3. **Select on one half, validate on the other.** Split into a selection set
+   and a held-out set before looking at any of them, and split by scene rather
+   than by pair. These candidates score content, not just degradation, so two
+   comparisons from the same reconstruction ladder of the same scene are not
+   independent: put one in each half and the selection set has already shown
+   the metric the scene it will be validated on, which inflates the held-out
+   rate by exactly the amount the split was meant to remove. Every pair from a
+   scene goes in the same half. Use the selection set to pick a metric, then
+   score the winner once on the held-out set.
+
+   That is expensive at this scale. Two scenes buys a split of one against one,
+   which validates on a single scene and says nothing about the next one, so a
+   validation worth running needs more scenes than this document has, not more
+   pairs per scene. Splitting by pair to get around that does not produce a
+   weaker validation, it produces a number that cannot be read at all.
 
    The candidates have to be no-reference, because an A/B of two orbits has no
    ground truth to reference. A novel orbit path has no captured photo to
