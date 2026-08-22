@@ -683,10 +683,13 @@ would settle it and costs one more render pass.
 | 0.05      | 0.00322 [0.00291, 0.00353]   | 43.20   | 0.00775 [0.00715, 0.00834]   | 42.14   |
 | 0.1       | 0.02032 [0.01871, 0.02191]   | 34.01   | 0.05406 [0.05050, 0.05780]   | 31.59   |
 
-These are lossless renders. The first attempt used the q95 JPEGs the render
-script writes by default and produced 0.00085 and 0.00038 at the 0.01 rung,
-seventeen and nineteen times the truth. Encoding the same checkpoint twice and
-comparing the copies puts the encoder's own error at 0.00795 LPIPS and 48.5 dB,
+These are lossless renders. The first attempt wrote JPEG at quality 95, which is
+what the throwaway render script used for this experiment did, and produced
+0.00085 and 0.00038 at the 0.01 rung, seventeen and nineteen times the truth.
+The repository's own orbit renderer defaults to JPEG at quality 100, so the
+figure below is an upper bound on what that one costs rather than a measurement
+of it. Encoding the same checkpoint twice at q95 and comparing the copies puts
+the encoder's error at 0.00795 LPIPS and 48.5 dB,
 which is nothing against a photograph, since renders sit around 22 dB from
 those, and overwhelming against another render at 61 to 68 dB. The artifacts
 mostly cancel between two nearly identical images and decorrelate as the images
