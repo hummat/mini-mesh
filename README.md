@@ -311,7 +311,9 @@ Orbit frames are written as JPEG, which is what a web viewer wants. Frames that 
 renders need `export --method orbit-frames --orbit-image-format png`: JPEG error largely cancels between two
 near-identical images and decorrelates as they separate, so it grows with the effect being measured rather than
 sitting under it as a constant floor. `docs/evaluation.md` has the measurements. The flag reaches NeRF and splat
-orbits; `sdf-render` has no image format option and its frames stay JPEG.
+orbits; `sdf-render` has no image format option and its frames stay JPEG. A frame directory written in one
+format is not reused for the other: the export skips it and says so, and `--overwrite` clears the old frames
+before rendering rather than leaving a sequence that is part JPEG and part PNG.
 
 **Cropping:** nothing is cropped unless you ask. Passing any of `--obb-center`, `--obb-rotation`, or
 `--obb-scale` turns on an oriented box and the other two fall back to `0 0 0`, `0 0 0`, and `1 1 1`; nerfstudio

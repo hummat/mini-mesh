@@ -302,6 +302,7 @@ def build_pipeline_argv(
     export_enable: bool = False,
     export_resolution: Optional[int] = None,
     export_method: Optional[str] = None,
+    export_orbit_image_format: Optional[str] = None,
     export_marching_cube_threshold: Optional[float] = None,
     export_num_pixels_per_side: Optional[int] = None,
     export_target_num_faces: Optional[int] = None,
@@ -392,6 +393,7 @@ def build_pipeline_argv(
         export_enable: Enable export context
         export_resolution: Export resolution
         export_method: Export method (poisson, tsdf, pointcloud, orbit-frames)
+        export_orbit_image_format: Orbit frame format (jpeg, png)
         export_marching_cube_threshold: Marching cubes isosurface threshold
         export_num_pixels_per_side: Texture resolution in pixels per side
         export_target_num_faces: Target number of faces for simplification
@@ -622,6 +624,8 @@ def build_pipeline_argv(
             cmd_parts.extend(["--resolution", str(export_resolution)])
         if export_method:
             cmd_parts.extend(["--method", export_method])
+        if export_orbit_image_format:
+            cmd_parts.extend(["--orbit-image-format", export_orbit_image_format])
         if export_marching_cube_threshold is not None:
             cmd_parts.extend(["--marching-cube-threshold", str(export_marching_cube_threshold)])
         if export_num_pixels_per_side is not None:
@@ -1354,6 +1358,13 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                         value="poisson",
                         info="NeRF mesh/point export, or orbit image frames for any model.",
                     )
+                    export_orbit_image_format = gr.Dropdown(
+                        label="Orbit Frame Format",
+                        choices=["jpeg", "png"],
+                        value="jpeg",
+                        info="PNG for frames scored against other renders; JPEG error grows "
+                        "with the effect being measured (docs/evaluation.md).",
+                    )
                     export_marching_cube_threshold = gr.Number(
                         label="Marching Cube Threshold",
                         value=None,
@@ -1550,6 +1561,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
             train_overwrite_val,
             export_resolution_val,
             export_method_val,
+            export_orbit_image_format_val,
             export_marching_cube_threshold_val,
             export_num_pixels_per_side_val,
             export_target_num_faces_val,
@@ -1644,6 +1656,8 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                 train_vis_val = None
             if export_method_val == "poisson":
                 export_method_val = None
+            if export_orbit_image_format_val == "jpeg":
+                export_orbit_image_format_val = None
 
             # Build command
             has_extra_args = any(
@@ -1729,6 +1743,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                 [
                     export_resolution_val,
                     export_method_val,
+                    export_orbit_image_format_val,
                     export_marching_cube_threshold_val,
                     export_num_pixels_per_side_val,
                     export_target_num_faces_val,
@@ -1839,6 +1854,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
                 export_enable=export_enable,
                 export_resolution=int(export_resolution_val) if export_resolution_val else None,
                 export_method=export_method_val or None,
+                export_orbit_image_format=export_orbit_image_format_val or None,
                 export_marching_cube_threshold=float(export_marching_cube_threshold_val)
                 if export_marching_cube_threshold_val is not None
                 else None,
@@ -2025,6 +2041,7 @@ def create_ui() -> gr.Blocks:  # pragma: no cover
             train_overwrite,
             export_resolution,
             export_method,
+            export_orbit_image_format,
             export_marching_cube_threshold,
             export_num_pixels_per_side,
             export_target_num_faces,

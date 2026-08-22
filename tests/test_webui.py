@@ -926,6 +926,21 @@ class TestRunPipelineExportContext:
         )
         assert cmd == "scripts/run.sh /path/to/video.mp4 export --method poisson"
 
+    def test_export_orbit_image_format(self):
+        """Test export --orbit-image-format argument."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            export_enable=True,
+            export_method="orbit-frames",
+            export_orbit_image_format="png",
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 export --method orbit-frames "
+            "--orbit-image-format png"
+        )
+
     def test_export_multiple_args(self):
         """Test export context with multiple arguments."""
         from webui import run_pipeline

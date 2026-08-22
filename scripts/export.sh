@@ -148,12 +148,44 @@ should_run_export_dir() {
   return 0
 }
 
+# Orbit frames are the one export whose contents depend on a format flag, so a
+# directory left over from an earlier format is not the output that was asked
+# for. Rendering into it anyway would mix .jpg and .png in one sequence, and a
+# consumer globbing for either would then read a set that is part one and part
+# the other.
+should_run_orbit_export() {
+  local output_path="$1"
+  local want="$2"
+  local stale
+
+  if [ -d "$output_path" ] && [ "${overwrite:-false}" = true ]; then
+    # Re-rendering into frames of the other format would leave one sequence
+    # holding both, so the old ones go before the new ones land.
+    find "$output_path" -mindepth 1 -maxdepth 1 \
+      \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) -delete
+  fi
+
+  should_run_export_dir "$output_path" || {
+    if [ "$want" = png ]; then
+      stale="$(find "$output_path" -mindepth 1 -maxdepth 1 \
+        \( -iname '*.jpg' -o -iname '*.jpeg' \) -print -quit)"
+    else
+      stale="$(find "$output_path" -mindepth 1 -maxdepth 1 -iname '*.png' -print -quit)"
+    fi
+    if [ -n "$stale" ]; then
+      echo "[WARN]: those frames are not $want; --overwrite re-renders them in the requested format"
+    fi
+    return 1
+  }
+  return 0
+}
+
 run_nerfstudio_orbit_frames_export() {
   local exp_path="$1"
   local output_path
   output_path="$(orbit_frames_output_path "$exp_path")"
 
-  if should_run_export_dir "$output_path"; then
+  if should_run_orbit_export "$output_path" "$orbit_image_format"; then
     if [ -n "$data_path" ]; then
       run_cmd python "$script_dir/render_nerfstudio_orbit.py" \
         --load-config "$exp_path/config.yml" \
@@ -188,7 +220,7 @@ run_sdf_orbit_frames_export() {
     echo "[WARN]: sdf-render has no image format option; SDF orbit frames stay JPEG"
   fi
 
-  if should_run_export_dir "$output_path"; then
+  if should_run_orbit_export "$output_path" jpeg; then
     run_cmd sdf-render \
       --load-config "$exp_path/config.yml" \
       --traj spiral \
