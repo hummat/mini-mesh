@@ -433,20 +433,23 @@ Steps, with an interval excluding zero marked R:
 | 0.00392 → 0.01  | -0.028 [-0.088, +0.030]   | -0.038 [-0.065, +0.010]   | +0.0009 [-0.0002, +0.0023]   |
 | 0.01 → 0.02     | -0.024 [-0.172, +0.100]   | -0.055 [-0.198, +0.035]   | -0.0000 [-0.0023, +0.0023]   |
 | 0.02 → 0.05     | +0.702 [+0.253, +1.339] R | +0.047 [-0.316, +0.762]   | +0.0132 [+0.0099, +0.0184] R |
-| 0.05 → 0.1      | +4.772 [+4.105, +6.951] R | +1.694 [+0.929, +3.961] R | +0.0618 [+0.0470, +0.0862] R |
+| 0.05 → 0.1      | +4.772 [+4.105, +6.951] R | +1.694 [+0.929, +3.961]   | +0.0618 [+0.0470, +0.0862] R |
 
 | r2d2 step       | ΔFID                         | ΔKID x1000                | ΔCMMD                        |
 | --------------- | ---------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]      | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
 | 0.00392 → 0.01  | -0.001 [-0.013, +0.012]      | -0.005 [-0.017, +0.008]   | +0.0006 [-0.0007, +0.0018]   |
 | 0.01 → 0.02     | -0.049 [-0.116, +0.009]      | -0.059 [-0.118, -0.024] R | +0.0071 [+0.0048, +0.0096] R |
-| 0.02 → 0.05     | +1.511 [+1.054, +2.246] R    | +0.499 [+0.135, +1.081] R | +0.0746 [+0.0624, +0.0876] R |
+| 0.02 → 0.05     | +1.511 [+1.054, +2.246] R    | +0.499 [+0.135, +1.081]   | +0.0746 [+0.0624, +0.0876] R |
 | 0.05 → 0.1      | +10.577 [+9.925, +14.690] R  | +3.735 [+2.937, +6.391] R | +0.2442 [+0.2039, +0.2937] R |
 
-The coarse end is close to unanimous. Every metric resolves 0.05 to 0.1 in both
-scenes, and 0.02 to 0.05 goes the same way everywhere except KID on gaudi. The
-weakest of the resolved cases is FID on gaudi's 0.02 to 0.05 step, where the
-interval's near end still sits a third of the way to the estimate.
+The coarse end belongs to FID and CMMD. Both resolve 0.02 to 0.05 and 0.05 to
+0.1 on both scenes, and agree on direction throughout. KID resolves one of those
+four, r2d2's 0.05 to 0.1, and the intervals shown carry the R only where the
+percentile and basic constructions agree, which costs KID two of the three it
+had under the percentile alone. The weakest of the resolved cases is FID on
+gaudi's 0.02 to 0.05 step, where the interval's near end still sits a third of
+the way to the estimate.
 
 The fine end resolves once, and the one time it does the metrics disagree about
 which way. On r2d2's 0.01 to 0.02 step KID reports -0.059 with an interval of
@@ -513,8 +516,19 @@ Which point estimate gets reported is not a formality here. On r2d2's 0.05 to
 0.1 step the replicate mean sits at 12.00 FID against 10.58 observed and at 4.40
 KID against 3.74, so the percentile interval is dragged along with it and the
 observed value lands near its lower end rather than in the middle. CMMD moves by
-under three percent on the same step. Read the coarse FID and KID intervals as
-offset from their estimates rather than centred on them.
+under three percent on the same step.
+
+That shift belongs to the resampling rather than to the sampling uncertainty,
+and a percentile interval carries it into the verdict. The basic interval
+removes it by reflecting the replicates through the observed value, and the two
+constructions disagree on three steps, all of them KID: gaudi's 0.05 to 0.1 and
+r2d2's 0.02 to 0.05 lose their exclusion of zero, gaudi's 0.00392 to 0.01 gains
+one. FID and CMMD keep every classification under both. So R marks a step whose
+interval excludes zero under both constructions, and the three that disagree are
+left unresolved. Even that is generous in one place: r2d2's 0.01 to 0.02 clears
+under the basic interval by 0.00013 on a step of -0.059. The LPIPS ladder needs
+none of this, since the bootstrap expectation of a sample mean is the sample
+mean and there is no shift to remove.
 
 How much it costs splits the metrics in two, and the split is the useful part of
 the check. Interval width at block length 20 over width at block length 1:
@@ -536,19 +550,27 @@ Width is not the whole story, and stopping at 20 was a choice, so the set-level
 metrics got the same sweep out to 100. Their widths peak between 5 and 40
 depending on the step and shrink from 60 on, the same collapse the LPIPS ladder
 shows, so a long block is not a conservative block here either. Out to 40 no
-coarse verdict moves. The 0.02 to 0.05 and 0.05 to 0.1 steps stay resolved for
-every metric on both scenes except KID on gaudi's 0.02 to 0.05, which stays
-unresolved, and r2d2's 0.01 to 0.02 stays resolved for KID and CMMD in opposite
-directions at every length tried. Past 40 the collapse starts
-manufacturing resolutions instead: r2d2's 0.01 to 0.02 turns resolved for FID at
-60, gaudi's 0.01 to 0.02 for KID at 100.
+verdict moves with the block length. Under the percentile construction the 0.02
+to 0.05 and 0.05 to 0.1 steps stay resolved for every metric on both scenes
+except KID on gaudi's 0.02 to 0.05, which stays unresolved, and r2d2's 0.01 to
+0.02 stays resolved for KID and CMMD in opposite directions at every length
+tried. Crossing that sweep with the interval construction sorts the three
+metrics: CMMD holds every coarse verdict under both constructions at every block
+length, FID holds all of them except gaudi's 0.02 to 0.05 at block lengths 5 and
+10, and KID's coarse verdicts move with the block length, the construction, or
+both. Its gaudi 0.05 to 0.1 step, for one, excludes zero under the basic
+interval at block length 1 and from 60 up, and not between.
+
+Past 40 the collapse starts manufacturing resolutions instead: r2d2's 0.01 to
+0.02 turns resolved for FID at 60, gaudi's 0.01 to 0.02 for KID at 100.
 
 The rest of the fine end is worse than the tables make it look. Gaudi's 0.00392
 to 0.01 KID interval has an endpoint sitting on zero and changes verdict at
 almost every block length tried: resolved at 1, 10, 30 and everything from 60
 up, unresolved at 5, 20 and 40. That step is not measuring anything. The coarse
-conclusions do not depend on the block length, and the fine ones, apart from
-r2d2's 0.01 to 0.02, were never conclusions.
+conclusions for FID and CMMD survive both the block length and the construction,
+KID's do not, and the fine ones apart from r2d2's 0.01 to 0.02 were never
+conclusions.
 
 It does not overturn the LPIPS ladder, and the widths do not run away either.
 At 20 they were still climbing, 16 to 22% over block length 10, which left the
@@ -707,11 +729,12 @@ The fine steps are left out of that table on purpose. A higher ratio there would
 mean only that an estimator separates images that barely differ, and whether
 that is a virtue is the question no bound has settled.
 
-All three resolve the 0.05 to 0.1 step cleanly on both scenes and agree on
-direction across the coarse end, which is the regime where the choice of metric
-mostly stops mattering. The exception is KID on gaudi's 0.02 to 0.05 step, at
-+0.047 with [-0.316, +0.762], which it fails to resolve at every block length
-tried.
+FID and CMMD resolve both coarse steps on both scenes and agree on direction,
+which is the regime where the choice between those two stops mattering. KID does
+not join them. It fails gaudi's 0.02 to 0.05 outright, at +0.047 with
+[-0.316, +0.762] and unresolved at every block length tried, and loses gaudi's
+0.05 to 0.1 and r2d2's 0.02 to 0.05 once the interval stops carrying its own
+resampling bias.
 
 The larger conclusion is that this line of attack was aimed at a problem we do
 not have. Set-level metrics earn their keep when nothing corresponds between the
@@ -907,16 +930,23 @@ The proposed experiment, in order:
    should be used on that class alone. Adopting a metric on the same
    comparisons that chose it measures nothing.
 
-   Three outcomes are worth naming ahead of time. A metric clears the threshold
-   and gets wired in after `export`, reported alongside `ns-eval`. Nothing
-   clears it, which means these calls are not metric-decidable for us and file
-   size decides. Or the rater is mostly indifferent, which settles the
-   underlying question without a metric: if 250k and 500k are indistinguishable
-   on an orbit, ship 250k.
+   Three outcomes are worth naming ahead of time. A metric clears the threshold,
+   which makes it a candidate rather than a default. Nothing clears it, which
+   means these calls are not metric-decidable for us and file size decides. Or
+   the rater is mostly indifferent, which settles the underlying question
+   without a metric: if 250k and 500k are indistinguishable on an orbit, ship
+   250k.
 
-   One rater makes all of this suggestive rather than conclusive. It is still
-   direct evidence about the decisions we actually make, which a published
-   correlation on someone else's stimuli is not.
+   Only the second and third outcomes are conclusions one rater can support.
+   Repeats measure whether a rater agrees with themselves, and a rater with a
+   consistent but idiosyncratic preference produces exactly the pattern a
+   metric can be fitted to, with nothing in the design able to tell that apart
+   from a preference other viewers would share. So a single rater can rule a
+   metric out, which is what the failing outcomes do, and cannot license wiring
+   one in after `export` for every asset we ship. That step needs a second
+   rater, recruited independently, scoring the same held-out pairs and agreeing
+   on them. Short of that the winner stays a diagnostic reported next to
+   `ns-eval` rather than a criterion anything is decided on.
 4. **Build stimuli only if 1 to 3 leave a real gap.** MUGSQA covers the input
    axes and released its data, so what would remain is attribute-based pruning
    and container quantisation at fixed training. That is a much smaller build
