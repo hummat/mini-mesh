@@ -304,9 +304,10 @@ standard protocol it returned 0.30.
 
 The rungs to watch are the fine ones, because the section below measures what
 actually separates them: 61 dB on gaudi and 68 dB on r2d2 between the unpruned
-render and the 0.01 rung, 53 and 57 dB at 0.02. Those are not small differences
-so much as absent ones. A metric that resolves a step there with confidence is
-reporting something that is not in the images.
+render and the 0.01 rung, 53 and 57 dB at 0.02. The images there differ, but
+barely. Whether an estimator ought to resolve a difference that small is a
+question about how much difference matters, which nothing in this document
+settles.
 
 | rung    | gaudi FID | gaudi KID x1000 | gaudi CMMD | r2d2 FID | r2d2 KID x1000 | r2d2 CMMD |
 | ------- | --------- | --------------- | ---------- | -------- | -------------- | --------- |
@@ -341,23 +342,26 @@ Steps, with an interval excluding zero marked R:
 The coarse end is unanimous. Every metric resolves 0.05 to 0.1 in both scenes
 and all but one resolves 0.02 to 0.05, with intervals nowhere near zero.
 
-The fine end separates them. FID resolves nothing there, which is the right
-answer. CMMD resolves one step, r2d2 0.01 to 0.02, in the direction of more
-pruning meaning more deviation. KID resolves two, gaudi 0.00392 to 0.01 and
-r2d2 0.01 to 0.02, both negative, both saying pruning moved the render closer to
-the photographs at a rung where the render barely moved at all.
+The fine end does not sort them out. FID resolves nothing there. CMMD resolves
+one step, r2d2 0.01 to 0.02, in the direction of more pruning meaning more
+deviation. KID resolves two, gaudi 0.00392 to 0.01 and r2d2 0.01 to 0.02, both
+negative, both saying pruning moved the render nearer the photographs.
 
-One pair settles it without any appeal to what a viewer would say. On r2d2's
-0.01 to 0.02 step KID reports -0.059 with an interval of [-0.104, -0.019] and
-CMMD reports +0.0069 with [+0.0039, +0.0099]. Same images, same frames, both
-intervals excluding zero, opposite signs. At most one of them is right, and
-nothing about the ladder or about human preference is needed to say so.
+On r2d2's 0.01 to 0.02 step KID reports -0.059 with an interval of
+[-0.104, -0.019] while CMMD reports +0.0069 with [+0.0039, +0.0099]: same
+images, same frames, both excluding zero, opposite signs. That is less damning
+than it first looks. KID measures a polynomial-kernel distance between Inception
+features and CMMD an RBF distance between CLIP features, so a change in the
+images can genuinely shorten one and lengthen the other. Nothing is being
+contradicted. What it does mean is that at most one of them can be tracking any
+single underlying notion of quality, and this data cannot say which, or whether
+either does.
 
-An earlier version of this section had FID committing the same error, resolving
-gaudi's 0.00392 to 0.01 step as an improvement. That was the JPEG encoder rather
-than the metric, and it disappeared when the renders were written losslessly.
-The correction is recorded because it is the same failure the document is about,
-made while writing it: a resolved interval on an artifact.
+An earlier version of this section had FID resolving gaudi's 0.00392 to 0.01
+step as an improvement, and I read that as the metric misbehaving. It was the
+JPEG encoder, and it vanished when the renders were written losslessly. Worth
+recording, because a resolved interval on an artifact is the exact failure this
+document is about, produced while writing it.
 
 #### A flaw in the standard KID protocol
 
@@ -408,26 +412,30 @@ step being free.
 
 #### What to take from this
 
-No opinion scores exist for this ladder, so none of this ranks the three metrics
-by correctness. What it does have is one fact that needs no labels. The renders
-at the fine rungs differ by 53 to 68 dB, measured directly in the section below,
-and two images that close are not different in any way a metric should be able
-to speak confidently about. That is enough to read a resolved interval there as
-a fault rather than as sensitivity.
+No opinion scores exist for this ladder, and nothing here supplies a substitute.
+The fine rungs render 53 to 68 dB apart, which says the images barely differ, and
+it is tempting to read a resolved interval there as a false positive. That
+reading does not hold. The images do differ, so an estimator separating them is
+detecting something real; a narrow interval around a tiny effect is what
+sensitivity looks like. Calling it an error would need an equivalence bound
+declared in advance and an interval that fits inside it, which is the same thing
+this document demands before anyone calls PSNR blind. No such bound exists here.
 
-By that standard FID comes out clean at the fine end, CMMD reports one resolved
-step, and KID reports two. KID's are the awkward ones: both say pruning brought
-the render closer to the photographs, and its disagreement with CMMD on r2d2's
-0.01 to 0.02 step is a flat contradiction between two intervals that both
-exclude zero. The estimator with the cleanest theoretical property at small n
-produced the least trustworthy output, and the reason is that the argument for
-it was about bias while the constraint that actually bites at 112 frames is
-variance.
+So the fine end ranks nobody. FID resolves nothing, CMMD resolves one step, KID
+resolves two, and which behaviour is correct depends on a threshold nobody has
+set.
 
-Set against that, all three resolve the coarse rungs cleanly and agree on
-direction there. If a set-level number is wanted, CMMD is the one to use and the
-frame count has to be held fixed across everything being compared, since FID's
-level alone drifts 12.8 points between 28 and 112 frames.
+What does separate them needs no labels at all, because it is about the
+estimators rather than the images. FID's level falls 12.8 points between 28 and
+112 frames, more than twice the range of the entire ladder, so it cannot be read
+as a number and cannot be compared across differing frame counts. KID returns
+-6.4 at 36 frames, a negative squared distance, which is legal for an unbiased
+estimator and useless for ordering anything. CMMD shows neither pathology. On
+that basis, and only that basis, CMMD is the one to reach for, with the frame
+count held fixed across everything being compared.
+
+All three resolve the coarse rungs cleanly and agree on direction there, which
+is the regime where the choice of metric stops mattering.
 
 The larger conclusion is that this line of attack was aimed at a problem we do
 not have. Set-level metrics earn their keep when nothing corresponds between the
@@ -493,12 +501,14 @@ Pruning at 0.1 leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.020
 and 0.054 at around 32 dB. The r2d2 cell at 0.1 is the only one that looks like
 a real cost.
 
-The fine rungs land somewhere more useful than "small". At 0.01 the two renders
-differ by 61 dB on gaudi and 68 dB on r2d2, which is not a small difference so
-much as no difference at all. Whatever those rungs cost, it is not something a
-viewer could be shown. That is a defensible
-basis for setting the shipping threshold at 0.05, and it holds regardless of
-what the photographs contain or where the tourists were standing.
+The fine rungs come out very small indeed: 61 dB on gaudi and 68 dB on r2d2 at
+0.01. That says nothing about the threshold actually being shipped. The step
+from 0.01 to 0.05 is where almost all of the deviation and almost all of the
+size saving happen, and 0.0032 and 0.0078 LPIPS at 42 dB is a magnitude, not a
+verdict. What this replaces is the previous state of affairs, where the number
+was unmeasured and the threshold was set by assertion. Whether it is small
+enough to ship is still the study's question, now asked about a known
+quantity.
 
 Two things it still cannot do. The unpruned export wins by construction, so this
 can never report that pruning improved anything, only how far it moved. And a
