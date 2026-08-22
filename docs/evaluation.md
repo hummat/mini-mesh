@@ -1004,9 +1004,22 @@ these models, so the numbers appear to be off-the-shelf pretrained weights
 applied to rendered videos. That is worth confirming against their code before
 leaning on it.
 
-If it holds, adopting it is cheap. These models take a video, need no reference,
-and we already render orbit videos with `ns-render`. The change is one more step
-after export, not a new benchmark.
+If it holds, adopting it is cheaper than a new benchmark but not free, and the
+gap is a video. These models score a video and need no reference; the export
+path renders frames. Both orbit branches in `scripts/export.sh` ask for
+`--output-format images`, and `scripts/render_nerfstudio_orbit.py` hardcodes the
+same, so nothing in this repository produces a clip for a video model to read.
+Someone has to encode one, and the encode is visible to exactly the models being
+proposed, several of which were trained to notice compression. This document
+already has one metric resolving a step that turned out to be the JPEG encoder,
+so the encode is pinned before the experiment rather than after: render the
+orbit losslessly, the PNG path the tables above use, then encode every arm of
+every comparison with one ffmpeg invocation that differs only in its input, at
+the same resolution, frame rate, pixel format, colour range and GOP length, and
+lossless where the model tolerates it. If a study wants delivery-realistic
+encoding instead, that setting is part of the stimulus and belongs in the
+protocol with its parameters written down. An encoder chosen per arm decides the
+ranking on its own.
 
 Adopting it on the strength of separation alone would repeat the mistake this
 document is about. A metric that moves when the configuration changes has shown
@@ -1016,13 +1029,21 @@ established before the metric is asked about them.
 
 The proposed experiment, in order:
 
-1. **Transfer check.** Build a ladder on one of our own scenes where the
-   ordering is not in doubt: training truncated at 2k, 5k, 10k and 30k steps, or
-   pruning at 25/50/75%, degradations large enough that anyone watching the
-   orbits agrees which is worse. Require DOVER to reproduce that order. Passing
-   shows the published 0.94 survives contact with our content and capture style;
-   it does not yet show the metric is useful on close calls. Failing kills it
-   outright, which is why this comes first and costs nothing.
+1. **Transfer check.** Build a ladder on one of our own scenes with gaps large
+   enough to be obvious: training truncated at 2k, 5k, 10k and 30k steps, or
+   pruning at 25/50/75%. The parameter order is not the perceptual order,
+   though, and this document should know better than to assume it is. Longer
+   training can regress, and pruning removes floaters as readily as it removes
+   detail, which is the direction one of the fine steps above moves in. So
+   establish the ordering the same way step 2 establishes its labels, by
+   showing the rungs blinded and pairwise and taking what the viewer says,
+   before asking DOVER anything. Then require DOVER to reproduce the order the
+   viewer gave, on the pairs the viewer called unanimously, and treat the
+   pairs they split as carrying no information either way. Passing shows the
+   published 0.94 survives contact with our content and capture style; it does
+   not yet show the metric is useful on close calls. Failing kills it outright,
+   which is why this comes first, and viewing a handful of obvious pairs is
+   what it costs.
 2. **Paired comparisons on the contested decisions.** Three comparisons would
    agree with any metric one time in eight, so the set has to be big enough for
    agreement to mean something. The cleanup threshold supplies it for free: all
