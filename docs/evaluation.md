@@ -707,8 +707,11 @@ The fine steps are left out of that table on purpose. A higher ratio there would
 mean only that an estimator separates images that barely differ, and whether
 that is a virtue is the question no bound has settled.
 
-All three resolve the coarse rungs cleanly and agree on direction there, which
-is the regime where the choice of metric stops mattering.
+All three resolve the 0.05 to 0.1 step cleanly on both scenes and agree on
+direction across the coarse end, which is the regime where the choice of metric
+mostly stops mattering. The exception is KID on gaudi's 0.02 to 0.05 step, at
++0.047 with [-0.316, +0.762], which it fails to resolve at every block length
+tried.
 
 The larger conclusion is that this line of attack was aimed at a problem we do
 not have. Set-level metrics earn their keep when nothing corresponds between the
