@@ -945,15 +945,23 @@ The proposed experiment, in order:
 
    Show every pair three times, separated. The repeats are not padding: they
    measure how often the rater agrees with themselves, which caps how much
-   agreement any metric could show. Two showings cannot establish that. A
-   rater guessing on a pair they see no difference in still repeats the same
-   answer about a third of the time when there are three responses to choose
-   from, and every one of those accidents would enter the next step as a
-   label. Requiring all three showings to agree drops that floor to one in
-   nine, and what it filters out is concentrated in the close pairs, which are
-   the ones the exercise is about. Report the raw agreement rate next to the
-   floor. A rate near it on the close pairs says the rater cannot separate
-   them at all, which answers the question without a metric and means no
+   agreement any metric could show. Two showings cannot establish that. A rater
+   guessing on a pair they see no difference in repeats the same answer often
+   enough that those accidents would enter the next step as labels, and
+   requiring all three showings to agree is what thins them out, concentrated
+   in the close pairs, which are the ones the exercise is about.
+
+   How far it thins them is not a constant. One in nine is the floor for a
+   rater who splits the three responses evenly and answers each showing
+   independently of the last, and no one does the first. Estimate it from the
+   rater's own marginal frequencies instead, as the chance that three
+   independent draws from those frequencies agree, which is p_left cubed plus
+   p_right cubed plus p_none cubed. A rater who answers "no difference" most of
+   the time pushes that well above a ninth, and separating the showings in time
+   reduces the correlation between them without removing it, so even the
+   estimate is a floor rather than the rate. Report the observed unanimity rate
+   against it. A rate near the floor on the close pairs says the rater is not
+   separating them, which answers the question without a metric and means no
    metric can be validated on them either. A pair the rater flips on is a pair
    no metric can be scored against.
 3. **Select on one half, validate on the other.** Split the pairs into a
