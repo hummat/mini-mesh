@@ -260,9 +260,11 @@ estimator Google published, which `clip-mmd` vendors verbatim, is the
 minimum-variance form of Gretton et al.'s Eq. (5). It averages the kernel matrix
 including its diagonal, so it is the biased V-statistic, not the unbiased one
 that makes KID safe at small n. The docstring argues the two are almost
-identical, citing the proof of Lemma 6 in the same paper, and for ranking
-configurations at a fixed sample size the difference does not bite. KID is still
-the one with the cleaner claim.
+identical, citing the proof of Lemma 6 in the same paper. That argument does not
+carry on its own, because the diagonal term each configuration contributes
+depends on its own within-set similarities and so need not cancel between two of
+them. Measured, it does cancel here; the numbers are under "What the intervals
+assume". KID is still the one with the cleaner claim.
 
 Three cautions before treating any of them as an answer.
 
@@ -594,12 +596,12 @@ everything as a constant floor: seventeen times at 0.01, six at 0.02, and still
 Every problem the distribution metrics had disappears. The ladder is monotone in
 both scenes. No neighbouring pair of intervals overlaps. The identity rung
 returns exactly zero with infinite PSNR, which is a fact rather than a
-calibration hope. Where FID and KID both invert on both scenes and all three
-leave the fine rungs unresolved, this separates all five rungs in both scenes,
-and the intervals are narrow enough that the separation is not close. CMMD
-orders the ladder correctly, which is the one thing at the fine end it does that
-the other two do not, though every fine step of that ordering sits inside an
-interval spanning zero.
+calibration hope. Where FID and KID both invert on both scenes and the three of
+them together resolve one fine step out of eight, this separates all five rungs
+in both scenes, and the intervals are narrow enough that the separation is not
+close. CMMD does better than the other two at the fine end: it orders both
+ladders correctly, and it resolves r2d2's 0.01 to 0.02 step, which KID also
+resolves in the opposite direction.
 
 The reason is not that LPIPS is a better metric than CMMD. It is that the
 comparison is paired at the level of individual frames against an exact
