@@ -45,10 +45,16 @@ stimuli the way the averaged panel ranked them about (1+t)/2 of the time. On
 LPIPS drops to 64%. A coin flip is 50%.
 
 Read that as agreement with a mean opinion score, not with any individual
-viewer. Per-viewer agreement is lower, since the panel average smooths out
-disagreement between people, and none of these papers reports the subject-level
-numbers that would pin it down. Either way, a metric that reproduces the panel's
-ordering two times in three is not settling a close call.
+viewer, and treat the per-viewer number as unknown. It is usually lower, because
+averaging cancels the part of each viewer's response that is noise and leaves a
+cleaner target to correlate against, but that reasoning assumes viewers share
+one ordering and differ by noise around it. Where they hold different orderings
+the mean represents no one, and a metric that happens to track one subgroup can
+agree with that subgroup more often than with the average. None of these papers
+reports the subject-level numbers that would say which case this is. The
+conclusion does not turn on it: a metric that reproduces the panel's ordering
+two times in three is not settling a close call, and neither direction of the
+per-viewer correction makes it one.
 
 ### What each study degraded
 
