@@ -560,6 +560,30 @@ frames are consecutive poses along a walkthrough, so neighbouring views share
 most of their content, and an i.i.d. resample treats them as independent
 observations and returns an interval narrower than the data supports.
 
+The wraparound is worth its own check, because these paths are not loops.
+Wrapping is what makes the scheme circular in the sense of Politis and Romano:
+starts run over the whole sequence and a block that runs off the end continues
+from the front, so every frame sits in exactly L blocks. Stopping the starts at
+n minus L instead removes the artificial join but gives the frames near either
+end fewer chances to appear than the ones in the middle, which is its own bias.
+Neither choice is free.
+
+Here the join really is artificial. Gaudi's first and last camera positions are
+28.5 median frame steps apart, 61% of the scene's extent, and r2d2's are 9.1
+steps and 37%, so the last frame is nowhere near the first on either capture. At
+block length 20 that splice is common rather than rare: 64% of replicates
+contain one, about one join per replicate on both scenes.
+
+It changes the widths and none of the verdicts. Rerunning both tables with
+starts restricted so no block spans the end moves interval widths between 25%
+narrower and 14% wider, and four cells swap which construction excludes zero,
+all of them cells that carry no R under either scheme. Every step marked R keeps
+it under both constructions with the wraparound removed. The LPIPS ladder is the
+same story: widths move by 14% down to 4% up, and the smallest gap between
+neighbouring rungs stays above 3.6 times the wider of the two intervals either
+way. The tables keep the circular scheme, which is the standard one, and the
+answer to the objection is that it does not decide anything here.
+
 Enough of the procedure to rerun it. Each replicate draws ceil(n/L) block
 starts uniformly from 0 to n-1, takes L consecutive indices from each with
 wraparound past the end of the sequence, concatenates them and truncates back
