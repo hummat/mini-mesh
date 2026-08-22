@@ -95,11 +95,13 @@ an unverified benefit on the other.
 
 **The cleanup threshold.** Filtering at opacity 0.05 removes between 4.9% and
 62% of the Gaussians depending on the scene, and it is not free. Paired testing
-puts the cost at 0.0007 LPIPS on `gaudi_fountain` and 0.0059 on `r2d2_new`, the
-same sign on every frame of both, with PSNR and SSIM agreeing. It was called
-free because the marginal spread is 0.05 and 0.035, which buried it. The cost is
-small enough that a median 28% size saving is still worth paying, but "free" was
-the wrong word and it was reached the wrong way.
+moves LPIPS by 0.0007 on `gaudi_fountain` and 0.0059 on `r2d2_new`, the same
+sign on every frame of both, with PSNR and SSIM agreeing. It was called free
+because the marginal spread is 0.05 and 0.035, which buried it. Whether a median
+28% size saving is worth that is the trade the paired-comparison study exists to
+settle, and this document cannot settle it: movement in an objective metric is
+sensitivity, not a known change in what anyone sees. What is established is that
+"free" was the wrong word and was reached the wrong way.
 
 3DGS-QA measured content-blind random pruning at 25/50/75% and found it degrades
 MOS smoothly. Our filter is attribute-based, targeting Gaussians the model
@@ -183,8 +185,10 @@ gives the variance inflation for the mean. Estimated directly it comes out below
 1 for all three, because the long lags return negative estimates. The longest of
 those rest on 16 to 20 products, and the sample autocorrelation of any series
 sums to -1/2 across all lags by construction, so the far tail is biased down. Clamping every
-negative estimate to zero is the conservative reading. The two bracket the
-answer:
+negative estimate to zero is the more cautious reading. Neither is a bound. The
+positive estimates carry the same downward bias, so the true inflation can sit
+above the clamped value, and at these lags nothing here pins it down. Read the
+two as a sensitivity analysis:
 
 | comparison             | as estimated | negatives to zero | width factor |
 | ---------------------- | ------------ | ----------------- | ------------ |
@@ -192,13 +196,14 @@ answer:
 | prune 0.05, r2d2       | 0.85         | 1.10              | up to 1.05   |
 | seed off to on, gaudi  | 0.76         | 1.31              | up to 1.15   |
 
-For every row except seeding this changes nothing: a 5 to 9% wider interval
-leaves each verdict where it was. Seeding is the exception, and not by a
-comfortable margin either way. Its interval reaches zero at a width factor of
-1.095, which sits between the two bounds: [-0.145, -0.017] under the estimated
-inflation and [-0.166, +0.004] under the conservative one. The row should not be
-read as resolving anything, and the reason is dependence rather than sample
-size.
+At both values every row except seeding keeps its verdict, a 5 to 9% widening
+that changes nothing. That is not the same as showing no verdict can move, since
+the true inflation is not bounded above by either number. Seeding already fails
+at the cautious value, and not by a comfortable margin either way. Its interval
+reaches zero at a width factor of 1.095, which sits between the two: [-0.145,
+-0.017] under the direct estimate and [-0.166, +0.004] under the clamped one.
+The row should not be read as resolving anything, and the reason is dependence
+rather than sample size.
 
 That is a statement about this test, not about seeding. Seeding moves LPIPS from
 0.468 to 0.387 at 10k steps and 0.341 to 0.282 at 30k, and on the full 112-frame
@@ -206,11 +211,16 @@ walkthrough the paired difference is -0.071 against an effective sample size of
 4.6, which is four standard errors from zero. The effect is not in doubt. What
 the five-frame interval could carry is.
 
-Two caveats on the correction itself. The three comparisons measured here are
-the pruning pair on both scenes and the seeding pair on gaudi; the cap and
-`rasterize_mode` rows are assumed to sit inside the same range, which is
-untested. And these autocorrelations come from training views, while the table
-scores held-out ones.
+Three caveats on the correction itself. A dependence-robust interval computed
+from the eval frames alone, block or HAC, is not available at five and seven
+observations: it would need the same long-lag autocorrelations, estimated from
+even less. A sensitivity analysis is the ceiling this design supports, which is
+itself a reason to prefer the export-referenced comparison below, where every
+frame is scored. The three comparisons measured here are the pruning pair on
+both scenes and the seeding pair on gaudi; the cap and `rasterize_mode` rows are
+assumed to sit inside the same range, which is untested. And these
+autocorrelations come from training views, while the table scores held-out
+ones.
 
 Three things fall out.
 
