@@ -882,7 +882,13 @@ The proposed experiment, in order:
 
    Present each pair as two orbits side by side, unlabelled, in randomised
    left-right order, and offer three responses: left, right, or no difference.
-   Indifference has to be a legal answer. Forcing a choice between variants that
+   Record which configuration the answer names rather than which side. The order
+   is drawn again at every showing, so a rater who prefers the same asset three
+   times will have clicked different sides, and a rater who clicks the same side
+   every time will have named different assets. Scoring sides would reject the
+   first and accept the second, which is backwards. Scored by configuration a
+   fixed-side habit looks like guessing, which is what it is. Indifference has
+   to be a legal answer. Forcing a choice between variants that
    look identical manufactures a label out of nothing, and "we cannot tell them
    apart" is both a likely outcome and a useful one, since it means ship the
    smaller file.
@@ -915,11 +921,11 @@ The proposed experiment, in order:
    orbit on its own. DISTS and CW-SSIM can only be tested on held-out frames
    where a real photo exists, which is a different experiment against different
    stimuli than the one a viewer judged. Score a pair only when all three of its
-   showings gave the same response, which is the same bar step 2 sets, and score
-   every pair that clears it, including the ones called identical all three
-   times. Dropping those would validate a candidate on the pairs that were easy
-   to call and then wire it in for the close ones, which are the pairs it exists
-   to settle. A unanimous "no difference" is a label like any other, so require
+   showings named the same configuration, which is the same bar step 2 sets, and
+   score every pair that clears it, including the ones called identical all
+   three times. Dropping those would validate a candidate on the pairs that were
+   easy to call and then wire it in for the close ones, which are the pairs it
+   exists to settle. A unanimous "no difference" is a label like any other, so require
    the metric to reproduce it: fit a deadband on the selection set wide enough
    to contain the pairs called identical, then on the held-out set ask the
    preference pairs to fall outside the band with the correct sign and the
@@ -937,16 +943,20 @@ The proposed experiment, in order:
    without a metric: if 250k and 500k are indistinguishable on an orbit, ship
    250k.
 
-   Only the second and third outcomes are conclusions one rater can support.
-   Repeats measure whether a rater agrees with themselves, and a rater with a
-   consistent but idiosyncratic preference produces exactly the pattern a
-   metric can be fitted to, with nothing in the design able to tell that apart
-   from a preference other viewers would share. So a single rater can rule a
-   metric out, which is what the failing outcomes do, and cannot license wiring
-   one in after `export` for every asset we ship. That step needs a second
-   rater, recruited independently, scoring the same held-out pairs and agreeing
-   on them. Short of that the winner stays a diagnostic reported next to
-   `ns-eval` rather than a criterion anything is decided on.
+   With one rater all three are statements about that rater, and none is a
+   statement about viewers. Repeats measure whether a rater agrees with
+   themselves. A consistent but idiosyncratic preference produces exactly the
+   pattern a metric can be fitted to, an unusual detection threshold fails a
+   metric that would work for other people, and one insensitive rater's
+   indifference is not evidence that anybody else would miss the difference.
+   Nothing in the design separates any of those from the population case. So
+   the experiment as described settles what we default to and nothing wider,
+   and each outcome should be written down that way. Treating any of the three
+   as a claim about viewers needs a second rater, recruited independently and
+   scoring the same held-out pairs, and that goes double for wiring a metric in
+   after `export` for every asset we ship. Short of it the winner stays a
+   diagnostic reported next to `ns-eval` rather than a criterion anything is
+   decided on.
 4. **Build stimuli only if 1 to 3 leave a real gap.** MUGSQA covers the input
    axes and released its data, so what would remain is attribute-based pruning
    and container quantisation at fixed training. That is a much smaller build
