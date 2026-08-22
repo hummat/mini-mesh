@@ -691,16 +691,20 @@ rank at most n-1, so the nonzero eigenvalues of the product live in an n by n
 matrix built from the centred feature blocks, and the trace term is the sum of
 their square roots. The identity agrees with torchmetrics to three parts in a
 million, with the residual a constant offset that cancels in a difference, and
-400 replicates now cost less than 25 did.
+it is about 1500 times faster per evaluation at 112 frames, so the 4000
+replicates the tables use cost a tenth of what 25 of the old ones did.
 
-Two classifications moved between them, both from resolved to unresolved. KID
-resolved gaudi's 0.00392 to 0.01 step under the i.i.d. bootstrap, where -0.038
-carried [-0.072, -0.001], and does not under blocks, where the same -0.038
-carries [-0.065, +0.010]. FID resolved r2d2's 0.01 to 0.02 step on 25
-replicates, where -0.049 carried [-0.098, -0.001], and does not on 400, where it
-carries [-0.116, +0.009]. The estimate cannot move, since it is the difference
-on the observed sample either way; both intervals grew past zero, which is what
-the fine end looks like once the interval stops being optimistic.
+Two classifications moved when those two changes landed, both from resolved to
+unresolved. FID resolved r2d2's 0.01 to 0.02 step on 25 replicates, where -0.049
+carried [-0.098, -0.001], and does not once the replicate count can support the
+tail: the same -0.049 carries [-0.119, +0.012] at the 4000 the tables report.
+KID resolved gaudi's 0.00392 to 0.01 step under the i.i.d. bootstrap and not
+under blocks, which is the opposite of what the paired-U estimator does with
+that step now; it is the case discussed under the block sweep above, and it
+carries no R either way. The estimate cannot move in either case, since it is
+the difference on the observed sample whatever the resampling does; the
+intervals grew past zero, which is what the fine end looks like once the
+interval stops being optimistic.
 
 CMMD needed a third. The implementation here is Google's, which uses the biased
 V-statistic rather than the unbiased U-statistic, and its bias is not a constant
