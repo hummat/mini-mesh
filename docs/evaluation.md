@@ -145,9 +145,11 @@ LPIPS, mean paired difference with a 95% interval, and how often the difference
 kept its sign across frames. These intervals treat the frames as independent,
 which the section below shows is wrong for a walkthrough. Whether it is wrong
 here is a question about spacing, so it was measured rather than argued. See
-"How independent are the eval frames" after the table: for most rows the answer
-is that the intervals are 5 to 9% too narrow, and for the seeding row it is that
-the interval should not be read as resolving anything.
+"How independent are the eval frames" after the table. Three of these eight rows
+were measured. On the two pruning rows at 0.05 the intervals come out 5 to 9%
+too narrow; on the seeding row the interval should not be read as resolving
+anything. The other five rows carry no measurement of their own and are assumed
+to sit in the same range, which is untested.
 
 | Comparison | n | Mean diff | 95% CI | Paired SD | Marginal SD | Same sign |
 |---|---|---|---|---|---|---|
@@ -529,10 +531,16 @@ correlated neighbours inflate, while a statistic computed from the whole
 resampled set absorbs the correlation. So block resampling matters a great deal
 for the export-referenced LPIPS ladder below and barely at all for this section.
 
-It does not overturn the LPIPS ladder. Every rung there stays separated from its
-neighbours by more than the width of either interval, at the widest block length
-tried. The LPIPS widths were still climbing at 20, by 16 to 22% over block length
-10, so they are a lower bound rather than a converged answer.
+It does not overturn the LPIPS ladder, and the widths do not run away either.
+At 20 they were still climbing, 16 to 22% over block length 10, which left the
+question of where they stop. Pushing the ladder out to block lengths of 30, 40,
+60, 80 and 100 answers it: every rung peaks at 40, 7 to 17% wider than at 20,
+and falls back after. That is forced by the resampling rather than by the data.
+A wrapped block of length L covers a fixed fraction of the sequence whatever its
+start, so as L approaches n every replicate converges on the full-sample mean
+and the interval has to collapse. The reported intervals stay at block length
+20, where the set-level metrics were also measured, and 40 is the honest worst
+case.
 
 FID needed a second fix for an unrelated reason. Its bootstrap had been running
 25 replicates, because the textbook Frechet term needs the square root of a
@@ -739,10 +747,12 @@ intervals overlaps. The identity rung returns exactly zero with infinite PSNR,
 which is a fact rather than a
 calibration hope. Where FID and KID both invert on both scenes and the three of
 them together resolve one fine step out of eight, this separates all five rungs
-in both scenes, and the intervals are narrow enough that the separation is not
-close. CMMD does better than the other two at the fine end: it orders both
-ladders correctly, and it resolves r2d2's 0.01 to 0.02 step, which KID also
-resolves in the opposite direction.
+in both scenes, and the separation holds at the block length where the intervals
+are widest. At 40 the tightest neighbouring gap is 2.6 times the wider of the
+two intervals on gaudi and 3.2 times on r2d2, and no pair comes closer than that
+at any block length from 1 to 100. CMMD does better than the other two at the
+fine end: it orders both ladders correctly, and it resolves r2d2's 0.01 to 0.02
+step, which KID also resolves in the opposite direction.
 
 The reason is not that LPIPS is a better metric than CMMD. It is that the
 comparison is paired at the level of individual frames against an exact
@@ -844,11 +854,12 @@ The proposed experiment, in order:
    construction. That leaves DOVER, VSFA, FAST-VQA and Q-Align, which score each
    orbit on its own. DISTS and CW-SSIM can only be tested on held-out frames
    where a real photo exists, which is a different experiment against different
-   stimuli than the one a viewer judged. Score every pair the rater was
-   self-consistent on, including the ones they called identical both times.
-   Dropping those would validate a candidate on the pairs that were easy to
-   call and then wire it in for the close ones, which are the pairs it exists
-   to settle. A repeated "no difference" is a label like any other, so require
+   stimuli than the one a viewer judged. Score a pair only when all three of its
+   showings gave the same response, which is the same bar step 2 sets, and score
+   every pair that clears it, including the ones called identical all three
+   times. Dropping those would validate a candidate on the pairs that were easy
+   to call and then wire it in for the close ones, which are the pairs it exists
+   to settle. A unanimous "no difference" is a label like any other, so require
    the metric to reproduce it: fit a deadband on the selection set wide enough
    to contain the pairs called identical, then on the held-out set ask the
    preference pairs to fall outside the band with the correct sign and the
