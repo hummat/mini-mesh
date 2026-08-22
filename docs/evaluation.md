@@ -683,15 +683,18 @@ would settle it and costs one more render pass.
 | 0.05      | 0.00322 [0.00291, 0.00353]   | 43.20   | 0.00775 [0.00715, 0.00834]   | 42.14   |
 | 0.1       | 0.02032 [0.01871, 0.02191]   | 34.01   | 0.05406 [0.05050, 0.05780]   | 31.59   |
 
-These are lossless renders. The first attempt wrote JPEG at quality 95, which is
-what the throwaway render script used for this experiment did, and produced
-0.00085 and 0.00038 at the 0.01 rung, seventeen and nineteen times the truth.
-The repository's own orbit renderer defaults to JPEG at quality 100, so the
-figure below is an upper bound on what that one costs rather than a measurement
-of it. Encoding the same checkpoint twice at q95 and comparing the copies puts
-the encoder's error at 0.00795 LPIPS and 48.5 dB,
-which is nothing against a photograph, since renders sit around 22 dB from
-those, and overwhelming against another render at 61 to 68 dB. The artifacts
+These are lossless renders. The first attempt wrote JPEG at quality 95, the
+setting hardcoded in the throwaway script that rendered these frames, and
+produced 0.00085 and 0.00038 at the 0.01 rung, seventeen and nineteen times the
+truth. Re-encoding each lossless frame at q95 and scoring it against its own
+source puts the encoder's error at 0.00795 LPIPS and 48.5 dB on r2d2, 0.00597
+and 46.0 dB on gaudi. None of that comes from the rendering: the JPEG pass is
+byte for byte identical to those re-encodings on all 147 and 112 frames, so both
+passes drew the same pixels and the encoder is the only thing left between them.
+The repository's own orbit renderer defaults to quality 100, so 0.00795 bounds
+what that default costs rather than measuring it. Against a photograph the
+number is nothing, since renders sit around 22 dB from those, and against
+another render at 61 to 68 dB it is overwhelming. The artifacts
 mostly cancel between two nearly identical images and decorrelate as the images
 separate, so the contamination grows with the rung instead of sitting under
 everything as a constant floor: seventeen times at 0.01, six at 0.02, and still
@@ -802,10 +805,20 @@ The proposed experiment, in order:
    construction. That leaves DOVER, VSFA, FAST-VQA and Q-Align, which score each
    orbit on its own. DISTS and CW-SSIM can only be tested on held-out frames
    where a real photo exists, which is a different experiment against different
-   stimuli than the one a viewer judged. Count only pairs where the rater
-   was self-consistent and expressed a preference, and fix the acceptance
-   threshold in advance rather than after seeing the number. Adopting a metric
-   on the same comparisons that chose it measures nothing.
+   stimuli than the one a viewer judged. Score every pair the rater was
+   self-consistent on, including the ones they called identical both times.
+   Dropping those would validate a candidate on the pairs that were easy to
+   call and then wire it in for the close ones, which are the pairs it exists
+   to settle. A repeated "no difference" is a label like any other, so require
+   the metric to reproduce it: fit a deadband on the selection set wide enough
+   to contain the pairs called identical, then on the held-out set ask the
+   preference pairs to fall outside the band with the correct sign and the
+   indifference pairs to fall inside it. Report the two rates separately, and
+   fix both acceptance thresholds in advance rather than after seeing the
+   numbers. A candidate that gets the obvious pairs right and pushes the
+   indifferent ones outside its band has earned the obvious pairs only, and
+   should be used on that class alone. Adopting a metric on the same
+   comparisons that chose it measures nothing.
 
    Three outcomes are worth naming ahead of time. A metric clears the threshold
    and gets wired in after `export`, reported alongside `ns-eval`. Nothing
