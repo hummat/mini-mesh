@@ -492,10 +492,21 @@ poses, per frame, LPIPS with a 95% interval on the mean:
 | --------- | ---------------------------- | ------- | ---------------------------- | ------- |
 | 0         | 0.00000 [0.00000, 0.00000]   | inf     | 0.00000 [0.00000, 0.00000]   | inf     |
 | 0.00392   | 0.00000 [0.00000, 0.00000]   | inf     | 0.00000 [0.00000, 0.00000]   | inf     |
-| 0.01      | 0.00085 [0.00083, 0.00087]   | 51.67   | 0.00038 [0.00037, 0.00039]   | 57.62   |
-| 0.02      | 0.00186 [0.00181, 0.00191]   | 48.08   | 0.00166 [0.00163, 0.00169]   | 51.25   |
-| 0.05      | 0.00552 [0.00540, 0.00565]   | 41.95   | 0.01019 [0.00998, 0.01039]   | 41.49   |
-| 0.1       | 0.02305 [0.02248, 0.02363]   | 33.78   | 0.05711 [0.05600, 0.05823]   | 31.50   |
+| 0.01      | 0.00005 [0.00005, 0.00005]   | 61.02   | 0.00002 [0.00002, 0.00002]   | 68.01   |
+| 0.02      | 0.00030 [0.00029, 0.00031]   | 53.41   | 0.00031 [0.00030, 0.00032]   | 57.02   |
+| 0.05      | 0.00322 [0.00313, 0.00331]   | 43.20   | 0.00775 [0.00756, 0.00793]   | 42.14   |
+| 0.1       | 0.02032 [0.01979, 0.02084]   | 34.01   | 0.05406 [0.05291, 0.05520]   | 31.59   |
+
+These are lossless renders. The first attempt used the q95 JPEGs the render
+script writes by default and produced 0.00085 and 0.00038 at the 0.01 rung,
+seventeen and nineteen times the truth. Encoding the same checkpoint twice and
+comparing the copies puts the encoder's own error at 0.00795 LPIPS and 48.5 dB,
+which is nothing against a photograph, since renders sit around 22 dB from
+those, and overwhelming against another render at 61 to 68 dB. The artifacts
+mostly cancel between two nearly identical images and decorrelate as the images
+separate, so the contamination grows with the rung instead of sitting under
+everything as a constant floor: seventeen times at 0.01, six at 0.02, and still
+1.7 at 0.05. Write PNG for any render-against-render comparison.
 
 Every problem the distribution metrics had disappears. The ladder is monotone in
 both scenes. No neighbouring pair of intervals overlaps. The identity rung
@@ -511,9 +522,15 @@ question changed, and the easier question has a much better answer.
 
 What it buys is a real decision. Both scenes start from a 1M cap. Pruning at
 0.05 leaves 628k Gaussians on gaudi and 619k on r2d2, a cut of roughly 38% in
-both, and moves the delivered image by 0.0055 and 0.0102 LPIPS at 42 dB.
-Pruning at 0.1 leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.023
-and 0.057. The r2d2 cell at 0.1 is the only one that looks like a real cost. That is a defensible
+both, and moves the delivered image by 0.0032 and 0.0078 LPIPS at 42 to 43 dB.
+Pruning at 0.1 leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.020
+and 0.054 at around 32 dB. The r2d2 cell at 0.1 is the only one that looks like
+a real cost.
+
+The fine rungs land somewhere more useful than "small". At 0.01 the two renders
+differ by 61 dB on gaudi and 68 dB on r2d2, which is not a small difference so
+much as no difference at all. Whatever those rungs cost, it is not something a
+viewer could be shown. That is a defensible
 basis for setting the shipping threshold at 0.05, and it holds regardless of
 what the photographs contain or where the tourists were standing.
 
