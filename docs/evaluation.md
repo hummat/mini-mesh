@@ -141,10 +141,11 @@ the differences directly changes several verdicts.
 
 LPIPS, mean paired difference with a 95% interval, and how often the difference
 kept its sign across frames. These intervals treat the frames as independent,
-which the section below shows is wrong for a walkthrough. It holds here because
-these are held-out eval frames, and nerfstudio's fraction split takes them as
-the complement of an evenly spaced training set: 23 frames apart on gaudi and 22
-on r2d2, further apart than the correlation length measured below.
+which the section below shows is wrong for a walkthrough. Whether it is wrong
+here is a question about spacing, so it was measured rather than argued. See
+"How independent are the eval frames" after the table: for most rows the answer
+is that the intervals are 5 to 9% too narrow, and for the seeding row it is that
+the interval should not be read as resolving anything.
 
 | Comparison | n | Mean diff | 95% CI | Paired SD | Marginal SD | Same sign |
 |---|---|---|---|---|---|---|
@@ -156,6 +157,60 @@ on r2d2, further apart than the correlation length measured below.
 | prune 0.1, gaudi | 5 | +0.0042 | [+0.003, +0.005] | 0.0009 | 0.050 | 5/5 |
 | prune 0.05, r2d2 | 7 | +0.0059 | [+0.004, +0.008] | 0.002 | 0.035 | 7/7 |
 | prune 0.1, r2d2 | 7 | +0.0373 | [+0.029, +0.046] | 0.010 | 0.038 | 7/7 |
+
+### How independent are the eval frames
+
+nerfstudio's fraction split takes the eval frames as the complement of an evenly
+spaced training set, which lands them at 23, 46, 69, 92 and 115 on gaudi and
+about 22 apart on r2d2. Spacing is not independence, so measure the correlation
+of the thing being averaged: the paired per-frame LPIPS difference, computed on
+every frame of the walkthrough in capture order.
+
+It depends on which comparison, and by more than the spacing does:
+
+| comparison            | rho at lag 1 | rho at eval spacing | below 0.1 at lag | ESS / n    |
+| --------------------- | ------------ | ------------------- | ---------------- | ---------- |
+| prune 0.05, gaudi     | 0.79         | +0.11 (lag 23)      | 31               | 6.5 / 112  |
+| prune 0.05, r2d2      | 0.61         | -0.02 (lag 21)      | 5                | 25.8 / 147 |
+| seed off to on, gaudi | 0.97         | +0.19 (lag 23)      | 25               | 4.6 / 112  |
+
+Seeding is the slowly varying one, which fits what it does: it changes how well
+the whole reconstruction resolves, so neighbouring views move together. Pruning
+on r2d2 is nearly white by lag 5.
+
+Summing the autocorrelation over the actual pairwise lags of the eval frames
+gives the variance inflation for the mean. Estimated directly it comes out below
+1 for all three, because the long lags return negative estimates. The longest of
+those rest on 16 to 20 products, and the sample autocorrelation of any series
+sums to -1/2 across all lags by construction, so the far tail is biased down. Clamping every
+negative estimate to zero is the conservative reading. The two bracket the
+answer:
+
+| comparison             | as estimated | negatives to zero | width factor |
+| ---------------------- | ------------ | ----------------- | ------------ |
+| prune 0.05, gaudi      | 0.86         | 1.18              | up to 1.09   |
+| prune 0.05, r2d2       | 0.85         | 1.10              | up to 1.05   |
+| seed off to on, gaudi  | 0.76         | 1.31              | up to 1.15   |
+
+For every row except seeding this changes nothing: a 5 to 9% wider interval
+leaves each verdict where it was. Seeding is the exception, and not by a
+comfortable margin either way. Its interval reaches zero at a width factor of
+1.095, which sits between the two bounds: [-0.145, -0.017] under the estimated
+inflation and [-0.166, +0.004] under the conservative one. The row should not be
+read as resolving anything, and the reason is dependence rather than sample
+size.
+
+That is a statement about this test, not about seeding. Seeding moves LPIPS from
+0.468 to 0.387 at 10k steps and 0.341 to 0.282 at 30k, and on the full 112-frame
+walkthrough the paired difference is -0.071 against an effective sample size of
+4.6, which is four standard errors from zero. The effect is not in doubt. What
+the five-frame interval could carry is.
+
+Two caveats on the correction itself. The three comparisons measured here are
+the pruning pair on both scenes and the seeding pair on gaudi; the cap and
+`rasterize_mode` rows are assumed to sit inside the same range, which is
+untested. And these autocorrelations come from training views, while the table
+scores held-out ones.
 
 Three things fall out.
 
@@ -475,7 +530,10 @@ Chong and Forsyth describe. The drift is 12.8 points on gaudi against a ladder
 whose whole range is 5.4, so the number cannot be read on its own and two
 configurations evaluated at different frame counts cannot be compared at all.
 The steps above survive because the shared bootstrap cancels the part of that
-bias the two runs have in common.
+bias the two runs have in common. How much that is stays unmeasured. The null
+rung shows the cancellation is exact when the two configurations are identical,
+which is the easy case; the bias depends on the feature distribution, and two
+configurations that differ do not have to share all of it.
 
 KID is worse in a different way. A single draw at 36 frames puts the r2d2 run at
 -6.4, a negative squared distance, which an unbiased estimator is entitled to
@@ -516,7 +574,8 @@ FID's absolute level falls 12.8 points between 28 and 112 frames, more than
 twice the range of the whole ladder, so it cannot be read as a number and two
 configurations scored at different frame counts cannot be compared at all. The
 paired steps survive because the shared bootstrap cancels the part of that drift
-the two runs have in common. Nothing rescues the level.
+the two runs have in common, with the caveat above on how much that is. Nothing
+rescues the level.
 
 The second is discriminability under matched samples. Each metric's own
 bootstrap supplies its sampling deviation, on the same frames under the same
