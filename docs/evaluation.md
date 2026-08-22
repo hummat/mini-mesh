@@ -711,8 +711,11 @@ count are float32 and carry the 0.0002 noted above, which is two orders of
 magnitude under the drift being discussed.
 
 Three limits apply to all of the above. These are training views, which the
-model was fit to, so they understate every degradation. The reference set is our
-own capture frames, tourists included, so a model that correctly drops a
+model was fit to, so nothing here establishes how these transforms behave on
+held-out or delivery poses. Which way the difference runs is not known either:
+pruning is applied after training and can cost a seen pose more than a novel
+one as easily as less, so these numbers are not lower bounds. The reference set
+is our own capture frames, tourists included, so a model that correctly drops a
 transient is penalised for it. And an interval spanning zero means the test
 could not resolve that step at this sample size, which is not the same as the
 step being free.
@@ -1004,13 +1007,13 @@ The proposed experiment, in order:
    metric that would work for other people, and one insensitive rater's
    indifference is not evidence that anybody else would miss the difference.
    Nothing in the design separates any of those from the population case. So
-   the experiment as described settles what we default to and nothing wider,
-   and each outcome should be written down that way. Treating any of the three
-   as a claim about viewers needs a second rater, recruited independently and
-   scoring the same held-out pairs, and that goes double for wiring a metric in
-   after `export` for every asset we ship. Short of it the winner stays a
-   diagnostic reported next to `ns-eval` rather than a criterion anything is
-   decided on.
+   each outcome should be written down as what that rater saw, and none of them
+   sets a default for assets other people look at. Turning any of the three
+   into a decision needs a second rater, recruited independently and scoring the
+   same held-out pairs. Short of that the defaults stay where they are, the
+   winner is a diagnostic reported next to `ns-eval`, and the honest summary of
+   a completed single-rater run is that one person could or could not tell these
+   apart.
 4. **Build stimuli only if 1 to 3 leave a real gap.** MUGSQA covers the input
    axes and released its data, so what would remain is attribute-based pruning
    and container quantisation at fixed training. That is a much smaller build
