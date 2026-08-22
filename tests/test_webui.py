@@ -79,6 +79,16 @@ class TestCommandValidation:
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
+    def test_orbit_image_format_passes_validation(self):
+        """The UI emits this flag, so the validator has to let it through."""
+        from webui import test_cmd
+
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 export --method orbit-frames "
+            "--orbit-image-format png"
+        )
+        assert test_cmd(cmd, "scripts/run.sh") is None
+
     def test_invalid_commands_caught_by_validation(self):
         """Test that manually constructed invalid commands are caught."""
         from webui import test_cmd

@@ -209,6 +209,7 @@ def test_cmd(cmd: str, run_cmd: str) -> Optional[str]:
         "--px-per-uv-triangle",
         "--downscale-factor",
         "--method",
+        "--orbit-image-format",
         "--target-num-faces",
         "--bounding-box-min",
         "--bounding-box-max",
