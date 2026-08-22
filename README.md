@@ -318,8 +318,14 @@ opacity filter runs by default, dropping Gaussians below 0.05. What that saves d
 the settings: across 15 splatfacto-mcmc exports it removed between 4.9% and 62% of the Gaussians, median 28%. Object
 captures sit at the top of that range because the model fills the empty space around the subject with faint
 Gaussians, and outdoor walkthroughs where every direction has content sit at the bottom. The threshold comes from
-pruning checkpoints at several values and re-running `ns-eval`: 0.05 moved LPIPS by less than a tenth of the
-per-image spread on both scenes tried, while 0.1 cost a full spread on the sharper one.
+pruning checkpoints at several values and testing matched pairs frame by frame: at 0.05 the paired LPIPS change is
++0.0007 on a cluttered outdoor capture and +0.0059 on a sharp object capture, with the sign holding on every frame
+of both, and at 0.1 it is +0.0042 and +0.0373. Scored against the unpruned render at the same poses instead of
+against photographs, 0.05 moves the image by 0.0032 and 0.0078 LPIPS (43 and 42 dB) and 0.1 by 0.020 and 0.054
+(around 32 dB). Those are measured changes in objective metrics and not established perceptual costs; whether the
+median 28% saving is worth them is an open question. Earlier guidance here called 0.1 free on the outdoor capture,
+which compared the effect to the per-image spread rather than to its own paired noise and so buried a small
+consistent regression. See `docs/evaluation.md`.
 
 Use `export --no-clean` to keep the raw output, `--clean-opacity <float>` to move the threshold, and
 `--clean-max-scale-quantile <q>`, `--clean-max-anisotropy <ratio>`, or `--clean-sor` to switch on the size, needle,
