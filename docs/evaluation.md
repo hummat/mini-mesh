@@ -297,7 +297,9 @@ advance with the whole interval inside it.
 ## Would FID or KID do better?
 
 Worth separating the premise first: LPIPS is not one of the metrics that works.
-It scored 0.41, 0.34 and 0.51 in the three studies, at or below PSNR every time.
+It scored 0.41, 0.34 and 0.51 in the three studies. Two of those report PSNR as
+well, and LPIPS lands 0.11 below it in MUGSQA and 0.01 above it in 3DGS-VBench,
+so it buys nothing over the metric it was meant to improve on.
 What worked was DISTS at 0.73 and the no-reference video models above 0.93. The
 dividing line is not deep features against hand-built ones, since LPIPS and
 DISTS are both deep-feature metrics separated by 0.4 in correlation.
