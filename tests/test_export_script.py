@@ -553,6 +553,68 @@ class TestExportScriptNerfWorkflow:
         assert "--frame-rate 1" in log
         assert "ns-export poisson" not in log
 
+    def test_orbit_frames_default_to_jpeg(self, tmp_path: Path) -> None:
+        """Delivery frames stay JPEG unless the caller asks otherwise."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root, exp_path, ["--method", "orbit-frames"], env_overrides
+        )
+        assert result.returncode == 0, result.stderr
+        assert "--image-format jpeg" in log_path.read_text(encoding="utf-8")
+
+    def test_orbit_frames_accept_png_for_measurement(self, tmp_path: Path) -> None:
+        """Frames scored against other renders need the lossless format to reach ns-render."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        log_path = tmp_path / "stub.log"
+        bin_dir = tmp_path / "bin"
+        _make_stub_binaries(bin_dir, log_path)
+
+        env_overrides = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "MINI_MESH_STUB_LOG": str(log_path),
+        }
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "orbit-frames", "--orbit-image-format", "png"],
+            env_overrides,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "--image-format png" in log_path.read_text(encoding="utf-8")
+
+    def test_orbit_image_format_rejects_unknown_value(self, tmp_path: Path) -> None:
+        """An unsupported format fails loudly rather than reaching the renderer."""
+        repo_root = Path(__file__).resolve().parents[1]
+        exp_path = tmp_path / "train" / "scene" / "nerfacto"
+        exp_path.mkdir(parents=True, exist_ok=True)
+        (exp_path / "config.yml").write_text("dummy: true\n", encoding="utf-8")
+
+        result = _run_export_script(
+            repo_root,
+            exp_path,
+            ["--method", "orbit-frames", "--orbit-image-format", "webp"],
+        )
+        assert result.returncode != 0
+        assert "--orbit-image-format must be one of" in result.stdout + result.stderr
+
     def test_nerf_export_combines_mesh_and_orbit_frames(self, tmp_path: Path) -> None:
         """`orbit-frames` should compose with other requested NeRF export methods."""
         repo_root = Path(__file__).resolve().parents[1]

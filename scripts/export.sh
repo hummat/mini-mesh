@@ -159,6 +159,7 @@ run_nerfstudio_orbit_frames_export() {
         --load-config "$exp_path/config.yml" \
         --output-path "$output_path" \
         --data "$data_path" \
+        --image-format "$orbit_image_format" \
         --seconds 30 \
         --frame-rate 1
     else
@@ -166,6 +167,7 @@ run_nerfstudio_orbit_frames_export() {
         --load-config "$exp_path/config.yml" \
         --output-path "$output_path" \
         --output-format images \
+        --image-format "$orbit_image_format" \
         --seconds 30 \
         --frame-rate 1
     fi
@@ -180,6 +182,10 @@ run_sdf_orbit_frames_export() {
 
   if [ -n "$data_path" ]; then
     sdf_render_args+=("--data" "$data_path")
+  fi
+
+  if [ "$orbit_image_format" != jpeg ]; then
+    echo "[WARN]: sdf-render has no image format option; SDF orbit frames stay JPEG"
   fi
 
   if should_run_export_dir "$output_path"; then
@@ -245,6 +251,7 @@ function show_help {
   echo "                              --appearance-mode <mean|index>            Appearance bake mode for splatfacto-w-light (default: mean)"
   echo "                              --appearance-idx <int>                    Camera index for appearance embedding"
   echo "                              --method <string[,string...]>             Export method(s): poisson, tsdf, pointcloud, orbit-frames (default: poisson for NeRF)"
+  echo "                              --orbit-image-format <jpeg|png>           Orbit frame format for NeRF/splat exports (default: jpeg)"
   echo "                              --obb-center <float float float>          Center of crop box, turns cropping on (default: 0 0 0)"
   echo "                              --obb-rotation <float float float>        Rotation of crop box, turns cropping on (default: 0 0 0)"
   echo "                              --obb-scale <float float float>           Size of crop box, turns cropping on (default: 1 1 1)"
@@ -291,6 +298,9 @@ clean_splat=true
 nerf_methods=()
 method_requested=false
 orbit_frames_requested=false
+# Delivery frames are what orbit-frames is for, so JPEG stays the default. Frames
+# meant to be scored against other renders need png; see docs/evaluation.md.
+orbit_image_format=jpeg
 # These are the values used when the user asks for a box, not a default box.
 # nerfstudio crops only when all three flags are given (exporter.py:619), so
 # passing them unconditionally would clip every export to a half-unit cube in a
@@ -389,6 +399,16 @@ while [ $i -lt ${#export_args[@]} ]; do
       require_args "${export_args[$i]}" 1 "$remaining"
       val="${export_args[$((i+1))]}"
       add_export_methods "$val"
+      i=$((i+2))
+      ;;
+    --orbit-image-format)
+      require_args "${export_args[$i]}" 1 "$remaining"
+      val="${export_args[$((i+1))]}"
+      case "$val" in
+        jpeg|png) ;;
+        *) echo "[ERROR]: --orbit-image-format must be one of: jpeg, png"; exit 1 ;;
+      esac
+      orbit_image_format="$val"
       i=$((i+2))
       ;;
     --obb-center|--obb-rotation|--obb-scale)

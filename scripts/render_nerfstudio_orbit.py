@@ -2,7 +2,8 @@
 """Render Nerfstudio spiral orbit frames with a portable data-path override.
 
 Pass --image-format png when the frames will be compared against other renders
-rather than looked at. JPEG artifacts largely cancel between two near-identical
+rather than looked at, or --orbit-image-format png if you are going through
+scripts/export.sh, which passes it here. JPEG artifacts largely cancel between two near-identical
 images and decorrelate as the images separate, so the contamination grows with
 the effect being measured instead of sitting under it as a constant floor. At
 q95 the encoder's own error measured 0.00795 LPIPS and 48.5 dB, against renders
