@@ -287,10 +287,15 @@ frame indices once per replicate and recompute the *difference* under that
 shared resampling. The ladder is the opacity pruning threshold at 0, 0.00392,
 0.01, 0.02, 0.05 and 0.1.
 
-The first rung is a free calibration check. Splatfacto already culls at an
-alpha of 0.005 during training, so asking for 0.00392 afterwards removes
-nothing. Both scenes render byte-identical images to the unpruned run and the
-two configurations are the same model. FID and CMMD both return exactly zero
+The first rung is a free calibration check, and not by luck. 0.00392 is 1/255,
+which is the cutoff gsplat's rasterizer already applies: `alpha < 1.f / 255.f`
+then `continue`, in `rasterize_to_pixels_fwd.cu`. A Gaussian's alpha at a pixel
+is its opacity scaled by a factor no greater than one, so a Gaussian whose
+opacity sits below that line is skipped at every pixel and contributes to no
+image. Pruning at 1/255 cannot change a render, and both scenes duly produce
+byte-identical images to the unpruned run. The two configurations are the same
+model as far as anything downstream can tell. FID and CMMD both return exactly
+zero
 with a zero-width interval, which is what a correctly paired bootstrap has to
 return on identical inputs and what independent bootstrapping of the two
 estimates would not have returned. KID returned 0.30 instead, for reasons that
@@ -475,6 +480,47 @@ construction, and it cannot say whether anyone would notice. Both still need the
 study below. What it does supply is the thing the photo-referenced ladder never
 had: at the rung that changes nothing the answer is zero by construction, so the
 measurement can be checked against a fact rather than against another metric.
+
+## Scoring against the export instead of the photographs
+
+The section above ends by arguing that the pre-transform export is the better
+reference for anything applied after training. That is cheap to test, since the
+renders already exist. Each rung scored against the unpruned render at the same
+poses, per frame, LPIPS with a 95% interval on the mean:
+
+| threshold | gaudi LPIPS vs unpruned      | PSNR dB | r2d2 LPIPS vs unpruned       | PSNR dB |
+| --------- | ---------------------------- | ------- | ---------------------------- | ------- |
+| 0         | 0.00000 [0.00000, 0.00000]   | inf     | 0.00000 [0.00000, 0.00000]   | inf     |
+| 0.00392   | 0.00000 [0.00000, 0.00000]   | inf     | 0.00000 [0.00000, 0.00000]   | inf     |
+| 0.01      | 0.00085 [0.00083, 0.00087]   | 51.67   | 0.00038 [0.00037, 0.00039]   | 57.62   |
+| 0.02      | 0.00186 [0.00181, 0.00191]   | 48.08   | 0.00166 [0.00163, 0.00169]   | 51.25   |
+| 0.05      | 0.00552 [0.00540, 0.00565]   | 41.95   | 0.01019 [0.00998, 0.01039]   | 41.49   |
+| 0.1       | 0.02305 [0.02248, 0.02363]   | 33.78   | 0.05711 [0.05600, 0.05823]   | 31.50   |
+
+Every problem the distribution metrics had disappears. The ladder is monotone in
+both scenes. No neighbouring pair of intervals overlaps. The identity rung
+returns exactly zero with infinite PSNR, which is a fact rather than a
+calibration hope. Where FID, KID and CMMD each inverted somewhere and left the
+fine rungs unresolved, this separates all five rungs in both scenes, and the
+intervals are narrow enough that the separation is not close.
+
+The reason is not that LPIPS is a better metric than CMMD. It is that the
+comparison is paired at the level of individual frames against an exact
+reference, so nothing has to be estimated from a sample of 112 images. The
+question changed, and the easier question has a much better answer.
+
+What it buys is a real decision. Both scenes start from a 1M cap. Pruning at
+0.05 leaves 628k Gaussians on gaudi and 619k on r2d2, a cut of roughly 38% in
+both, and moves the delivered image by 0.0055 and 0.0102 LPIPS at 42 dB.
+Pruning at 0.1 leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.023
+and 0.057. The r2d2 cell at 0.1 is the only one that looks like a real cost. That is a defensible
+basis for setting the shipping threshold at 0.05, and it holds regardless of
+what the photographs contain or where the tourists were standing.
+
+Two things it still cannot do. The unpruned export wins by construction, so this
+can never report that pruning improved anything, only how far it moved. And a
+0.0055 LPIPS deviation is not a statement about what a viewer would notice,
+which remains the open question the study below is meant to close.
 
 ## What to measure instead
 
