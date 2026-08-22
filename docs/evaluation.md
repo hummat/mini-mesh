@@ -439,7 +439,7 @@ Steps, with an interval excluding zero marked R:
 | --------------- | ---------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]      | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
 | 0.00392 → 0.01  | -0.001 [-0.013, +0.012]      | -0.005 [-0.017, +0.008]   | +0.0006 [-0.0007, +0.0018]   |
-| 0.01 → 0.02     | -0.049 [-0.116, +0.009]      | -0.059 [-0.118, -0.024] R | +0.0071 [+0.0048, +0.0096] R |
+| 0.01 → 0.02     | -0.049 [-0.116, +0.009]      | -0.059 [-0.118, -0.024]   | +0.0071 [+0.0048, +0.0096] R |
 | 0.02 → 0.05     | +1.511 [+1.054, +2.246] R    | +0.499 [+0.135, +1.081]   | +0.0746 [+0.0624, +0.0876] R |
 | 0.05 → 0.1      | +10.577 [+9.925, +14.690] R  | +3.735 [+2.937, +6.391] R | +0.2442 [+0.2039, +0.2937] R |
 
@@ -451,17 +451,20 @@ had under the percentile alone. The weakest of the resolved cases is FID on
 gaudi's 0.02 to 0.05 step, where the interval's near end still sits a third of
 the way to the estimate.
 
-The fine end resolves once, and the one time it does the metrics disagree about
-which way. On r2d2's 0.01 to 0.02 step KID reports -0.059 with an interval of
-[-0.118, -0.024] while CMMD reports +0.0071 with [+0.0048, +0.0096]: same
-images, same frames, both excluding zero, opposite signs. FID spans zero there,
-and on the other three fine steps all three metrics do. That is less damning
-than it first looks. KID measures a polynomial-kernel distance between Inception
-features and CMMD an RBF distance between CLIP features, so a change in the
-images can genuinely shorten one and lengthen the other. Nothing is being
-contradicted. What it does mean is that at most one of them can be tracking any
-single underlying notion of quality, and this data cannot say which, or whether
-either does.
+The fine end resolves once, for CMMD, on r2d2's 0.01 to 0.02 step at +0.0071
+with [+0.0048, +0.0096]. FID spans zero there, and on the other three fine steps
+every metric does.
+
+That step used to read as a contradiction. KID gives -0.059 on the same images
+and the same frames, and its interval excluded zero too, so two estimators were
+resolving one step in opposite directions. The disagreement was never a fact
+about the images. It came from the paired cross terms below, and once those are
+removed KID's interval covers zero and only CMMD is left saying anything. What
+survives is a weaker statement worth keeping: a polynomial-kernel distance on
+Inception features and an RBF distance on CLIP features can move in opposite
+directions on the same change without either being wrong, so at most one of
+them tracks any single notion of quality, and this data cannot say which, or
+whether either does.
 
 An earlier version of this section had FID resolving gaudi's 0.00392 to 0.01
 step as an improvement, and I read that as the metric misbehaving. It was the
@@ -484,6 +487,39 @@ uncertainty left. Every KID number above is computed that way, and anyone
 comparing two configurations with KID should do the same, or at minimum share
 the subset draws between them.
 
+#### The two sets are not independent samples
+
+KID and the unbiased CMMD check both estimate a distance between two
+distributions, and both are unbiased for it when the two sets are independent
+samples. These sets are not. Render i and photograph i are the same camera pose,
+so k(render_i, photo_i) is not a draw from the product of the marginals, and the
+two-sample estimator keeps all n of those terms inside a cross sum of n squared.
+The resulting bias is O(1/n) and depends on the configuration being scored,
+which is the combination a difference between configurations cannot cancel.
+
+Dropping the paired terms costs one line and settles the size. On the levels it
+is enormous for KID. Gaudi's ladder moves from 16.55 to 20.25 and r2d2's from
+4.21 to 7.56, because a render and its own photograph are far more alike than a
+render and someone else's pose. CMMD's unbiased check moves about 2%, from
+0.4394 to 0.4490 and from 0.6751 to 0.6861.
+
+On the differences it is small and uneven. Every CMMD step moves by under 1% and
+not one classification changes, under either interval construction. KID's move
+by up to 10%: r2d2's 0.02 to 0.05 goes from +0.499 to +0.448 and its 0.05 to 0.1
+from +3.735 to +3.521. The correction also shrinks as the rungs coarsen instead
+of holding constant, which is the configuration dependence showing up directly.
+
+One verdict does not survive it. KID's r2d2 0.01 to 0.02 step, the one place the
+fine end resolved for it, reads [-0.096, -0.001] with the paired terms in and
+[-0.097, +0.005] with them out. That was the disagreement with CMMD, and it was
+an artifact of the estimator. A step is marked R above only when it excludes
+zero under both interval constructions and both treatments of the cross terms.
+That leaves KID resolving one of the eight steps, r2d2's 0.05 to 0.1, and leaves
+the fine end to CMMD alone.
+
+FID is untouched. It uses each set's own mean and covariance and never forms a
+cross-set kernel, so there is no paired term in it to remove.
+
 #### What the intervals assume
 
 Every interval above comes from a moving-block bootstrap with a block length of
@@ -502,7 +538,10 @@ mean over the replicates is a different quantity for a nonlinear statistic,
 estimating the resampling expectation rather than the difference that was
 measured, and it would make the point estimate depend on the replicate count and
 the seed. The interval is the 2.5th and 97.5th percentile of the replicate
-differences, and R marks an interval that does not contain zero. The set-level
+differences. R marks a step that excludes zero under every construction and
+estimator variant the sections above try, which for the set-level metrics means
+both interval constructions and both treatments of the paired cross terms. The
+set-level
 tables use 400 replicates, the per-frame LPIPS ones 2000, and the walkthrough
 comparison quoted earlier 20000. Every generator is seeded at 0, and the
 set-level runs draw the whole ladder from one of them in sequence, so those
@@ -553,11 +592,13 @@ shows, so a long block is not a conservative block here either. Out to 40 no
 verdict moves with the block length. Under the percentile construction the 0.02
 to 0.05 and 0.05 to 0.1 steps stay resolved for every metric on both scenes
 except KID on gaudi's 0.02 to 0.05, which stays unresolved, and r2d2's 0.01 to
-0.02 stays resolved for KID and CMMD in opposite directions at every length
-tried. Crossing that sweep with the interval construction sorts the three
-metrics: CMMD holds every coarse verdict under both constructions at every block
-length, FID holds all of them except gaudi's 0.02 to 0.05 at block lengths 5 and
-10, and KID's coarse verdicts move with the block length, the construction, or
+0.02 stays resolved for CMMD at every length tried, and for KID at every length
+until the paired cross terms come out.
+
+Crossing that sweep with the interval construction sorts the three metrics:
+CMMD holds every coarse verdict under both constructions at every block length,
+FID holds all of them except gaudi's 0.02 to 0.05 at block lengths 5 and 10,
+and KID's coarse verdicts move with the block length, the construction, or
 both. Its gaudi 0.05 to 0.1 step, for one, excludes zero under the basic
 interval at block length 1 and from 60 up, and not between.
 
@@ -811,8 +852,8 @@ at the block length where the resampling is widest, 2.7 under a Newey-West
 variance at a bandwidth of 40, and no pair comes closer at any block length from
 1 to 100. Closing the tightest of those gaps takes a factor of 2.6 in width,
 against the tenth that separates the three treatments. CMMD does better than the
-other two at the fine end: it orders both ladders correctly, and it resolves
-r2d2's 0.01 to 0.02 step, which KID also resolves in the opposite direction.
+other two at the fine end: it orders both ladders correctly, and it is the only
+one of the three that resolves r2d2's 0.01 to 0.02 step.
 
 The reason is not that LPIPS is a better metric than CMMD. It is that the
 comparison is paired at the level of individual frames against an exact
