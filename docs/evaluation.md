@@ -110,10 +110,11 @@ worry about.
 **The container choice.** SPZ against SOG is a quantisation decision applied to
 a fixed set of Gaussians. Measured on one cleaned 250k export (`gaudi_ceiling`,
 224,367 Gaussians): 55.6 MB as PLY, 5.9 MB as SPZ, 2.6 MB as SOG, all carrying
-three SH bands. Whether the 3.3 MB SOG saves costs anything a viewer would see
-is exactly the kind of question the metrics above cannot answer. GS-QA evaluates SOG, but as a reconstruction *method*
-with spherical harmonics removed during training, not as a container applied
-afterwards. Nothing published covers our version of the question.
+three SH bands. Whether the 3.3 MB that SOG saves over SPZ costs anything a
+viewer would see is exactly the kind of question the metrics above cannot
+answer. GS-QA evaluates SOG, but as a reconstruction *method* with spherical
+harmonics removed during training, not as a container applied afterwards.
+Nothing published covers our version of the question.
 
 **The frame-count experiment.** Invalid, and not for a subtle reason. The design
 held a fixed set of 11 source frames out of every configuration so the two runs
@@ -229,20 +230,29 @@ depends on the model being scored, so evaluating two configurations at the same
 small n does not cancel it. Chong and Forsyth propose extrapolating to infinite
 samples to get around this; common practice is tens of thousands of images.
 
-KID is the answer to that. It replaces the Fréchet distance with a
+KID answers that on paper. It replaces the Fréchet distance with a
 polynomial-kernel MMD that has an unbiased estimator and assumes nothing about
 the distribution, which is what makes it usable at small n. Variance still falls
 with sample size, but the bias does not depend on it, so a comparison at fixed
-small n means something. Between the two, KID is the one to reach for here.
+small n should mean something. On that reasoning I expected KID to be the one to
+reach for. The measurements below disagree, and the reason is variance rather
+than bias.
 
 CMMD is the stronger version of the same idea. Jayasumana et al. argue FID fails
 on three counts at once, with Inception features too narrow for varied content,
 a normality assumption that does not hold, and poor sample complexity, and show
 it contradicting human raters and reordering itself as sample size changes.
 Their replacement keeps the MMD but swaps in CLIP embeddings and a Gaussian RBF
-kernel. Unbiased, distribution-free, sample efficient, and available as
-`clip-mmd`. If the goal is a feature-based distributional metric, this is the
-current best version of it.
+kernel: distribution-free, sample efficient, and available as `clip-mmd`.
+
+One detail matters before leaning on the unbiasedness argument twice. The
+estimator Google published, which `clip-mmd` vendors verbatim, is the
+minimum-variance form of Gretton et al.'s Eq. (5). It averages the kernel matrix
+including its diagonal, so it is the biased V-statistic, not the unbiased one
+that makes KID safe at small n. The docstring argues the two are almost
+identical, citing the proof of Lemma 6 in the same paper, and for ranking
+configurations at a fixed sample size the difference does not bite. KID is still
+the one with the cleaner claim.
 
 Three cautions before treating any of them as an answer.
 
@@ -265,11 +275,185 @@ The natural reference set is our own capture frames, which contain the tourists.
 A model that correctly drops a transient gets penalised for not matching, the
 same bias already documented for the held-out frames.
 
-The honest recommendation is to test KID or CMMD as a companion, not a
-replacement, and to put it through the same ladder as everything else. Render a
-few hundred orbit frames per configuration, which costs nothing, use the capture
-frames as the reference set, and require it to order a degradation ladder
-correctly before asking it anything harder.
+### What happened when I ran them
+
+I ran all three rather than leaving the question open. Every training view of
+each configuration, rendered at full resolution and compared against the capture
+photographs, on two scenes. CMMD uses CLIP ViT-L/14-336 features with a single
+bicubic resize to 336 by 336; FID and KID use the standard 2048-d Inception
+pool3 features. Uncertainty comes from bootstrap replicates that resample the
+frame indices once per replicate and recompute the *difference* under that
+shared resampling. The ladder is the opacity pruning threshold at 0, 0.00392,
+0.01, 0.02, 0.05 and 0.1.
+
+The first rung is a free calibration check. Splatfacto already culls at an
+alpha of 0.005 during training, so asking for 0.00392 afterwards removes
+nothing. Both scenes render byte-identical images to the unpruned run and the
+two configurations are the same model. FID and CMMD both return exactly zero
+with a zero-width interval, which is what a correctly paired bootstrap has to
+return on identical inputs and what independent bootstrapping of the two
+estimates would not have returned. KID returned 0.30 instead, for reasons that
+turned out to be worth a section of their own.
+
+#### FID
+
+| threshold | gaudi FID | r2d2 FID |
+| --------- | --------- | -------- |
+| 0         | 62.19     | 35.59    |
+| 0.00392   | 62.19     | 35.59    |
+| 0.01      | 62.11     | 35.59    |
+| 0.02      | 62.09     | 35.52    |
+| 0.05      | 62.91     | 37.04    |
+| 0.1       | 67.56     | 47.62    |
+
+| step           | gaudi ΔFID [95% CI]        | r2d2 ΔFID [95% CI]           |
+| -------------- | -------------------------- | ---------------------------- |
+| 0 → 0.00392    | +0.000 [+0.000, +0.000]    | +0.000 [+0.000, +0.000]      |
+| 0.00392 → 0.01 | -0.069 [-0.143, -0.014]    | -0.001 [-0.031, +0.024]      |
+| 0.01 → 0.02    | -0.053 [-0.183, +0.102]    | -0.054 [-0.140, +0.033]      |
+| 0.02 → 0.05    | +0.880 [+0.289, +1.491]    | +1.637 [+1.260, +2.137]      |
+| 0.05 → 0.1     | +5.144 [+4.101, +6.286]    | +11.856 [+10.456, +13.232]   |
+
+FID inverts at the fine end in both scenes and, on gaudi, does so with an
+interval that excludes zero: pruning at 0.01 is confidently ranked better than
+not pruning at all. r2d2 shows the same dip without resolving it. Confidently
+ranking a degradation as an improvement in one scene and not the other is the
+failure mode to worry about, because nothing in the output marks which scene you
+are in.
+
+The sample-size bias is the part to take seriously. The unpruned gaudi run reads
+75.12, 69.38, 66.64 and 62.19 at 28, 56, 84 and 112 frames, and the unpruned
+r2d2 run reads 43.20, 38.42, 37.31 and 35.59 at 36, 73, 110 and 147. Both fall
+monotonically as frames are added, exactly the behaviour Chong and Forsyth
+describe. On gaudi that drift spans 12.9 FID points against a ladder whose whole
+range is 5.4. The number is therefore uninterpretable on its own, and comparing
+two configurations evaluated at different frame counts would be meaningless. The
+steps above survive only because the shared bootstrap cancels the part of the
+bias the two runs have in common.
+
+#### KID, and a flaw in the standard protocol
+
+KID needed fixing before it could be read. The usual protocol averages the
+unbiased MMD over random subsets of the two feature sets, and my first run drew
+those subsets independently for each configuration. On the byte-identical rung
+that produced 15.76 against 16.07, a difference of 0.30 where the truth is
+exactly zero, against a full ladder spanning only 1.7. The sampling noise was
+larger than every step at the fine end and the pairing could not cancel it,
+because the two runs never saw the same subsets. The estimator is unbiased on
+the whole set, so I dropped the subsetting and computed it there. The identical
+rung then returned exactly zero and the frame bootstrap became the only source
+of uncertainty. Anyone comparing two configurations with KID should do the same,
+or at minimum share the subset draws between them.
+
+| threshold | gaudi KID x1000 | r2d2 KID x1000 |
+| --------- | --------------- | -------------- |
+| 0         | 16.103          | 4.034          |
+| 0.00392   | 16.103          | 4.034          |
+| 0.01      | 16.017          | 4.030          |
+| 0.02      | 15.965          | 3.955          |
+| 0.05      | 16.063          | 4.485          |
+| 0.1       | 17.682          | 8.232          |
+
+KID orders the ladder worse than CMMD does. Both scenes rank 0.05 below the
+unpruned run, and each contains one resolved decrease at the fine end, gaudi at
+the 0.01 rung and r2d2 at the 0.02 rung, so KID reports pruning as a small
+improvement with confidence in both. Only the step from 0.05 to 0.1 separates
+cleanly in both scenes.
+
+Sample count hits KID hardest. A single draw at 36 frames puts every r2d2 rung
+at roughly -6.6, a negative squared distance, which the unbiased estimator is
+free to produce but which no longer supports an ordering. The same rungs read
++4.0 at 147 frames. The estimator is unbiased in expectation, and that is not
+the same as usable from one draw at this size.
+
+#### CMMD
+
+| threshold | gaudi_fountain (n=112) | r2d2_new (n=147) |
+| --------- | ---------------------- | ---------------- |
+| 0         | 0.3661                 | 0.6176           |
+| 0.00392   | 0.3661                 | 0.6176           |
+| 0.01      | 0.3670                 | 0.6196           |
+| 0.02      | 0.3664                 | 0.6258           |
+| 0.05      | 0.3819                 | 0.7008           |
+| 0.1       | 0.4327                 | 0.9505           |
+
+Past that the two scenes disagree. r2d2 orders the ladder correctly. gaudi does
+not, scoring 0.02 below 0.01, so the ordering inverts at the fine end.
+
+| step             | gaudi ΔCMMD [95% CI]        | r2d2 ΔCMMD [95% CI]         |
+| ---------------- | --------------------------- | --------------------------- |
+| 0 → 0.00392      | +0.0000 [+0.0000, +0.0000]  | +0.0000 [+0.0000, +0.0000]  |
+| 0.00392 → 0.01   | +0.0011 [-0.0010, +0.0030]  | +0.0020 [-0.0001, +0.0042]  |
+| 0.01 → 0.02      | -0.0008 [-0.0037, +0.0017]  | +0.0062 [+0.0008, +0.0114]  |
+| 0.02 → 0.05      | +0.0155 [+0.0108, +0.0210]  | +0.0741 [+0.0638, +0.0854]  |
+| 0.05 → 0.1       | +0.0511 [+0.0409, +0.0615]  | +0.2532 [+0.2229, +0.2870]  |
+
+The coarse steps resolve in both scenes with intervals well clear of zero. The
+finest step resolves in neither.
+
+The comparison worth putting weight on is the one the paired test already
+answered. Pruning at 0.05 against no pruning gives +0.0158 on gaudi with an
+interval of [0.0108, 0.0213], and +0.0833 on r2d2 with [0.0721, 0.0955]. Both
+exclude zero, and both agree in sign with the paired LPIPS results of +0.0007
+and +0.0059. On this comparison a set-level distribution metric and a per-frame
+perceptual one reach the same verdict, which is worth something given that they
+are not even looking at the same frames.
+
+Sample size stays a problem. The unpruned gaudi run scores 0.3597 at 28 frames,
+0.3883 at 56, 0.3669 at 84 and 0.3662 at 112. The level wanders by more than the
+0.0158 effect it is being asked to measure, and at 28 frames the fine rungs sit
+below the unpruned run. This is the sample-size instability Jayasumana et al.
+document for FID, reappearing in their own replacement at the sample counts a
+single capture provides. The coarse ordering survives it. The fine ordering does
+not.
+
+Three limits apply to all of the above. These are training views, which the
+model was fit to, so they understate every degradation. The paired LPIPS numbers
+they are being compared against came from the five and seven held-out frames
+instead, so agreement between the two is agreement about the configurations and
+not about the same measurement. And an interval spanning zero means the test
+could not resolve that step at this sample size, which is not the same as the
+step being free.
+
+#### What to take from this
+
+Pruning at 0.05 against no pruning is the one comparison here with an
+independent answer, so it is the one to judge them on:
+
+| measurement           | gaudi_fountain              | r2d2_new                    |
+| --------------------- | --------------------------- | --------------------------- |
+| paired LPIPS, held out | +0.0007 [+0.0004, +0.0010] | +0.0059 [+0.0040, +0.0080]  |
+| ΔFID                  | +0.761 [+0.241, +1.337]     | +1.591 [+1.171, +2.073]     |
+| ΔKID x1000            | -0.023 [-0.426, +0.415]     | +0.505 [+0.156, +0.929]     |
+| ΔCMMD                 | +0.0158 [+0.0108, +0.0213]  | +0.0833 [+0.0721, +0.0955]  |
+
+FID and CMMD both resolve it in both scenes and agree with the paired result.
+KID resolves only r2d2, the scene where the effect is eight times larger, and
+misses gaudi entirely.
+
+None of the three orders the whole ladder correctly, though. Each ranks at least
+one pruned configuration above the unpruned original. What separates them is
+whether they do it with confidence: CMMD's inversion sits inside an interval that
+spans zero, while FID and KID both produce a resolved step in the wrong
+direction. A metric that fails to resolve a step is far less dangerous than one
+that resolves it backwards.
+
+That puts CMMD first, FID second and useful as long as its level is never read
+as a number, and KID last. The ordering inverts what the sample-size argument
+predicted, because that argument was about bias while the thing breaking these
+estimators at roughly 100 frames is variance. KID has the cleanest bias property
+and the worst noise.
+
+The result to be most careful with is the easiest one. This test gave all three
+metrics the friendliest setup available: identical poses across configurations,
+a reference set photographed from those same poses, and training views the model
+had already fit. The case that motivated the question, comparing two exported
+assets along an orbit with no photograph anywhere near the camera path, removes
+every one of those advantages. A metric that inverts a ladder under these
+conditions has not earned that harder job. Use CMMD as a companion to the paired
+per-frame tests, keep the frame count fixed across everything being compared,
+and treat a single set-level number as a claim about a distribution rather than
+about what anyone sees.
 
 ## What to measure instead
 
