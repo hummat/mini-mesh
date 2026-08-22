@@ -428,18 +428,18 @@ Steps, with an interval excluding zero marked R:
 | gaudi step      | ΔFID                      | ΔKID x1000                | ΔCMMD                        |
 | --------------- | ------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]   | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
-| 0.00392 → 0.01  | -0.031 [-0.088, +0.030]   | -0.036 [-0.065, +0.010]   | +0.0010 [-0.0002, +0.0023]   |
-| 0.01 → 0.02     | -0.029 [-0.172, +0.100]   | -0.062 [-0.198, +0.035]   | +0.0000 [-0.0023, +0.0023]   |
-| 0.02 → 0.05     | +0.733 [+0.253, +1.339] R | +0.135 [-0.316, +0.762]   | +0.0136 [+0.0099, +0.0184] R |
-| 0.05 → 0.1      | +5.340 [+4.105, +6.951] R | +2.075 [+0.929, +3.961] R | +0.0637 [+0.0470, +0.0862] R |
+| 0.00392 → 0.01  | -0.028 [-0.088, +0.030]   | -0.038 [-0.065, +0.010]   | +0.0009 [-0.0002, +0.0023]   |
+| 0.01 → 0.02     | -0.024 [-0.172, +0.100]   | -0.055 [-0.198, +0.035]   | -0.0000 [-0.0023, +0.0023]   |
+| 0.02 → 0.05     | +0.702 [+0.253, +1.339] R | +0.047 [-0.316, +0.762]   | +0.0132 [+0.0099, +0.0184] R |
+| 0.05 → 0.1      | +4.772 [+4.105, +6.951] R | +1.694 [+0.929, +3.961] R | +0.0618 [+0.0470, +0.0862] R |
 
 | r2d2 step       | ΔFID                         | ΔKID x1000                | ΔCMMD                        |
 | --------------- | ---------------------------- | ------------------------- | ---------------------------- |
 | 0 → 0.00392     | +0.000 [+0.000, +0.000]      | +0.000 [+0.000, +0.000]   | +0.0000 [+0.0000, +0.0000]   |
-| 0.00392 → 0.01  | +0.001 [-0.013, +0.012]      | -0.004 [-0.017, +0.008]   | +0.0006 [-0.0007, +0.0018]   |
-| 0.01 → 0.02     | -0.051 [-0.116, +0.009]      | -0.067 [-0.118, -0.024] R | +0.0072 [+0.0048, +0.0096] R |
-| 0.02 → 0.05     | +1.626 [+1.054, +2.246] R    | +0.561 [+0.135, +1.081] R | +0.0752 [+0.0624, +0.0876] R |
-| 0.05 → 0.1      | +12.001 [+9.925, +14.690] R  | +4.400 [+2.937, +6.391] R | +0.2511 [+0.2039, +0.2937] R |
+| 0.00392 → 0.01  | -0.001 [-0.013, +0.012]      | -0.005 [-0.017, +0.008]   | +0.0006 [-0.0007, +0.0018]   |
+| 0.01 → 0.02     | -0.049 [-0.116, +0.009]      | -0.059 [-0.118, -0.024] R | +0.0071 [+0.0048, +0.0096] R |
+| 0.02 → 0.05     | +1.511 [+1.054, +2.246] R    | +0.499 [+0.135, +1.081] R | +0.0746 [+0.0624, +0.0876] R |
+| 0.05 → 0.1      | +10.577 [+9.925, +14.690] R  | +3.735 [+2.937, +6.391] R | +0.2442 [+0.2039, +0.2937] R |
 
 The coarse end is close to unanimous. Every metric resolves 0.05 to 0.1 in both
 scenes, and 0.02 to 0.05 goes the same way everywhere except KID on gaudi. The
@@ -447,8 +447,8 @@ weakest of the resolved cases is FID on gaudi's 0.02 to 0.05 step, where the
 interval's near end still sits a third of the way to the estimate.
 
 The fine end resolves once, and the one time it does the metrics disagree about
-which way. On r2d2's 0.01 to 0.02 step KID reports -0.067 with an interval of
-[-0.118, -0.024] while CMMD reports +0.0072 with [+0.0048, +0.0096]: same
+which way. On r2d2's 0.01 to 0.02 step KID reports -0.059 with an interval of
+[-0.118, -0.024] while CMMD reports +0.0071 with [+0.0048, +0.0096]: same
 images, same frames, both excluding zero, opposite signs. FID spans zero there,
 and on the other three fine steps all three metrics do. That is less damning
 than it first looks. KID measures a polynomial-kernel distance between Inception
@@ -492,16 +492,27 @@ starts uniformly from 0 to n-1, takes L consecutive indices from each with
 wraparound past the end of the sequence, concatenates them and truncates back
 to n. One index set per replicate indexes the configuration under test, the one
 it is compared against, and the reference set alike, so the pairing survives the
-resample. The reported difference is the mean over replicates, the interval is
-their 2.5th and 97.5th percentiles, and R marks an interval that does not
-contain zero. The set-level tables use 400 replicates, the per-frame LPIPS ones
-2000, and the walkthrough comparison quoted earlier 20000. Each run seeds one
-generator at 0 and draws every step of the ladder from it in sequence, so
-rerunning a single step alone reproduces its estimate but not its exact
-interval, and the endpoints move in their last quoted digit between generators
-anyway. FID uses the low-rank Frechet identity described below, KID the
-unbiased estimator on the full set with no subset averaging, and CMMD the
-V-statistic accumulated in float64.
+resample. The reported difference is the statistic on the observed sample. The
+mean over the replicates is a different quantity for a nonlinear statistic,
+estimating the resampling expectation rather than the difference that was
+measured, and it would make the point estimate depend on the replicate count and
+the seed. The interval is the 2.5th and 97.5th percentile of the replicate
+differences, and R marks an interval that does not contain zero. The set-level
+tables use 400 replicates, the per-frame LPIPS ones 2000, and the walkthrough
+comparison quoted earlier 20000. Every generator is seeded at 0, and the
+set-level runs draw the whole ladder from one of them in sequence, so those
+intervals are reproducible as a set rather than one step at a time. Their
+endpoints move in the last quoted digit between generators in any case. FID uses
+the low-rank Frechet identity described below, KID the unbiased estimator on the
+full set with no subset averaging, and CMMD the V-statistic accumulated in
+float64.
+
+Which point estimate gets reported is not a formality here. On r2d2's 0.05 to
+0.1 step the replicate mean sits at 12.00 FID against 10.58 observed and at 4.40
+KID against 3.74, so the percentile interval is dragged along with it and the
+observed value lands near its lower end rather than in the middle. CMMD moves by
+under three percent on the same step. Read the coarse FID and KID intervals as
+offset from their estimates rather than centred on them.
 
 How much it costs splits the metrics in two, and the split is the useful part of
 the check. Interval width at block length 20 over width at block length 1:
@@ -534,12 +545,13 @@ million, with the residual a constant offset that cancels in a difference, and
 400 replicates now cost less than 25 did.
 
 Two classifications moved between them, both from resolved to unresolved. KID
-resolved gaudi's 0.00392 to 0.01 step under the i.i.d. bootstrap, at -0.037 with
-[-0.072, -0.001], and does not under blocks, at -0.036 with [-0.065, +0.010].
-FID resolved r2d2's 0.01 to 0.02 step on 25 replicates, at -0.052 with
-[-0.098, -0.001], and does not on 400, at -0.051 with [-0.116, +0.009]. Neither
-estimate shifted; both intervals grew past zero, which is what the fine end
-looks like once the interval stops being optimistic.
+resolved gaudi's 0.00392 to 0.01 step under the i.i.d. bootstrap, where -0.038
+carried [-0.072, -0.001], and does not under blocks, where the same -0.038
+carries [-0.065, +0.010]. FID resolved r2d2's 0.01 to 0.02 step on 25
+replicates, where -0.049 carried [-0.098, -0.001], and does not on 400, where it
+carries [-0.116, +0.009]. The estimate cannot move, since it is the difference
+on the observed sample either way; both intervals grew past zero, which is what
+the fine end looks like once the interval stops being optimistic.
 
 CMMD needed a third. The implementation here is Google's, which uses the biased
 V-statistic rather than the unbiased U-statistic, and its bias is not a constant
@@ -549,8 +561,8 @@ and that quantity depends on the configuration being scored. On this ladder it
 does not move. The excess is 0.0160 on gaudi and 0.0156 on r2d2, the same to
 four decimals across all six rungs, and the configuration-dependent factor
 varies only in the fifth decimal. Recomputing every step with the unbiased
-estimator shifts none of them by more than 0.0007 and leaves every
-classification standing: r2d2's 0.01 to 0.02 step reads +0.0072 with
+estimator shifts none of them by more than 0.00015 and leaves every
+classification standing: r2d2's 0.01 to 0.02 step reads +0.0071 with
 [+0.0048, +0.0096] biased and +0.0071 with [+0.0047, +0.0095] unbiased.
 
 Checking that turned up a fourth thing, which has nothing to do with either
@@ -636,10 +648,10 @@ differ:
 
 | step             | FID  | KID  | CMMD  |
 | ---------------- | ---- | ---- | ----- |
-| gaudi 0.02→0.05  | 2.65 | 0.49 | 6.27  |
-| gaudi 0.05→0.1   | 7.35 | 2.68 | 6.38  |
-| r2d2 0.02→0.05   | 5.35 | 2.33 | 11.69 |
-| r2d2 0.05→0.1    | 9.87 | 4.99 | 10.96 |
+| gaudi 0.02→0.05  | 2.53 | 0.17 | 6.10  |
+| gaudi 0.05→0.1   | 6.57 | 2.19 | 6.18  |
+| r2d2 0.02→0.05   | 4.97 | 2.07 | 11.59 |
+| r2d2 0.05→0.1    | 8.70 | 4.24 | 10.66 |
 
 CMMD leads in three of the four and KID trails in all four, while FID takes the
 largest step on gaudi's coarsest. That is the comparison this conclusion
