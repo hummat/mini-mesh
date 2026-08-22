@@ -728,9 +728,9 @@ sensitivity looks like. Calling it an error would need an equivalence bound
 declared in advance and an interval that fits inside it, which is the same thing
 this document demands before anyone calls PSNR blind. No such bound exists here.
 
-So the fine end ranks nobody. FID resolves nothing there, KID and CMMD resolve
-the same single step and disagree about its sign, and which behaviour is correct
-depends on a threshold nobody has set.
+So the fine end ranks nobody. FID and KID resolve nothing there, CMMD resolves
+one step, and which of those is the right behaviour depends on a threshold
+nobody has set.
 
 What does separate them needs no labels, because it is about the estimators
 rather than the images. Two things, and the first version of one of them was
