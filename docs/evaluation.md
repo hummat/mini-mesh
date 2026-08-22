@@ -417,43 +417,63 @@ step being free.
 
 #### What to take from this
 
-Pruning at 0.05 against no pruning is the one comparison here with an
-independent answer, so it is the one to judge them on:
+Only one thing here is a fact about quality rather than about estimators: the
+0.00392 rung is the unpruned model, so its true difference is exactly zero.
+Every other rung's correct ordering is unknown. Nobody has collected opinion
+scores on this ladder, and the LPIPS numbers alongside it are a second fallible
+measurement rather than a label, from a metric this document spends its first
+section showing correlates about 0.5 with viewers. So what follows is a
+comparison of what these estimators can resolve, and not a ranking of which one
+is right.
 
-| measurement           | gaudi_fountain              | r2d2_new                    |
-| --------------------- | --------------------------- | --------------------------- |
-| paired LPIPS, held out | +0.0007 [+0.0004, +0.0010] | +0.0059 [+0.0040, +0.0080]  |
-| ΔFID                  | +0.761 [+0.241, +1.337]     | +1.591 [+1.171, +2.073]     |
-| ΔKID x1000            | -0.023 [-0.426, +0.415]     | +0.505 [+0.156, +0.929]     |
-| ΔCMMD                 | +0.0158 [+0.0108, +0.0213]  | +0.0833 [+0.0721, +0.0955]  |
+Pruning at 0.05 against no pruning is the step with an independent measurement
+to set against it:
 
-FID and CMMD both resolve it in both scenes and agree with the paired result.
-KID resolves only r2d2, the scene where the effect is eight times larger, and
-misses gaudi entirely.
+| measurement            | gaudi_fountain              | r2d2_new                    |
+| ---------------------- | --------------------------- | --------------------------- |
+| paired LPIPS, held out | +0.0007 [+0.0004, +0.0010]  | +0.0059 [+0.0040, +0.0080]  |
+| ΔFID                   | +0.761 [+0.241, +1.337]     | +1.591 [+1.171, +2.073]     |
+| ΔKID x1000             | -0.023 [-0.426, +0.415]     | +0.505 [+0.156, +0.929]     |
+| ΔCMMD                  | +0.0158 [+0.0108, +0.0213]  | +0.0833 [+0.0721, +0.0955]  |
 
-None of the three orders the whole ladder correctly, though. Each ranks at least
-one pruned configuration above the unpruned original. What separates them is
-whether they do it with confidence: CMMD's inversion sits inside an interval that
-spans zero, while FID and KID both produce a resolved step in the wrong
-direction. A metric that fails to resolve a step is far less dangerous than one
-that resolves it backwards.
+FID and CMMD resolve it in both scenes with the same sign as the paired LPIPS
+result. KID resolves only r2d2, where the LPIPS effect is eight times larger,
+and misses gaudi. Four metrics agreeing is worth more than any one of them
+alone, though they are all trained on ImageNet-scale photographs and could be
+sharing an error rather than converging on the truth.
 
-That puts CMMD first, FID second and useful as long as its level is never read
-as a number, and KID last. The ordering inverts what the sample-size argument
-predicted, because that argument was about bias while the thing breaking these
-estimators at roughly 100 frames is variance. KID has the cleanest bias property
-and the worst noise.
+At the fine end they stop agreeing. FID and KID each resolve a decrease
+somewhere in the first three rungs, CMMD resolves none of them, and the scenes
+disagree about which rung. Read as quality this would mean a little pruning
+helps, which is not absurd since the primitives being removed are the ones the
+model marked nearly invisible. Read as measurement it means the three estimators
+disagree at an effect size where at most one of them can be right, with no way
+to tell which from this data.
 
-The result to be most careful with is the easiest one. This test gave all three
-metrics the friendliest setup available: identical poses across configurations,
-a reference set photographed from those same poses, and training views the model
-had already fit. The case that motivated the question, comparing two exported
-assets along an orbit with no photograph anywhere near the camera path, removes
-every one of those advantages. A metric that inverts a ladder under these
-conditions has not earned that harder job. Use CMMD as a companion to the paired
-per-frame tests, keep the frame count fixed across everything being compared,
-and treat a single set-level number as a claim about a distribution rather than
-about what anyone sees.
+What survives without a quality label is the power ordering. At roughly 100
+frames CMMD resolves the most steps, FID resolves a similar number while its
+absolute level drifts 12.9 points with sample count, and KID resolves the
+fewest. That inverts what the sample-size argument predicted, because the
+argument was about bias while the binding constraint here is variance. KID has
+the cleanest bias property and the worst noise.
+
+The larger conclusion is that this line of attack was aimed at a problem we do
+not have. Set-level metrics earn their keep when nothing corresponds between the
+thing being scored and any reference. Scene reconstruction always has a capture,
+and for the questions this project actually asks, which are about transforms
+applied after training, there is a reference better suited than the photographs:
+the pre-transform export. Render it and the transformed asset at the same poses
+and the comparison is exact, paired per frame, free of transients, and available
+along the delivery camera path rather than only where someone stood with a
+camera.
+
+That measures the right quantity for a delivery decision, which is how far a
+transform moves the image away from the asset we would otherwise ship. It cannot
+say whether the move is an improvement, because the reference wins by
+construction, and it cannot say whether anyone would notice. Both still need the
+study below. What it does supply is the thing the photo-referenced ladder never
+had: at the rung that changes nothing the answer is zero by construction, so the
+measurement can be checked against a fact rather than against another metric.
 
 ## What to measure instead
 
