@@ -425,14 +425,41 @@ So the fine end ranks nobody. FID resolves nothing, CMMD resolves one step, KID
 resolves two, and which behaviour is correct depends on a threshold nobody has
 set.
 
-What does separate them needs no labels at all, because it is about the
-estimators rather than the images. FID's level falls 12.8 points between 28 and
-112 frames, more than twice the range of the entire ladder, so it cannot be read
-as a number and cannot be compared across differing frame counts. KID returns
--6.4 at 36 frames, a negative squared distance, which is legal for an unbiased
-estimator and useless for ordering anything. CMMD shows neither pathology. On
-that basis, and only that basis, CMMD is the one to reach for, with the frame
-count held fixed across everything being compared.
+What does separate them needs no labels, because it is about the estimators
+rather than the images. Two things, and the first version of one of them was
+wrong.
+
+FID's absolute level falls 12.8 points between 28 and 112 frames, more than
+twice the range of the whole ladder, so it cannot be read as a number and two
+configurations scored at different frame counts cannot be compared at all. The
+paired steps survive because the shared bootstrap cancels the part of that drift
+the two runs have in common. Nothing rescues the level.
+
+The second is discriminability under matched samples. Each metric's own
+bootstrap supplies its sampling deviation, on the same frames under the same
+resampling, so the ratio of a step to that deviation compares estimators in
+spite of their different units. On the four steps where the renders genuinely
+differ:
+
+| step             | FID   | KID  | CMMD  |
+| ---------------- | ----- | ---- | ----- |
+| gaudi 0.02→0.05  | 4.15  | 0.31 | 6.32  |
+| gaudi 0.05→0.1   | 7.97  | 3.77 | 12.70 |
+| r2d2 0.02→0.05   | 6.40  | 2.90 | 15.90 |
+| r2d2 0.05→0.1    | 17.98 | 7.50 | 15.72 |
+
+CMMD leads in three of the four and KID trails in all four, while FID takes the
+largest step on r2d2. That is the comparison this conclusion needed. An earlier
+version rested it on KID returning -6.4 at 36 frames, which does not support
+anything: a negative value is exactly what an unbiased U-statistic is entitled
+to produce, it bars reading that point estimate as an absolute distance, and it
+leaves untouched the paired differences the tables above are built from. CMMD's
+estimator is the biased V-statistic and nonnegative by construction, so never
+going negative is a property of its formula rather than evidence of stability.
+
+The fine steps are left out of that table on purpose. A higher ratio there would
+mean only that an estimator separates images that barely differ, and whether
+that is a virtue is the question no bound has settled.
 
 All three resolve the coarse rungs cleanly and agree on direction there, which
 is the regime where the choice of metric stops mattering.
@@ -498,8 +525,7 @@ What it buys is a real decision. Both scenes start from a 1M cap. Pruning at
 0.05 leaves 628k Gaussians on gaudi and 619k on r2d2, a cut of roughly 38% in
 both, and moves the delivered image by 0.0032 and 0.0078 LPIPS at 42 to 43 dB.
 Pruning at 0.1 leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.020
-and 0.054 at around 32 dB. The r2d2 cell at 0.1 is the only one that looks like
-a real cost.
+and 0.054 at around 32 dB.
 
 The fine rungs come out very small indeed: 61 dB on gaudi and 68 dB on r2d2 at
 0.01. That says nothing about the threshold actually being shipped. The step
