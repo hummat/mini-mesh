@@ -307,6 +307,14 @@ For NeRF/ngp models, request several exporters by repeating `--method` or using
 a comma-separated value, for example `export --method poisson,orbit-frames`. For SDF and splat models,
 `orbit-frames` is additive to the normal export.
 
+Orbit frames are written as JPEG, which is what a web viewer wants. Frames that will be scored against other
+renders need `export --method orbit-frames --orbit-image-format png`: JPEG error largely cancels between two
+near-identical images and decorrelates as they separate, so it grows with the effect being measured rather than
+sitting under it as a constant floor. `docs/evaluation.md` has the measurements. The flag reaches NeRF and splat
+orbits; `sdf-render` has no image format option and its frames stay JPEG. A frame directory written in one
+format is not reused for the other: the export skips it and says so, and `--overwrite` clears the old frames
+before rendering rather than leaving a sequence that is part JPEG and part PNG.
+
 **Cropping:** nothing is cropped unless you ask. Passing any of `--obb-center`, `--obb-rotation`, or
 `--obb-scale` turns on an oriented box and the other two fall back to `0 0 0`, `0 0 0`, and `1 1 1`; nerfstudio
 ignores a partial triplet, so one flag has to supply all three. The box spans ±scale/2 about its centre, in the
@@ -318,8 +326,17 @@ opacity filter runs by default, dropping Gaussians below 0.05. What that saves d
 the settings: across 15 splatfacto-mcmc exports it removed between 4.9% and 62% of the Gaussians, median 28%. Object
 captures sit at the top of that range because the model fills the empty space around the subject with faint
 Gaussians, and outdoor walkthroughs where every direction has content sit at the bottom. The threshold comes from
-pruning checkpoints at several values and re-running `ns-eval`: 0.05 moved LPIPS by less than a tenth of the
-per-image spread on both scenes tried, while 0.1 cost a full spread on the sharper one.
+pruning checkpoints at several values and testing matched pairs frame by frame: at 0.05 the paired LPIPS change is
++0.0007 on a cluttered outdoor capture and +0.0059 on a sharp object capture, with the sign holding on every frame
+of both, and at 0.1 it is +0.0042 and +0.0373. Scored against the unpruned render at the same poses instead of
+against photographs, 0.05 moves the image by 0.0032 and 0.0078 LPIPS (43 and 42 dB) and 0.1 by 0.020 and 0.054
+(around 32 dB). Those are measured changes in objective metrics and not established perceptual costs. 0.05 is a
+provisional default: what is established is the shape of the tradeoff rather than the right point on it, since
+moving to 0.1 removes a further 18 to 30 percentage points of Gaussians and multiplies the deviation from the
+unpruned render by six to seven. Picking a point on that curve needs a viewer study or an acceptance bound set in
+advance, and there is neither. Earlier guidance here called 0.1 free on the outdoor capture, which compared the
+effect to the per-image spread rather than to its own paired noise and so buried a small consistent regression.
+See `docs/evaluation.md`.
 
 Use `export --no-clean` to keep the raw output, `--clean-opacity <float>` to move the threshold, and
 `--clean-max-scale-quantile <q>`, `--clean-max-anisotropy <ratio>`, or `--clean-sor` to switch on the size, needle,
@@ -440,6 +457,7 @@ For advanced tuning (BRDF flags, regularizers, NeuS parameters), see **[docs/tro
 - **[Methods & Models](docs/methods_and_models.md)** — How NeuS, NeRF, and other methods work
 - **[BRDF & Shading](docs/brdf_and_shading_effects.md)** — Handling reflective and glossy surfaces
 - **[Examples](docs/examples.md)** — Additional usage examples
+- **[Evaluating splat quality](docs/evaluation.md)** — Why PSNR/SSIM/LPIPS undersell splat quality differences
 
 ## Demos
 

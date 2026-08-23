@@ -6,13 +6,24 @@ to a rendered view: near-transparent blobs, a few enormous ones covering half th
 scene, and needle-shaped slivers. They cost file size and viewer performance
 without earning it back in quality.
 
-Only the opacity stage is on by default, because it is the only one whose quality
-cost has been measured (by filtering a checkpoint and re-running ns-eval): at 0.05
-it removes roughly 38% of Gaussians for an LPIPS change well inside the per-image
-spread on both a cluttered outdoor capture and a sharp object capture. 0.10 is
-free on the former and costs a full spread on the latter, so it is not a safe
-default. The scale, anisotropy and outlier stages are implemented but off until
-they have been measured the same way; see hummat/mini-mesh#30.
+Only the opacity stage is on by default, because it is the only one whose cost has
+been measured. Matched pairs tested frame by frame put the LPIPS change at 0.05 at
++0.0007 on a cluttered outdoor capture and +0.0059 on a sharp object capture, with
+the sign holding on every frame of both; at 0.10 it is +0.0042 and +0.0373. Those
+are changes in an objective metric, not measured perceptual costs.
+
+0.05 is provisional, not validated. What the measurements establish is the shape
+of the tradeoff rather than the right point on it: moving from 0.05 to 0.10
+removes a further 18 to 30 percentage points of Gaussians and multiplies the
+deviation from the unpruned render by six to seven (0.0032 and 0.0078 LPIPS at
+0.05, 0.020 and 0.054 at 0.10). Choosing a point needs a viewer study or an
+objective acceptance bound set in advance, and there is neither. An earlier
+version of this note called 0.10 free on the outdoor capture, which compared it
+to the per-image spread instead of to its own paired noise; see
+docs/evaluation.md and hummat/mini-mesh#34.
+
+The scale, anisotropy and outlier stages are implemented but off until they have
+been measured the same way; see hummat/mini-mesh#30.
 
 The output is always binary_little_endian, whatever the input was.
 """

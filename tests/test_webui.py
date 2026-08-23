@@ -79,6 +79,16 @@ class TestCommandValidation:
         result = test_cmd(cmd, "scripts/run.sh")
         assert result is None
 
+    def test_orbit_image_format_passes_validation(self):
+        """The UI emits this flag, so the validator has to let it through."""
+        from webui import test_cmd
+
+        cmd = (
+            "scripts/run.sh /path/to/video.mp4 export --method orbit-frames "
+            "--orbit-image-format png"
+        )
+        assert test_cmd(cmd, "scripts/run.sh") is None
+
     def test_invalid_commands_caught_by_validation(self):
         """Test that manually constructed invalid commands are caught."""
         from webui import test_cmd
@@ -925,6 +935,21 @@ class TestRunPipelineExportContext:
             input_path="/path/to/video.mp4", export_enable=True, export_method="poisson"
         )
         assert cmd == "scripts/run.sh /path/to/video.mp4 export --method poisson"
+
+    def test_export_orbit_image_format(self):
+        """Test export --orbit-image-format argument."""
+        from webui import run_pipeline
+
+        cmd = run_pipeline(
+            input_path="/path/to/video.mp4",
+            export_enable=True,
+            export_method="orbit-frames",
+            export_orbit_image_format="png",
+        )
+        assert cmd == (
+            "scripts/run.sh /path/to/video.mp4 export --method orbit-frames "
+            "--orbit-image-format png"
+        )
 
     def test_export_multiple_args(self):
         """Test export context with multiple arguments."""
