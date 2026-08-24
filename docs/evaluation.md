@@ -71,7 +71,10 @@ instead: view count (72/36/9), resolution (1080/720/480 square), camera distance
 (5 m/2 m/1 m) and point cloud initialisation quality. 1,970 samples from 55
 Sketchfab meshes rendered in Blender with exact poses in NeRF-synthetic format.
 This is the synthetic ground-truth benchmark we sketched out for ourselves. It
-exists, and the code and data are released.
+exists, and the code and data are released. Its rendered views come with exact
+poses, so the release doubles as a benchmark for our own SfM settings, which no
+experiment here has varied. Issue #39 holds that plan and the coverage table of
+what has and has not been measured.
 
 **3DGS-QA** ([2511.08032](https://arxiv.org/abs/2511.08032)) degrades the
 exported asset directly: primitive count reduced to 75/50/25%, positional noise,
