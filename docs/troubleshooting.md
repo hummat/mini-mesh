@@ -218,6 +218,14 @@ docker/run.sh your_video.mp4 train --vis wandb
 
 Get your key from https://wandb.ai/authorize.
 
+### 8. `ns-eval` metrics ignore masks
+
+`splatfacto.get_image_metrics_and_images` never reads `batch["mask"]`, so metrics are computed over the full image
+even when the dataparser loaded per-frame masks. A masking experiment scored this way reports the masked run as worse
+by however much of the image the masks cover, which has nothing to do with reconstruction quality. Score the kept
+pixels yourself: PSNR over the unmasked region, and SSIM/LPIPS on a render with ground truth pasted into the excluded
+regions. See `docs/evaluation.md` for what that changed.
+
 ---
 
 ## Advanced Tuning

@@ -564,6 +564,64 @@ For “download and view in any viewer” deliverables, train with `--pipeline.m
 `splatfacto-mcmc-web` on the CLI, or use a separate config) and accept slightly softer rendering at non-training
 resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=0.3`.
 
+### 6.7 What the tuning experiments measured
+
+These are results from matched runs on `gaudi_fountain`, `r2d2_new` and `guard_flag`, not defaults inherited from
+upstream. Read every LPIPS number here with the ceiling from `docs/evaluation.md`: an LPIPS win predicts a human
+preference about two times in three, so these are LPIPS rankings rather than established perceptual rankings.
+
+**Pass `sparse_pc.ply`.** Seeding from SfM points is the largest single win found and costs nothing: LPIPS 0.468 to
+0.387 at 10k steps and 0.341 to 0.282 at 30k. Forgetting it once produced a quality gap that read like an RNG noise
+floor for a day.
+
+**30k steps pays on cluttered scenes, not clean ones.** On `gaudi_fountain`, 10k to 30k buys 0.105 LPIPS for 26 extra
+minutes, about three times the per-image spread. On the transient-free `r2d2_new` the same step buys 0.039 against a
+0.039 to 0.049 spread. Longer training appears to spend the extra steps averaging out transients. 30k to 100k buys
+0.014 on gaudi, inside noise, so do not run 100k.
+
+**`splatfacto-mcmc` beats the default ADC densification** on both scenes tested: 0.1838 against 0.1974 on `r2d2_new`,
+0.0361 against 0.0373 on `guard_flag`. Small, same direction twice, no extra cost.
+
+**`splatfacto-w` does not help these captures and its robust mask hurts.** Matched 30k triple on gaudi: mask on gives
+0.331 LPIPS, mask off 0.295, plain seeded mcmc 0.282. Renders confirm the ranking rather than a metric artefact. The
+mask is built for phototourism, where many unstructured views mean a masked pixel is still supervised elsewhere; a
+video walkthrough puts the same person in dozens of consecutive frames, so masking removes all supervision for that
+patch. Note that `-light` disables the mask by default, so a `splatfacto-w-light` run tests embeddings only.
+
+**Appearance embeddings buy nothing on this data.** Exposure drift was measured across the staged scenes as the 5th to
+95th percentile of log2 frame luminance. `guard_flag` tops the range at 3.14 stops, and even there a matched 30k triple
+ties: plain splatfacto 0.0373, `splatfacto-w-light` 0.0362, `splatfacto-mcmc` 0.0361, all inside a 0.028 spread. On
+`r2d2_new` at 1.01 stops the embeddings cost 3.3 dB. They may still be worth having for a viewer with an exposure
+control. Exposure drift also fails to predict reconstruction difficulty: `guard_flag` has the most drift of any scene
+and the best numbers of any scene measured.
+
+**Opacity pruning is not free.** Paired per-frame testing moves LPIPS by 0.0007 on gaudi and 0.0059 on `r2d2_new` at
+threshold 0.05, the same sign on every frame, with PSNR and SSIM agreeing. It was called free because the marginal
+spread is 0.05 and 0.035, which buried it. From a 1M cap, 0.05 leaves 628k and 619k Gaussians, a cut of roughly 38% in
+both, and moves the image at the capture poses by 0.0032 and 0.0078 LPIPS against the unpruned export. Threshold 0.1
+leaves 446k and 324k, cuts of 55% and 68%, and moves it by 0.020 and 0.054.
+
+**Segmenting transients out of the loss removes them and puts streaks in their place.** Per-frame person masks (SAM 3
+or RF-DETR) do remove the people from the render. Scored on the pixels excluded from both render and ground truth the
+two runs tie, so the masking itself is not the cost. A walkthrough never sees the background behind a person from
+another angle, so the freed Gaussians are unconstrained and the regions fill with smears. Better masks do not fix it:
+higher recall makes the smears worse because more area lost supervision.
+
+**Size: pick the container before touching the splats.** One cleaned 250k export (`gaudi_ceiling`, 224,367 Gaussians)
+writes 55.6 MB as PLY, 5.9 MB as SPZ and 2.6 MB as SOG, all carrying three SH bands. That is a factor of twenty.
+Pruning 38% of the Gaussians is a factor of 1.6 on whichever container you chose, and `max-gs-num` spans 23.8 MB to
+232.9 MB from 100k to 1M. Order the levers accordingly: container, then `max-gs-num`, then pruning last.
+
+**How to measure a change.** Two rules earned the hard way, both from `docs/evaluation.md`:
+
+- Compare matched runs as paired per-frame data. `ns-eval` reports the mean and the marginal standard deviation, and
+  that spread is dominated by how hard each frame is, which cancels in the differences.
+- For any transform applied after training, score against the pre-transform export at the same poses rather than
+  against the photographs, and render both sides to PNG. That comparison is exact and paired, and it separates the
+  full pruning ladder where the photo-referenced distribution metrics invert. JPEG at quality 95 inflated the smallest
+  rung seventeen times, and the contamination grows with the rung instead of sitting under everything as a constant.
+  Use `--orbit-image-format png` whenever orbit frames feed a comparison.
+
 ---
 
 ## 7. Practical mini-mesh guidance
@@ -594,7 +652,8 @@ resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=
     Use `splatfacto-mcmc` as the default; drop to `splatfacto` for faster iteration on weak hardware, and
     `splatfacto-big` if you have ~12 GB VRAM and want denser splats. See section 6.3 before picking `rasterize-mode`
     when the splats are going to a specific web viewer. The export path writes `splat.ply` only; mesh extraction is
-    a separate step.
+    a separate step. Section 6.7 collects what the tuning experiments actually measured, including the seeding win and
+    the real cost of opacity pruning.
 
   As always, mini-mesh's `config/*.sh` files map friendly config names (e.g. `neus-facto`, `neus2`,
   `neuralangelo`, `nerfacto-short`, `splatfacto`) onto these model identifiers. This document is meant as a
