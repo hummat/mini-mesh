@@ -567,7 +567,12 @@ resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=
 **Executed blog runs (2026-08).** The gaudi assets were trained on RMC-C01 as the `WEB250k` runs
 (`mini-mesh-runs/<scene>/train/WEB250k/splatfacto/run`, mirrors of the recipe above but with
 `max-gs-num 250000` and the default `densify-grad-thresh 0.0008`; the preset file now matches). Copies live on
-the external drive as `Reconstruction/<scene>/train/WEB250k/`. Downstream of the checkpoint: the automatic
+the external drive as `Reconstruction/<scene>/train/WEB250k/`. Within each run dir, the sibling files
+`splat.ply` and `uncropped/splat.ply` differ: the export stage passed `--obb-center/rotation/scale 0 0 0 /
+1 1 1` unconditionally, and nerfstudio crops whenever all three flags are present, so `splat.ply` is clipped
+to the unit cube of the auto-scaled frame (9-21% of the model, scene-dependent) while `uncropped/splat.ply`
+is the true ~250k model the MCMC cap produced. The cleanup pass consumes **`uncropped/splat.ply`**.
+Downstream of that checkpoint: the automatic
 pass is crop-only — `--crop-quantile 0.95 --opacity 0` via `scripts/clean_sog.sh` — because the SOR and
 scale-quantile stages delete load-bearing surface splats (their removals have no surviving coverage in their
 own footprint, which renders as holes), and the w-light opacity floor makes any opacity threshold a no-op on
