@@ -169,9 +169,8 @@ for input in "${inputs[@]}"; do
   fi
   printf '%-24s kept %6s%%  %s -> %s\n' "$scene" "${kept:-?}" "$(mb "$in_size")" "$out_size"
 
-  if [[ -n "$kept" ]]; then
-    awk -v p="$kept" 'BEGIN { exit !(p < 50) }' \
-      && echo "[warn]: $scene kept ${kept}%, tune it by hand" >&2 || true
+  if [[ -n "$kept" ]] && awk -v p="$kept" 'BEGIN { exit !(p < 50) }'; then
+    echo "[warn]: $scene kept ${kept}%, tune it by hand" >&2
   fi
 
   rm -f "$scratch/$scene.ply" "$scratch/$scene.clean.ply"
