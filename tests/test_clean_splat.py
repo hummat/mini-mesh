@@ -173,3 +173,45 @@ def test_unwritable_property_type_is_reported(tmp_path: Path) -> None:
 
     with pytest.raises(clean_splat.PlyError, match="stamp"):
         clean_splat.write_ply(tmp_path / "bad.ply", data, ["x", "stamp"])
+
+
+def test_crop_keeps_the_core_and_drops_the_shell() -> None:
+    # 30 core Gaussians at the origin, 10 shell Gaussians at radius 10. The counts
+    # must be unequal: with a half-and-half split the 0.6 quantile of the distance
+    # distribution falls inside the shell and the crop would keep it.
+    data = _splat(np.full(40, 4.0, dtype=np.float32))
+    data["x"][:30] = 0.05
+    data["x"][30:] = 10.0
+    keep, origin, cut = clean_splat.crop_keep(data, FIELDS, 0.6, None, None)
+    assert keep.tolist() == [True] * 30 + [False] * 10
+    assert np.allclose(origin, [0.05, 0.0, 0.0], atol=1e-4)
+    assert cut == pytest.approx(0.0, abs=1e-4)
+
+
+def test_crop_centre_is_median_not_mean() -> None:
+    # A one-sided shell drags a mean to x = 20 but cannot move the median.
+    data = _splat(np.full(60, 4.0, dtype=np.float32))
+    data["x"][40:] = 50.0
+    keep, origin, _ = clean_splat.crop_keep(data, FIELDS, 0.5, None, None)
+    assert np.all(np.abs(origin) < 0.5)
+    assert keep[:40].all() and not keep[40:].any()
+
+
+def test_crop_radius_overrides_the_quantile() -> None:
+    data = _splat(np.full(60, 4.0, dtype=np.float32))
+    data["x"][40:] = 50.0
+    keep, _, cut = clean_splat.crop_keep(data, FIELDS, 1.0, 1.0, None)
+    assert keep.tolist() == [True] * 40 + [False] * 20
+    assert cut == 1.0
+
+
+def test_crop_quantile_ignores_faint_fog() -> None:
+    # sigmoid(-8) is about 0.0003, far below the 0.1 visibility gate, so the
+    # radius quantile must be computed over the visible population alone. If the
+    # fog were counted, the 0.9 quantile would land inside it and keep it.
+    logits = np.full(50, 4.0, dtype=np.float32)
+    logits[30:] = -8.0
+    data = _splat(logits)
+    data["x"][30:] = 50.0
+    keep, _, _ = clean_splat.crop_keep(data, FIELDS, 0.9, None, None)
+    assert keep[:30].all() and not keep[30:].any()

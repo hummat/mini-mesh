@@ -89,7 +89,23 @@ clean_splat_output() {
   if [ "$clean_splat" != true ] || [ ! -f "$output_path" ]; then
     return 0
   fi
-  run_cmd "$(nerfstudio_python)" "$script_dir/clean_splat.py" "$output_path" "${clean_splat_args[@]}"
+  # Never touch the raw checkpoint: removed Gaussians cannot be recovered, so
+  # the cleaned result goes to a sibling file and splat.ply stays pristine.
+  run_cmd "$(nerfstudio_python)" "$script_dir/clean_splat.py" "$output_path" \
+    -o "${output_path%.ply}.clean.ply" "${clean_splat_args[@]}"
+}
+
+sog_output() {
+  local ply_path="$1"
+  local clean_path="${ply_path%.ply}.clean.ply"
+  local source_path="$ply_path"
+  if [ "$clean_splat" = true ] && [ -f "$clean_path" ]; then
+    source_path="$clean_path"
+  fi
+  if [ "$sog_requested" != true ] || [ ! -f "$source_path" ]; then
+    return 0
+  fi
+  run_cmd npx -y @playcanvas/splat-transform -w "$source_path" "${ply_path%.ply}.sog"
 }
 
 nerf_export_output_path() {
@@ -291,11 +307,15 @@ function show_help {
   echo "                              --downscale-factor <int>                  Image downscale factor for TSDF extraction (default: 2)"
   echo "                              --no-clean                                Skip splat cleanup after export"
   echo "                              --clean-opacity <float>                   Drop Gaussians below this opacity (default: 0.05)"
+  echo "                              --clean-crop-quantile <float>             Keep Gaussians within this distance quantile of the subject (default: off)"
+  echo "                              --clean-crop-radius <float>               Explicit crop radius, overrides the quantile"
+  echo "                              --clean-crop-centre <x,y,z>               Explicit crop centre (default: median of visible Gaussians)"
   echo "                              --clean-max-scale-quantile <float>        Drop Gaussians above this size quantile (default: off)"
   echo "                              --clean-max-anisotropy <float>            Drop Gaussians above this axis ratio (default: off)"
   echo "                              --clean-sor                               Statistical outlier removal on centres (needs scipy)"
   echo "                              --clean-sor-neighbours <int>              Neighbours per outlier test (default: 16)"
   echo "                              --clean-sor-std-ratio <float>             Outlier cut in std devs (default: 2.0)"
+  echo "                              --sog                                     Also write a compressed .sog web asset next to the splat PLY"
   echo "                              --mesh-only                               Extract mesh but skip texturing (SDF only)"
   echo "                              --texture-only                            Texture existing mesh, skip extraction (SDF only)"
   echo "                              --input-mesh-filename <path>              Custom mesh file for texturing (requires --texture-only)"
@@ -330,6 +350,7 @@ clean_splat=true
 nerf_methods=()
 method_requested=false
 orbit_frames_requested=false
+sog_requested=false
 # Delivery frames are what orbit-frames is for, so JPEG stays the default. Frames
 # meant to be scored against other renders need png; see docs/evaluation.md.
 orbit_image_format=jpeg
@@ -463,13 +484,17 @@ while [ $i -lt ${#export_args[@]} ]; do
       clean_splat=false
       i=$((i+1))
       ;;
-    --clean-opacity|--clean-max-scale-quantile|--clean-max-anisotropy|--clean-sor-neighbours|--clean-sor-std-ratio)
+    --clean-opacity|--clean-max-scale-quantile|--clean-max-anisotropy|--clean-crop-quantile|--clean-crop-radius|--clean-crop-centre|--clean-sor-neighbours|--clean-sor-std-ratio)
       require_args "${export_args[$i]}" 1 "$remaining"
       clean_splat_args+=("${export_args[$i]/--clean-/--}" "${export_args[$((i+1))]}")
       i=$((i+2))
       ;;
     --clean-sor)
       clean_splat_args+=("--sor")
+      i=$((i+1))
+      ;;
+    --sog)
+      sog_requested=true
       i=$((i+1))
       ;;
     --mesh-only)
@@ -556,6 +581,7 @@ if [ -f "$exp_path/config.yml" ]; then
             "${nerf_args[@]}"
         fi
         clean_splat_output "$nerf_output_path"
+        sog_output "$nerf_output_path"
       fi
       if [ "$orbit_frames_requested" = true ]; then
         run_nerfstudio_orbit_frames_export "$exp_path"

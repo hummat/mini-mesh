@@ -25,6 +25,14 @@ docs/evaluation.md and hummat/mini-mesh#34.
 The scale, anisotropy and outlier stages are implemented but off until they have
 been measured the same way; see hummat/mini-mesh#30.
 
+The crop stage is likewise off by default, and for the same reason: it has not
+been measured. It exists for object-centric captures, where a shell of
+background and reconstruction noise is as opaque and as compact as the subject,
+so no per-Gaussian statistic separates the two and a spatial crop is the only
+stage that removes the shell. The stage masks are each computed on the
+unfiltered population and combined with AND, so the quantile stages always
+describe the whole capture; only the crop's cut has a spatial meaning.
+
 The output is always binary_little_endian, whatever the input was.
 """
 
@@ -192,6 +200,49 @@ def scale_keep(data: np.ndarray, names: list[str], quantile: float) -> np.ndarra
     return longest <= np.quantile(longest, quantile)
 
 
+CENTRE_FIELDS = ("x", "y", "z")
+
+
+def centres(data: np.ndarray) -> np.ndarray:
+    """Per-Gaussian centres as an (N, 3) float64 array."""
+    return np.stack([data[name].astype(np.float64) for name in CENTRE_FIELDS], axis=1)
+
+
+def crop_keep(
+    data: np.ndarray,
+    names: list[str],
+    quantile: float | None,
+    radius: float | None,
+    centre: tuple[float, ...] | None,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """Keep Gaussians within a sphere around the subject.
+
+    Object-centric captures carry a shell of background and reconstruction noise that no per-Gaussian
+    statistic separates from the subject: the noise is often as opaque and as compact as the object. Cropping
+    is the only stage that removes it. Stage masks compose by AND on the unfiltered population, so the
+    later quantile stages still describe the whole capture rather than the post-crop subject.
+
+    The centre defaults to the per-axis median of the visible Gaussians, which an off-centre shell cannot drag
+    the way a mean can. The radius defaults to a quantile of the visible population's distance from it.
+    """
+    require(names, CENTRE_FIELDS, "crop")
+    points = centres(data)
+    if "opacity" in names:
+        visible = 1.0 / (1.0 + np.exp(-data["opacity"].astype(np.float64))) >= 0.1
+    else:
+        visible = np.ones(len(data), dtype=bool)
+    if visible.sum() < max(1, int(0.01 * len(data))):
+        visible = np.ones(len(data), dtype=bool)
+    origin = (
+        np.asarray(centre, dtype=np.float64)
+        if centre is not None
+        else np.median(points[visible], axis=0)
+    )
+    distances = np.linalg.norm(points - origin, axis=1)
+    cut = float(radius) if radius is not None else float(np.quantile(distances[visible], quantile))
+    return distances <= cut, origin, cut
+
+
 def anisotropy_keep(data: np.ndarray, names: list[str], ratio: float) -> np.ndarray:
     """Drop needles: Gaussians whose longest axis exceeds the shortest by `ratio`."""
     require(names, SCALE_FIELDS, "anisotropy filter")
@@ -231,6 +282,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "-o", "--output", type=Path, default=None, help="output PLY (default: overwrite input)"
     )
     parser.add_argument(
+        "--crop-quantile",
+        type=float,
+        default=None,
+        help="keep Gaussians within this distance quantile of the subject centre, e.g. 0.85 (default: off)",
+    )
+    parser.add_argument(
+        "--crop-radius",
+        type=float,
+        default=None,
+        help="explicit crop radius in world units; overrides --crop-quantile",
+    )
+    parser.add_argument(
+        "--crop-centre",
+        type=lambda text: tuple(float(part) for part in text.split(",")),
+        default=None,
+        metavar="X,Y,Z",
+        help="explicit crop centre; default is the median of the visible Gaussians",
+    )
+    parser.add_argument(
         "--opacity",
         type=float,
         default=0.05,
@@ -268,6 +338,15 @@ def main(argv: list[str] | None = None) -> int:
     if not 0.0 <= args.opacity < 1.0:
         print("[ERROR]: --opacity must be in [0, 1)", file=sys.stderr)
         return 2
+    if args.crop_quantile is not None and not 0.0 < args.crop_quantile <= 1.0:
+        print("[ERROR]: --crop-quantile must be in (0, 1]", file=sys.stderr)
+        return 2
+    if args.crop_radius is not None and args.crop_radius <= 0.0:
+        print("[ERROR]: --crop-radius must be positive", file=sys.stderr)
+        return 2
+    if args.crop_centre is not None and len(args.crop_centre) != 3:
+        print("[ERROR]: --crop-centre needs three comma-separated numbers", file=sys.stderr)
+        return 2
 
     try:
         data, names = read_ply(args.input)
@@ -277,6 +356,16 @@ def main(argv: list[str] | None = None) -> int:
 
     stages: list[tuple[str, np.ndarray]] = []
     try:
+        if args.crop_quantile is not None or args.crop_radius is not None:
+            keep_crop, origin, cut = crop_keep(
+                data, names, args.crop_quantile, args.crop_radius, args.crop_centre
+            )
+            stages.append(
+                (
+                    f"crop r>{cut:.3f} @ ({origin[0]:.2f}, {origin[1]:.2f}, {origin[2]:.2f})",
+                    keep_crop,
+                )
+            )
         if args.opacity > 0.0:
             stages.append((f"opacity < {args.opacity}", opacity_keep(data, names, args.opacity)))
         if args.max_scale_quantile is not None:

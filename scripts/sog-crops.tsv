@@ -1,0 +1,3 @@
+# Per-scene overrides for clean_sog.sh: scene<TAB>extra clean_splat.py arguments.
+# Appended last, so they override the default cascade (--crop-quantile 0.95 --opacity 0).
+gaudi_fountain	--crop-quantile 0.98

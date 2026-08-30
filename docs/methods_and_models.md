@@ -564,6 +564,17 @@ For “download and view in any viewer” deliverables, train with `--pipeline.m
 `splatfacto-mcmc-web` on the CLI, or use a separate config) and accept slightly softer rendering at non-training
 resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=0.3`.
 
+**Executed blog runs (2026-08).** The gaudi assets were trained on RMC-C01 as the `WEB250k` runs
+(`mini-mesh-runs/<scene>/train/WEB250k/splatfacto/run`, mirrors of the recipe above but with
+`max-gs-num 250000` and the default `densify-grad-thresh 0.0008`; the preset file now matches). Copies live on
+the external drive as `Reconstruction/<scene>/train/WEB250k/`. Downstream of the checkpoint: the automatic
+pass is crop-only — `--crop-quantile 0.95 --opacity 0` via `scripts/clean_sog.sh` — because the SOR and
+scale-quantile stages delete load-bearing surface splats (their removals have no surviving coverage in their
+own footprint, which renders as holes), and the w-light opacity floor makes any opacity threshold a no-op on
+these captures. A manual SuperSplat pass on the cleaned PLY follows, and the SOG encoding happens exactly once
+after it; every extra sog->ply->sog round trip re-quantizes (SOG stores positions at 16 bits and scales,
+rotations, opacity and SH through codebooks and a k-means palette, so it is lossy by design).
+
 ### 6.7 What the tuning experiments measured
 
 These are results from matched runs on `gaudi_fountain`, `r2d2_new` and `guard_flag`, not defaults inherited from
