@@ -564,21 +564,21 @@ For “download and view in any viewer” deliverables, train with `--pipeline.m
 `splatfacto-mcmc-web` on the CLI, or use a separate config) and accept slightly softer rendering at non-training
 resolutions. In Spark, classic-trained PLY needs `blurAmount=0.0, preBlurAmount=0.3`.
 
-**Executed blog runs (2026-08).** The gaudi assets were trained on RMC-C01 as the `WEB250k` runs
-(`mini-mesh-runs/<scene>/train/WEB250k/splatfacto/run`, mirrors of the recipe above but with
-`max-gs-num 250000` and the default `densify-grad-thresh 0.0008`; the preset file now matches). Copies live on
-the external drive as `Reconstruction/<scene>/train/WEB250k/`. Within each run dir, the sibling files
-`splat.ply` and `uncropped/splat.ply` differ: the export stage passed `--obb-center/rotation/scale 0 0 0 /
-1 1 1` unconditionally, and nerfstudio crops whenever all three flags are present, so `splat.ply` is clipped
-to the unit cube of the auto-scaled frame (9-21% of the model, scene-dependent) while `uncropped/splat.ply`
-is the true ~250k model the MCMC cap produced. The cleanup pass consumes **`uncropped/splat.ply`**.
-Downstream of that checkpoint: the automatic
-pass is crop-only — `--crop-quantile 0.95 --opacity 0` via `scripts/clean_sog.sh` — because the SOR and
-scale-quantile stages delete load-bearing surface splats (their removals have no surviving coverage in their
-own footprint, which renders as holes), and the w-light opacity floor makes any opacity threshold a no-op on
-these captures. A manual SuperSplat pass on the cleaned PLY follows, and the SOG encoding happens exactly once
-after it; every extra sog->ply->sog round trip re-quantizes (SOG stores positions at 16 bits and scales,
-rotations, opacity and SH through codebooks and a k-means palette, so it is lossy by design).
+**Conservative cleanup before manual editing.** Preserve the raw PLY and make every spatial crop explicit.
+`export.sh` writes cleanup results to `splat.clean.ply` rather than overwriting `splat.ply`; when an export
+also carries an `uncropped/splat.ply`, use the uncropped file as the input to any later crop. Feeding an
+OBB-cropped export into a second automatic crop removes geometry twice, which is rarely what you want.
+
+For object-centric captures followed by a manual editing pass, the safe automatic default is crop-only:
+`--crop-quantile 0.95 --opacity 0` through `scripts/clean_sog.sh`. The explicit zero matters because
+`clean_splat.py` otherwise enables its 0.05 opacity stage. In the evaluated captures, SOR selected locally
+isolated splats that often had no surviving coverage in their own footprint, while the scale quantile removed
+large surface splats that bridged gaps. Both showed up as holes. A manual editor can remove the remaining noise;
+it cannot recover an automatically deleted splat.
+
+Keep the manual pass in PLY. Use `--skip-sog --ply-out-dir <dir>` while it is in progress, then encode SOG
+once from the final PLY. Every extra sog->ply->sog round trip re-quantizes: SOG stores positions at 16 bits and
+uses codebooks plus a k-means palette for other attributes and higher-order SH, so the format is lossy by design.
 
 ### 6.7 What the tuning experiments measured
 
